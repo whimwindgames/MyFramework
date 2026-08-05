@@ -1,6 +1,6 @@
 # Changelog
 
-本文件记录 `com.zhourui.myframework` Unity Package 的可见变化。仓库中的示例游戏或项目专用调整不应记录在这里。
+本文件记录 `com.whimwindgames.myframework` Unity Package 的可见变化。仓库中的示例游戏或项目专用调整不应记录在这里。
 
 ## [Unreleased]
 
@@ -8,6 +8,7 @@
 
 ### Added
 
+- 首次公开包使用 `com.whimwindgames.myframework` 标识，并同步包目录、初始化器、OpenUPM 元数据和固定版本安装地址。
 - 增加 OpenUPM 安装配置、公开 GitHub 发布元数据、包归档自动校验和版本标签约束。
 - 声明 OpenUPM 已收录的 UniTask、HybridCLR、Obfuz 依赖，并声明 Unity 6 URP 依赖，使 Registry 安装能够自动解析完整工具链。
 - 增加第三方组件归属说明，补齐 NativeWebSocket、YooAsset 派生实现和 Bouncy Castle 二进制许可证入口。
@@ -57,7 +58,7 @@
 ### Compatibility
 
 - 未修改既有运行时或编辑器公共 API 的名称与签名。
-- 未修改程序集名称、包名和初始化菜单路径。
+- 未修改程序集名称和初始化菜单路径；首次 OpenUPM 发布前仅将包标识调整为 `com.whimwindgames.myframework`。
 - 旧 `AssetVersionSystem` 和 `launchHotFix(Action)` 保持可用；新热更新能力通过增量 API 并行迁入。
 
 ## [1.0.41] - 2026-08-02

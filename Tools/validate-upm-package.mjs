@@ -4,7 +4,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const packageRoot = path.join(root, "Packages", "com.zhourui.myframework");
+const packageRoot = path.join(root, "Packages", "com.whimwindgames.myframework");
 const manifestPath = path.join(packageRoot, "package.json");
 const errors = [];
 
@@ -39,7 +39,7 @@ try {
   manifest = {};
 }
 
-if (manifest.name !== "com.zhourui.myframework") fail("package name must be com.zhourui.myframework");
+if (manifest.name !== "com.whimwindgames.myframework") fail("package name must be com.whimwindgames.myframework");
 if (!/^\d+\.\d+\.\d+(?:-(?:alpha|beta|preview|rc)\.\d+)?$/.test(manifest.version ?? "")) {
   fail(`package version is not supported semver: ${manifest.version ?? "<missing>"}`);
 }
@@ -48,7 +48,7 @@ if (manifest.license !== "MIT") fail("package license must be MIT");
 if (manifest.repository?.url !== "https://github.com/whimwindgames/MyFramework.git") {
   fail("OpenUPM repository must point at the public GitHub repository");
 }
-if (manifest.repository?.directory !== "Packages/com.zhourui.myframework") {
+if (manifest.repository?.directory !== "Packages/com.whimwindgames.myframework") {
   fail("repository.directory does not match the UPM package path");
 }
 
@@ -69,10 +69,10 @@ for (const file of ["README.md", "CHANGELOG.md", "LICENSE.md", "Third Party Noti
 }
 
 const assemblyFiles = [
-  "Packages/com.zhourui.myframework/Runtime/Frame_Base/Frame_Base.asmdef",
-  "Packages/com.zhourui.myframework/Runtime/Frame_Game/Frame_Game.asmdef",
-  "Packages/com.zhourui.myframework/Runtime/Frame_HotFix/Frame_HotFix.asmdef",
-  "Packages/com.zhourui.myframework/Editor/Editor_Frame/Editor_Frame.asmdef",
+  "Packages/com.whimwindgames.myframework/Runtime/Frame_Base/Frame_Base.asmdef",
+  "Packages/com.whimwindgames.myframework/Runtime/Frame_Game/Frame_Game.asmdef",
+  "Packages/com.whimwindgames.myframework/Runtime/Frame_HotFix/Frame_HotFix.asmdef",
+  "Packages/com.whimwindgames.myframework/Editor/Editor_Frame/Editor_Frame.asmdef",
 ];
 for (const file of assemblyFiles) {
   const definition = JSON.parse(read(file));
@@ -84,8 +84,8 @@ for (const file of assemblyFiles) {
 }
 
 const compatibilityGuids = new Map([
-  ["Packages/com.zhourui.myframework/Editor/HotUpd/AssetBundle/AbCfg.cs.meta", "9630bf75bb0d4d8ab68e161ae56ca3f0"],
-  ["Packages/com.zhourui.myframework/Runtime/Frame_Game/UpdSystem/Client/PlatRunSet.cs.meta", "4400e4d2a298458c9118a6ac13b291c7"],
+  ["Packages/com.whimwindgames.myframework/Editor/HotUpd/AssetBundle/AbCfg.cs.meta", "9630bf75bb0d4d8ab68e161ae56ca3f0"],
+  ["Packages/com.whimwindgames.myframework/Runtime/Frame_Game/UpdSystem/Client/PlatRunSet.cs.meta", "4400e4d2a298458c9118a6ac13b291c7"],
 ]);
 for (const [file, guid] of compatibilityGuids) {
   if (!read(file).includes(`guid: ${guid}`)) fail(`${file} lost compatibility GUID ${guid}`);
@@ -96,7 +96,7 @@ if (packageBytes >= 512 * 1024 * 1024) fail(`package is too large for OpenUPM: $
 
 const tag = process.env.GITHUB_REF_TYPE === "tag" ? process.env.GITHUB_REF_NAME : process.env.UPM_TAG;
 if (tag) {
-  const prefix = "com.zhourui.myframework/";
+  const prefix = "com.whimwindgames.myframework/";
   if (!tag.startsWith(prefix)) fail(`release tag must start with ${prefix}`);
   else if (tag.slice(prefix.length) !== manifest.version) {
     fail(`release tag ${tag} does not match package version ${manifest.version}`);

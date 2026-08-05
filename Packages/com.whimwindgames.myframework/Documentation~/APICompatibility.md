@@ -15,7 +15,7 @@ ArcadeHub 的项目专用业务代码不自动成为框架 API。只有经过通
 
 ## 受保护的契约
 
-- UPM 包名 `com.zhourui.myframework`。
+- UPM 包名 `com.whimwindgames.myframework`。
 - `Frame_Base`、`Frame_Game`、`Frame_HotFix`、`Editor_Frame` 和 `EditorRes` 程序集名称。
 - 公共及受保护类型的命名空间、名称、泛型参数和继承关系。
 - 公共及受保护方法、属性、字段、事件、委托和枚举成员。

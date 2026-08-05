@@ -1,13 +1,13 @@
 {
-	"name": "com.zhourui.myframework",
+	"name": "com.whimwindgames.myframework",
 	"displayName": "MyFramework",
 	"version": "1.1.0-preview.1",
 	"unity": "6000.0",
 	"description": "A reusable Unity game framework with UI, networking, resources, HybridCLR hot update and transactional release tooling.",
 	"license": "MIT",
-	"licensesUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.zhourui.myframework/LICENSE.md",
-	"documentationUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.zhourui.myframework/README.md",
-	"changelogUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.zhourui.myframework/CHANGELOG.md",
+	"licensesUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.whimwindgames.myframework/LICENSE.md",
+	"documentationUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.whimwindgames.myframework/README.md",
+	"changelogUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.whimwindgames.myframework/CHANGELOG.md",
 	"type": "library",
 	"keywords": [
 		"unity",
@@ -25,7 +25,7 @@
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/whimwindgames/MyFramework.git",
-		"directory": "Packages/com.zhourui.myframework"
+		"directory": "Packages/com.whimwindgames.myframework"
 	},
 	"bugs": {
 		"url": "https://github.com/whimwindgames/MyFramework/issues"

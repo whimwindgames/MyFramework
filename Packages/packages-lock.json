@@ -197,8 +197,8 @@
         "com.unity.modules.imgui": "1.0.0"
       }
     },
-    "com.zhourui.myframework": {
-      "version": "file:com.zhourui.myframework",
+    "com.whimwindgames.myframework": {
+      "version": "file:com.whimwindgames.myframework",
       "depth": 0,
       "source": "embedded",
       "dependencies": {

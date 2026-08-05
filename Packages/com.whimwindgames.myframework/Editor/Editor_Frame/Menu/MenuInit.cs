@@ -45,7 +45,7 @@ public enum HYBRIDCLR_OBFUZ_STATE : byte
 public class MenuInit
 {
     private const string MENU_NAME = MENU_ROOT_NAME + "初始化/";														// 初始化菜单根路径
-    private const string PACKAGE_NAME = "com.zhourui.myframework";														// 包名
+    private const string PACKAGE_NAME = "com.whimwindgames.myframework";														// 包名
     private const string PROJECT_TEMPLATE_PATH = "Packages/" + PACKAGE_NAME + "/ProjectTemplate~/";						// 包内项目模板目录
     private const string GAME_ENTRY_NODE_NAME = "GameEntry";															// 启动节点名称
     private const string GAME_ENTRY_TYPE_NAME = "GameEntry";															// 启动脚本类型名,如果有命名空间需要改成完整名

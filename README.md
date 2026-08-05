@@ -44,14 +44,14 @@ MyFramework 已支持通过 Unity Package Manager 以 Git 插件形式安装。
       "name": "package.openupm.com",
       "url": "https://package.openupm.com",
       "scopes": [
-        "com.zhourui",
+        "com.whimwindgames",
         "com.code-philosophy",
         "com.cysharp"
       ]
     }
   ],
   "dependencies": {
-    "com.zhourui.myframework": "1.1.0-preview.1"
+    "com.whimwindgames.myframework": "1.1.0-preview.1"
   }
 }
 ```
@@ -59,7 +59,7 @@ MyFramework 已支持通过 Unity Package Manager 以 Git 插件形式安装。
 也可以使用 OpenUPM CLI：
 
 ```text
-openupm add com.zhourui.myframework
+openupm add com.whimwindgames.myframework
 ```
 
 ### 2. 通过 Git URL 安装
@@ -67,7 +67,7 @@ openupm add com.zhourui.myframework
 生产项目应固定版本标签：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.1
 ```
 
 安装方式：
@@ -608,7 +608,7 @@ MyFramework 现在以 UPM Package 形式组织，框架代码位于：
 
 ```text
 Packages
-└── com.zhourui.myframework
+└── com.whimwindgames.myframework
     ├── Runtime
     │   ├── Frame_Base
     │   ├── Frame_Game
@@ -680,13 +680,13 @@ Unity 6000.3.11f1
 推荐通过 OpenUPM 安装：
 
 ```text
-openupm add com.zhourui.myframework
+openupm add com.whimwindgames.myframework
 ```
 
 或者使用固定版本的 Git URL：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.1
 ```
 
 ### 初始化
@@ -806,14 +806,6 @@ Demo 已经在 `Packages/manifest.json` 中配置 MyFramework、HybridCLR 和 Ob
 
 ---
 
-## 📖 文档
-
-详细说明请查看文档目录：
-
-https://github.com/whimwindgames/MyFramework/tree/master/文档
-
----
-
 ## 🖥 配套服务器框架
 
 服务器项目：
@@ -846,12 +838,6 @@ https://github.com/ZHOURUIH/MyFramework_Tool
 你的支持会让我持续完善框架。
 
 ---
-
-<div align="center">
-  <img src="文档/微信群二维码.jpeg" alt="微信群二维码" width="260" />
-  <br />
-  <sub>扫码加入微信群，欢迎交流框架使用、工具链、热更新、游戏开发等内容</sub>
-</div>
 
 ## License
 

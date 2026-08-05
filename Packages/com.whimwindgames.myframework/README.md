@@ -1,6 +1,6 @@
 # MyFramework Unity Package
 
-`com.zhourui.myframework` 是 MyFramework 的可分发 Unity Package。框架提供启动与热更新分层、资源管理、UI、场景流程、网络、配置工具链和工程检查能力。
+`com.whimwindgames.myframework` 是 MyFramework 的可分发 Unity Package。框架提供启动与热更新分层、资源管理、UI、场景流程、网络、配置工具链和工程检查能力。
 
 仓库根目录包含完整示例工程；业务项目应通过 Unity Package Manager 引用本目录，不应复制整套示例工程。
 
@@ -15,14 +15,14 @@ MyFramework 的正式分发渠道是 OpenUPM。项目的 `Packages/manifest.json
       "name": "package.openupm.com",
       "url": "https://package.openupm.com",
       "scopes": [
-        "com.zhourui",
+        "com.whimwindgames",
         "com.code-philosophy",
         "com.cysharp"
       ]
     }
   ],
   "dependencies": {
-    "com.zhourui.myframework": "1.1.0-preview.1"
+    "com.whimwindgames.myframework": "1.1.0-preview.1"
   }
 }
 ```
@@ -30,7 +30,7 @@ MyFramework 的正式分发渠道是 OpenUPM。项目的 `Packages/manifest.json
 也可以使用 OpenUPM CLI：
 
 ```text
-openupm add com.zhourui.myframework
+openupm add com.whimwindgames.myframework
 ```
 
 MyFramework 会通过 OpenUPM 自动解析 UniTask、HybridCLR 和 Obfuz；UGUI、TextMeshPro、Newtonsoft.Json 和 URP 从 Unity Registry 解析。
@@ -40,7 +40,7 @@ MyFramework 会通过 OpenUPM 自动解析 UniTask、HybridCLR 和 Obfuz；UGUI�
 在 Unity Package Manager 中选择 **Install package from git URL**，输入：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.1
 ```
 
 Git URL 安装同样要求项目已经配置上述 OpenUPM scopes，以便解析框架依赖。开发阶段可以固定提交；生产项目必须固定到已经验证的标签或提交，不能直接跟随远程分支。

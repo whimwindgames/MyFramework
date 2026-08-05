@@ -13,7 +13,7 @@ https://github.com/whimwindgames/MyFramework
 包目录：
 
 ```text
-Packages/com.zhourui.myframework
+Packages/com.whimwindgames.myframework
 ```
 
 ## 版本与标签
@@ -21,13 +21,13 @@ Packages/com.zhourui.myframework
 `package.json` 的 `version` 必须和 Git 标签中的版本完全一致。MyFramework 使用包名前缀隔离标签：
 
 ```text
-com.zhourui.myframework/1.1.0-preview.1
+com.whimwindgames.myframework/1.1.0-preview.1
 ```
 
 OpenUPM 元数据应设置：
 
 ```yaml
-name: com.zhourui.myframework
+name: com.whimwindgames.myframework
 displayName: MyFramework
 description: A reusable Unity game framework with UI, networking, resources, HybridCLR hot update and transactional release tooling.
 repoUrl: 'https://github.com/whimwindgames/MyFramework'
@@ -36,15 +36,16 @@ licenseSpdxId: MIT
 licenseName: MIT License
 topics:
   - frameworks
-  - utilities
-gitTagPrefix: 'com.zhourui.myframework/'
+  - gui
+  - network
+  - asset-management
+gitTagPrefix: 'com.whimwindgames.myframework/'
 gitTagIgnore: ''
 minVersion: '1.1.0-preview.1'
 trackingMode: git
 image: ''
-imageFit: contain
-readme: 'master:Packages/com.zhourui.myframework/README.md'
-hunter: ZHOURUIH
+readme: 'master:Packages/com.whimwindgames.myframework/README.md'
+hunter: whimwindgames
 ```
 
 实际提交时以 OpenUPM 添加页面当前提供的字段和 topics 列表为准。
@@ -56,7 +57,7 @@ hunter: ZHOURUIH
 3. 确认 `package.json.version` 已更新且 Changelog 已归档。
 4. 把发布提交推送到公开 GitHub 仓库。
 5. 创建并推送同版本标签。
-6. 在 OpenUPM 添加页面提交 `com.zhourui.myframework` 元数据。
+6. 在 OpenUPM 添加页面提交 `com.whimwindgames.myframework` 元数据。
 7. 等待 OpenUPM 构建完成，再用一个空白工程从 Registry 安装并验证初始化菜单。
 
 已经被 OpenUPM 发布的版本不可覆盖；发现问题必须递增版本号并创建新标签。
