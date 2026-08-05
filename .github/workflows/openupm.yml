@@ -1,0 +1,26 @@
+name: OpenUPM Publish
+
+on:
+  push:
+    tags:
+      - "com.whimwindgames.myframework/**"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing MyFramework package tag"
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: openupm/openupm-action@v1
+        with:
+          package: com.whimwindgames.myframework
+          tag: ${{ inputs.tag || github.ref_name }}
+          timeout-minutes: 30

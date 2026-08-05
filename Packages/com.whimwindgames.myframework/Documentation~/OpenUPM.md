@@ -60,4 +60,7 @@ hunter: whimwindgames
 6. 在 OpenUPM 添加页面提交 `com.whimwindgames.myframework` 元数据。
 7. 等待 OpenUPM 构建完成，再用一个空白工程从 Registry 安装并验证初始化菜单。
 
+仓库的 `OpenUPM Publish` 工作流会在包标签推送后使用官方 OIDC Action
+主动触发扫描；需要重试已有标签时，可以手动运行工作流并填写完整标签名。
+
 已经被 OpenUPM 发布的版本不可覆盖；发现问题必须递增版本号并创建新标签。
