@@ -15,7 +15,8 @@ public class AssetBundleInfo : ClassObject
 	protected Dictionary<string, AssetBundleInfo> mChildren = new();		// 依赖自己的AssetBundle列表,即引用了自己的AssetBundle
 	protected Dictionary<string, AssetBundleInfo> mParents = new();			// 依赖的AssetBundle列表,即自己引用的AssetBundle,包含所有的直接和间接的依赖项
 	protected Dictionary<UObject, AssetInfo> mObjectToAsset = new();		// 通过Object查找AssetInfo的列表
-	protected Dictionary<string, AssetInfo> mAssetList = new();				// 资源包中的所有资源,初始化时就会填充此列表
+	protected Dictionary<string, AssetInfo> mAssetList = new();				// 逻辑资源名到AssetInfo,初始化时就会填充此列表
+	protected Dictionary<string, AssetInfo> mAssetNameList = new();			// AB内部资源名到AssetInfo,用于逻辑名与内部名分离
 	protected List<AssetBundleCallback> mLoadCallbackList = new();			// 资源包加载完毕后的回调列表
 	protected List<AssetBundleBytesCallback> mDownloadCallbackList = new(); // 资源包下载完毕后的回调列表
 	protected HashSet<AssetInfo> mLoadAsyncList = new();					// AssetBundle还未加载完时请求的异步加载的资源列表
@@ -37,6 +38,7 @@ public class AssetBundleInfo : ClassObject
 		mParents.Clear();
 		mObjectToAsset.Clear();
 		mAssetList.Clear();
+		mAssetNameList.Clear();
 		mLoadCallbackList.Clear();
 		mDownloadCallbackList.Clear();
 		mLoadAsyncList.Clear();
@@ -114,16 +116,23 @@ public class AssetBundleInfo : ClassObject
 	public void setLoadState(LOAD_STATE state)					{ mLoadState = state; }
 	public void addAssetName(string fileNameWithSuffix)
 	{
-		if (mAssetList.ContainsKey(fileNameWithSuffix))
+		addAssetName(fileNameWithSuffix, fileNameWithSuffix);
+	}
+	public void addAssetName(string fileNameWithSuffix, string assetName)
+	{
+		if (mAssetList.ContainsKey(fileNameWithSuffix) || mAssetNameList.ContainsKey(assetName))
 		{
-			logError("there is asset in asset bundle, asset : " + fileNameWithSuffix + ", asset bundle : " + mBundleFileName);
+			logError("there is asset in asset bundle, asset : " + fileNameWithSuffix +
+				", internal asset : " + assetName + ", asset bundle : " + mBundleFileName);
 			return;
 		}
 		AssetInfo info = mAssetList.add(fileNameWithSuffix, new());
+		mAssetNameList.Add(assetName, info);
 		info.setAssetBundleInfo(this);
-		info.setAssetName(fileNameWithSuffix);
+		info.setAssetName(assetName);
 	}
 	public AssetInfo getAssetInfo(string fileNameWithSuffix) { return mAssetList.get(fileNameWithSuffix); }
+	public AssetInfo getAssetInfoByName(string assetName) { return mAssetNameList.get(assetName); }
 	// 添加依赖项
 	public void addParent(string dep)
 	{
@@ -323,7 +332,7 @@ public class AssetBundleInfo : ClassObject
 	// 资源异步加载完成
 	public void notifyAssetLoaded(string fileNameWithSuffix, UObject[] assets)
 	{
-		AssetInfo assetInfo = mAssetList.get(fileNameWithSuffix);
+		AssetInfo assetInfo = mAssetNameList.get(fileNameWithSuffix);
 		// 确认是否正常加载完成,如果当前资源包已经卸载,则无法完成加载资源
 		if (mLoadState != LOAD_STATE.NONE)
 		{
@@ -347,7 +356,7 @@ public class AssetBundleInfo : ClassObject
 			// 异步加载请求的资源
 			foreach (AssetInfo item in mLoadAsyncList)
 			{
-				mAssetList.get(item.getAssetName()).loadAssetAsync();
+				item.loadAssetAsync();
 			}
 		}
 		// 加载状态为已卸载,表示在异步加载过程中,资源包被卸载掉了

@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.4] - 2026-08-05
+
+### Fixed
+
+- `AssetBundleLoader` 现在同时读取历史索引与 Schema 11 `AbIndex`，并正确区分逻辑资源地址和 AssetBundle 内部地址；修复新生产器产物被旧加载器解析成乱码与重复键的问题。
+- Schema 11 索引拒绝仅大小写不同的逻辑地址或内部地址，和运行时不区分大小写的资源查找契约保持一致。
+
 ## [1.1.0-preview.3] - 2026-08-05
 
 ### Fixed

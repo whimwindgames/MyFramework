@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.XR;
 using static FileUtility;
@@ -453,7 +454,7 @@ public class AssetBundleLoader
 		}
 
 		// 异步从资源包中加载资源
-		bundle.getAssetInfo(fileNameWithSuffix).setLoadState(LOAD_STATE.LOADING);
+		bundle.getAssetInfoByName(fileNameWithSuffix).setLoadState(LOAD_STATE.LOADING);
 		AssetBundleRequest assetRequest = bundle.getAssetBundle().LoadAssetWithSubAssetsAsync(P_GAME_RESOURCES_PATH + fileNameWithSuffix);
 		if (assetRequest == null)
 		{
@@ -517,6 +518,12 @@ public class AssetBundleLoader
 		mInited = false;
 		mAssetBundleInfoList.Clear();
 		mAssetToBundleInfo.Clear();
+		if (AbIndex.isCurrent(fileBuffer))
+		{
+			initAssetConfig(AbIndex.decode(fileBuffer));
+			finishAssetConfig();
+			return;
+		}
 		Span<byte> tempStringBuffer = stackalloc byte[256];
 		using var a = new ClassScope<SerializerRead>(out var serializer);
 		serializer.init(fileBuffer);
@@ -547,6 +554,32 @@ public class AssetBundleLoader
 				bundleInfo.addParent(removeSuffix(tempStringBuffer.bytesToString()));
 			}
 		}
+		finishAssetConfig();
+	}
+	protected void initAssetConfig(IReadOnlyList<AbItem> items)
+	{
+		foreach (AbItem item in items)
+		{
+			string bundleName = removeSuffix(item.bundle).ToLowerInvariant();
+			if (!mAssetBundleInfoList.TryGetValue(bundleName, out AssetBundleInfo bundleInfo))
+			{
+				bundleInfo = mAssetBundleInfoList.add(bundleName, new(bundleName));
+			}
+			string key = item.key.ToLowerInvariant();
+			string name = item.name.ToLowerInvariant();
+			bundleInfo.addAssetName(key, name);
+			if (!mAssetToBundleInfo.TryAdd(key, bundleInfo.getAssetInfo(key)))
+			{
+				throw new InvalidDataException("AB索引资源地址重复:" + item.key);
+			}
+			foreach (string dep in item.bdeps)
+			{
+				bundleInfo.addParent(removeSuffix(dep).ToLowerInvariant());
+			}
+		}
+	}
+	protected void finishAssetConfig()
+	{
 		// 配置清单解析完毕后,为每个AssetBundleInfo查找对应的依赖项
 		mAssetBundleInfoList.forValue(item => item.findAllDependence());
 		mInited = true;

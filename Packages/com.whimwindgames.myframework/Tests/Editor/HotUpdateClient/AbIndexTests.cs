@@ -43,6 +43,43 @@ public sealed class AbIndexTests
 		Assert.Throws<InvalidDataException>(() => AbIndex.decode(bad));
 	}
 
+	[Test]
+	public void RuntimeLoaderReadsSchemaIndexAndNormalizesLogicalAddress()
+	{
+		AbItem value = item("UI/Main.prefab", "ui/main.unity3d");
+		value.name = "ui/main.prefab";
+		byte[] raw = AbIndex.encode(new[] { value });
+		TestLoader loader = new();
+
+		loader.Load(raw);
+
+		Assert.That(AbIndex.isCurrent(raw), Is.True);
+		Assert.That(loader.isInited(), Is.True);
+		AssetBundleInfo bundle = loader.getAssetBundleInfo("ui/main");
+		Assert.That(bundle, Is.Not.Null);
+		Assert.That(bundle.getAssetInfo("ui/main.prefab"), Is.Not.Null);
+		Assert.That(bundle.getAssetInfo("ui/main.prefab").getAssetName(),
+			Is.EqualTo("ui/main.prefab"));
+	}
+
+	[Test]
+	public void IndexRejectsCaseInsensitiveLogicalAddressCollision()
+	{
+		Assert.Throws<InvalidDataException>(() => AbIndex.encode(new[]
+		{
+			item("UI/Main.prefab", "ui/first.unity3d"),
+			item("ui/main.prefab", "ui/second.unity3d"),
+		}));
+	}
+
+	sealed class TestLoader : AssetBundleLoader
+	{
+		public void Load(byte[] data)
+		{
+			initAssetConfig(data, "test");
+		}
+	}
+
 	static AbItem item(string key, string bundle)
 	{
 		return new AbItem

@@ -92,6 +92,14 @@ public static class AbIndex
 		return data;
 	}
 
+	public static bool isCurrent(byte[] data)
+	{
+		if (data == null || data.Length < sizeof(int)) return false;
+		SerializerRead ser = new();
+		ser.init(data);
+		return ser.read(out int magic) && magic == MAGIC;
+	}
+
 	public static List<AbItem> decode(byte[] data)
 	{
 		if (data == null) throw new ArgumentNullException(nameof(data));
@@ -135,7 +143,8 @@ public static class AbIndex
 	static void check(IReadOnlyList<AbItem> items)
 	{
 		if (items.Count > MAX_ITEMS) throw new InvalidDataException("AB索引项过多");
-		HashSet<string> keys = new(StringComparer.Ordinal);
+		HashSet<string> keys = new(StringComparer.OrdinalIgnoreCase);
+		HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
 		HashSet<string> bundles = new(StringComparer.Ordinal);
 		Dictionary<string, List<string>> pkgDeps = new(StringComparer.Ordinal);
 		string prev = null;
@@ -145,7 +154,8 @@ public static class AbIndex
 			if (item == null || !validKey(item.key) || !validKey(item.name) || !chkBundle(item.bundle) ||
 				!validAtl(item.atlas) || (!string.IsNullOrEmpty(item.scene) &&
 				(!validKey(item.scene) || !item.scene.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))) ||
-				!keys.Add(item.key) || (prev != null && string.CompareOrdinal(prev, item.key) >= 0) ||
+				!keys.Add(item.key) || !names.Add(item.name) ||
+				(prev != null && string.CompareOrdinal(prev, item.key) >= 0) ||
 				(isScene != !string.IsNullOrEmpty(item.scene)))
 			{
 				throw new InvalidDataException("AB索引字段无效:" + (item?.key ?? "<null>"));
