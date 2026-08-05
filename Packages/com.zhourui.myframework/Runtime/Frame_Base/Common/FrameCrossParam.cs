@@ -1,8 +1,19 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 // 用于存储跨域数据,在非热更时存储,热更时读取
 public class FrameCrossParam
 {
+	// Schema 11稳定参数。保留旧字段是为了让旧AssetVersionSystem启动链继续可用。
+	public static string mLang;
+	public static string mVer;
+	public static string mRunEnv;
+	public static string mAndroidPluginPackage;
+	public static Func<string, string> mReadPath;
+	public static Func<string, CancellationToken, Task<string>> mReadPathA;
+
 	public static string mLocalizationName;						// 当前选择的语言类型
 	public static string mDownloadURL;							// 下载地址
 	public static string mStreamingAssetsVersion;				// StreamingAssets中的版本号

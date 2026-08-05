@@ -38,6 +38,30 @@ MyFramework/初始化/初始化框架+HybridCLR+Obfuz
 - `Editor_Frame`：初始化、生成、检查和构建工具。
 - `EditorRes_Frame`：编辑器资源与辅助数据。
 
+## Schema 11 热更新（迁移中）
+
+- `HotUpd_Core` 提供协议、签名、哈希、事务存储、Active/Previous/Candidate 回滚和 `UpdRes` 资源映射，不依赖 UniTask。
+- `HotUpd_Client` 提供 `UpdCore`、HTTPS Latest/Manifest、内置资源复用、并发下载和 HTTP Range 续传。
+- `HybridCLRSystem` 同时保留旧 `launchHotFix(Action)` 和 ArcadeHub 的 `launch(UpdRes, CancellationToken, Func<CancellationToken, UniTask>)` / `launchEdit(...)` 入口；两条链共用单次启动门，不会重复加载热更程序集。
+- Schema 11 启动前会校验并一次性读取全部 AOT、热更程序集和动态密钥；热更层的资源路径固定来自 `UpdRes` 本地 Release 映射，启动成功后才标记版本健康并销毁 AOT 框架。
+- `HotUpd_Editor` 提供与 ArcadeHub 同名的 `RelBuild`、`RelReq`、`RelSign`、`HotPlan` 生产核心：冻结 Base 身份，生成并回读 Manifest，使用项目外 P-256 私钥签名 Latest，通过候选目录和发布锁原子提升 Release，并支持全量校验和安全回指历史 Release。
+- `ProdFlow.check / preview / makeAll` 提供通用 Stage 编排事务；项目通过 `IProdStep` 接入 AB、HybridCLR 或其他生产步骤。步骤按稳定顺序执行，失败不会覆盖旧 Stage，也不会留下可见 Release。
+- `AbCfg / AbPlan / AbCheck / AbPipe / AbBuild` 提供显式 GUID + 稳定逻辑地址的 AssetBundle 生产链；`AbProdStep` 已接入 `ProdFlow`，支持图集边界、依赖闭包、构建回读、跨磁盘候选复制与 SHA-256 校验。
+- `AotBase / DllBuild / DllProd` 提供通用 HybridCLR 生产链：Base ID 原子冻结 stripped AOT、Hot 能力、启动地址、公钥和 Obfuz 能力；Release 重新编译并验证 Hot DLL，只能从冻结基线提取已声明的 AOT 元数据。`DllProdStep` 已接入 `ProdFlow`。
+- `DllBuild.analyzeAot / withAot` 从最终 Hot DLL 自动生成 `UpdCfg.aotDlls`；正式生产会复算 AOT 泛型引用并运行 `MissingMetadataChecker`，拒绝新增 Base 外元数据需求以及访问主包已裁剪类型或成员的补丁。
+- `PackFlow` 提供完整 Player/Base 外层事务：临时同步 HybridCLR Hot 分类和 `PlatRunSet`，可选内置完整 Stage，执行 GenerateAll 与 Player 构建，回读内置资源后才同时提升 Player、AOT 基线和首个签名 Release。配置了 HybridCLR 的非 Development 直接 Build 会被阻止。
+- `AbIndex` 提供确定性的 Schema 11 AssetBundle 索引编解码，会拒绝重复、乱序、缺失依赖、循环依赖和尾随数据。
+- 为保持 ArcadeHub 公开 API 的名称和签名，`Frame_Game` 在本迁移分支中需要 UniTask 2.5.0 或更高版本。使用客户端的项目程序集应显式引用 `Frame_Game`、`HotUpd_Core`、`HotUpd_Client` 和 `UniTask`，并通过 `PlatRunSet` 或自行构造 `UpdCfg` 提供平台配置。
+- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。项目生产窗口、Obfuz 项目适配器、真实 Android/iOS 安装包与网络端到端验收仍在迁移，不应将本分支标记为正式发行版。
+
+生产目录结构、Base 冻结规则和 API 示例见 [Schema 11 Release Production](Documentation~/HotUpdateRelease.md)，AB 配置与构建规则见 [AssetBundle Production](Documentation~/AssetBundleProduction.md)，HybridCLR 分层与基线规则见 [HybridCLR Production](Documentation~/HybridCLRProduction.md)。
+
+示例工程使用经过验证的 UniTask 固定提交：
+
+```text
+https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#7c0f199fe0d3fc528024488ccd671e6c7b27745b
+```
+
 ## 兼容性原则
 
 框架优化遵循“同功能、同语义、同 API”的规则。内部实现可以重构，但既有公共类型、命名空间、成员签名、程序集名称和 Unity 序列化数据不得因纯优化而失效。

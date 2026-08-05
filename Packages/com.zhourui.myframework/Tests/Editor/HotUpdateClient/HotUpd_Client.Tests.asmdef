@@ -1,0 +1,35 @@
+{
+    "name": "HotUpd_Client.Tests",
+    "rootNamespace": "",
+    "references": [
+        "HotUpd_Core",
+        "HotUpd_Client",
+        "Frame_Base",
+        "Frame_Game",
+        "Frame_HotFix",
+        "HotUpd_Editor",
+        "UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "HAS_UNITASK"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.unitask",
+            "expression": "2.5.0",
+            "define": "HAS_UNITASK"
+        }
+    ],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

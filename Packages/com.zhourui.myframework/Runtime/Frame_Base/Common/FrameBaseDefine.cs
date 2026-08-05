@@ -83,6 +83,8 @@ public class FrameBaseDefine
 	public const string HOTFIX_FRAME_FILE = HOTFIX_FRAME + ".dll";
 	public const string HOTFIX_BYTES_FILE = HOTFIX_FILE + DATA_SUFFIX;
 	public const string HOTFIX_FRAME_BYTES_FILE = HOTFIX_FRAME_FILE + DATA_SUFFIX;
+	public const string RUN_SET_RES = "PlatRunSet";
+	public const string AB_INDEX_FILE = "StreamingAssets.bytes";
 	public const string UGUI_ROOT = "UGUIRoot";
 	public const string VERSION = "Version";
 	public const string FILE_LIST = "FileList";

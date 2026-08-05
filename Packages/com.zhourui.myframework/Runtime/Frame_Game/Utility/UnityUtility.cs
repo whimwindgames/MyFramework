@@ -109,6 +109,19 @@ public class UnityUtility
 		}
 		return null;
 	}
+	public static MethodInfo getMethodRecursive(Type type, string methodName, BindingFlags flags, Type[] parameterTypes)
+	{
+		while (type != null)
+		{
+			MethodInfo method = type.GetMethod(methodName, flags | BindingFlags.DeclaredOnly, null, parameterTypes, null);
+			if (method != null)
+			{
+				return method;
+			}
+			type = type.BaseType;
+		}
+		return null;
+	}
 	public static Vector3 localToWorld(Transform transform, Vector3 local)
 	{
 		if (transform == null)

@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.IO;
 #if !UNITY_WEBGL
@@ -97,6 +98,10 @@ public class FrameUtility
 	// 获得一个合适的文件加载路径,fileName是StreamingAssets下的相对路径,带后缀
 	public static string availableReadPath(string fileName)
 	{
+		if (FrameCrossParam.mReadPath != null)
+		{
+			return getReadPath(fileName);
+		}
 		if (isEditor())
 		{
 			// 编辑器中从StreamingAssets读取
@@ -107,6 +112,23 @@ public class FrameUtility
 			// 非编辑器中时,根据文件对比结果来判断从哪儿加载
 			return mAssetVersionSystem.getFileReadPath(fileName);
 		}
+	}
+	// Schema 11资源只来自启动阶段确认的本地Release映射。
+	public static string getReadPath(string fileName)
+	{
+		if (FrameCrossParam.mReadPath == null)
+		{
+			throw new InvalidOperationException("read_path");
+		}
+		return FrameCrossParam.mReadPath(fileName);
+	}
+	public static Task<string> getReadPathA(string fileName, CancellationToken ct)
+	{
+		if (FrameCrossParam.mReadPathA == null)
+		{
+			throw new InvalidOperationException("read_path_async");
+		}
+		return FrameCrossParam.mReadPathA(fileName, ct);
 	}
 	public static void writeFileList(string path, string content)
 	{
@@ -1896,8 +1918,16 @@ public class FrameUtility
 #endif
     public static void recoverCrossParam()
 	{
+		string language = FrameCrossParam.mLang ?? FrameCrossParam.mLocalizationName;
+		mLocalizationManager.setCurrentLanguage(language);
+		if (FrameCrossParam.mReadPath != null)
+		{
+			mAssetVersionSystem.setStreamingAssetsVersion(FrameCrossParam.mVer);
+			mAssetVersionSystem.setPersistentAssetsVersion(FrameCrossParam.mVer);
+			mAssetVersionSystem.setRemoteVersion(FrameCrossParam.mVer);
+			return;
+		}
 		mResourceManager.setDownloadURL(FrameCrossParam.mDownloadURL);
-		mLocalizationManager.setCurrentLanguage(FrameCrossParam.mLocalizationName);
 		mAssetVersionSystem.setStreamingAssetsVersion(FrameCrossParam.mStreamingAssetsVersion);
 		mAssetVersionSystem.setPersistentAssetsVersion(FrameCrossParam.mPersistentDataVersion);
 		mAssetVersionSystem.setRemoteVersion(FrameCrossParam.mRemoteVersion);

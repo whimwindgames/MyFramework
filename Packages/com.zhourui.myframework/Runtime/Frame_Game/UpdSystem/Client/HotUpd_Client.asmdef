@@ -1,0 +1,26 @@
+{
+    "name": "HotUpd_Client",
+    "rootNamespace": "",
+    "references": [
+        "HotUpd_Core",
+        "Frame_Base",
+        "UniTask"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "HAS_UNITASK"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.unitask",
+            "expression": "2.5.0",
+            "define": "HAS_UNITASK"
+        }
+    ],
+    "noEngineReferences": false
+}

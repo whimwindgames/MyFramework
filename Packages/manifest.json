@@ -2,6 +2,7 @@
   "dependencies": {
     "com.code-philosophy.hybridclr": "https://github.com/focus-creative-games/hybridclr_unity.git#4feac30cb2e105992986c737f7f54992b8300e1a",
     "com.code-philosophy.obfuz": "https://github.com/focus-creative-games/obfuz.git#7b06f0fed8675c31cbae9760a93e7deec0c0a05c",
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#7c0f199fe0d3fc528024488ccd671e6c7b27745b",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.2d.tilemap": "1.0.0",
     "com.unity.ide.visualstudio": "2.0.27",

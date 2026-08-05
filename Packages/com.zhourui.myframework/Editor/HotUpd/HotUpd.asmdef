@@ -1,0 +1,25 @@
+{
+    "name": "HotUpd_Editor",
+    "rootNamespace": "",
+    "references": [
+        "HotUpd_Core",
+        "HotUpd_Client",
+        "Frame_HotFix",
+        "Frame_Base",
+        "HybridCLR.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "BouncyCastle.Cryptography.dll",
+        "Mono.Cecil.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

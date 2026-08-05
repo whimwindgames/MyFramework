@@ -144,17 +144,34 @@ public abstract class GameHotFixBase<T> where T : GameHotFixBase<T>
 		}
 		GameEntryBase.startCoroutine(openFileAsyncInternal(filePath, true, (byte[] bytes) =>
 		{
-#if USE_OBFUZ
-			EncryptionService<DefaultDynamicEncryptionScope>.Encryptor = new GeneratedEncryptionVirtualMachine(bytes);
-#endif
-			try
-			{
-				callback?.Invoke();
-			}
-			catch (Exception e)
-			{
-				Debug.LogException(e);
-			}
+			preStart(bytes, callback);
 		}));
+	}
+	// Schema 11直接传入已校验的密钥字节，避免再从可变路径读取。
+#if USE_OBFUZ
+	[ObfuzIgnore]
+#endif
+	protected static void preStart(byte[] bytes, Action callback)
+	{
+		if (isEditor())
+		{
+			callback?.Invoke();
+			return;
+		}
+#if USE_OBFUZ
+		if (bytes == null || bytes.Length == 0)
+		{
+			throw new InvalidOperationException("dynamic_secret");
+		}
+		EncryptionService<DefaultDynamicEncryptionScope>.Encryptor = new GeneratedEncryptionVirtualMachine(bytes);
+#endif
+		try
+		{
+			callback?.Invoke();
+		}
+		catch (Exception e)
+		{
+			Debug.LogException(e);
+		}
 	}
 }

@@ -12,12 +12,12 @@ using static FrameBaseUtility;
 using static FrameBase;
 
 // HybridCLR系统,用于启动HybridCLR热更
-public class HybridCLRSystem
+public partial class HybridCLRSystem
 {
 	protected static bool mHotFixLaunched;
 	public static void launchHotFix(Action errorCallback = null)
 	{
-		if (mHotFixLaunched)
+		if (mHotFixLaunched || System.Threading.Interlocked.CompareExchange(ref sRun, 2, 0) != 0)
 		{
 			logErrorBase("已经启动了热更逻辑,无法再次启动");
 			return;
@@ -268,7 +268,8 @@ public class HybridCLRSystem
 			// 使用createHotFixInstance创建一个HotFix的实例,然后调用此实例的start函数
 			methodStart.Invoke(methodCreate.Invoke(null, null), new object[1] { callback });
 		};
-		MethodInfo methodPreStart = getMethodRecursive(type, "preStart", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+		MethodInfo methodPreStart = getMethodRecursive(type, "preStart", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic,
+			new Type[1] { typeof(Action) });
 		if (methodPreStart == null)
 		{
 			logErrorBase("在GameHotFix类或者父类中找不到静态函数preStart");

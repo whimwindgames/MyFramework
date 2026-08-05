@@ -1,3 +1,4 @@
+#if UNITY_STANDALONE_WIN || UNITY_EDITOR
 using static WavSound;
 using static TestAssert;
 
@@ -62,3 +63,12 @@ public static class WavSoundTest
 		assertEqual((short)150, mixPCMData[1], "short 双声道 sample1 avg=150");
 	}
 }
+#else
+// WavSound本身只在Windows Player和Editor中存在；其他Player目标保留测试入口但不执行。
+public static class WavSoundTest
+{
+	public static void Run()
+	{
+	}
+}
+#endif

@@ -1,0 +1,7 @@
+<linker>
+  <assembly fullname="HotUpd_Core">
+    <type fullname="UpdState" preserve="fields" />
+    <type fullname="UpdActive" preserve="fields" />
+    <type fullname="UpdCandidate" preserve="fields" />
+  </assembly>
+</linker>
