@@ -7,7 +7,7 @@ OpenUPM 只收录托管在 GitHub 的开源 Unity Package。自建 Git 服务可
 正式发布仓库：
 
 ```text
-https://github.com/ZHOURUIH/MyFramework
+https://github.com/whimwindgames/MyFramework
 ```
 
 包目录：
@@ -30,7 +30,7 @@ OpenUPM 元数据应设置：
 name: com.zhourui.myframework
 displayName: MyFramework
 description: A reusable Unity game framework with UI, networking, resources, HybridCLR hot update and transactional release tooling.
-repoUrl: 'https://github.com/ZHOURUIH/MyFramework'
+repoUrl: 'https://github.com/whimwindgames/MyFramework'
 parentRepoUrl: null
 licenseSpdxId: MIT
 licenseName: MIT License

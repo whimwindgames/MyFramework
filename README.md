@@ -67,7 +67,7 @@ openupm add com.zhourui.myframework
 生产项目应固定版本标签：
 
 ```text
-https://github.com/ZHOURUIH/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
 ```
 
 安装方式：
@@ -686,7 +686,7 @@ openupm add com.zhourui.myframework
 或者使用固定版本的 Git URL：
 
 ```text
-https://github.com/ZHOURUIH/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
 ```
 
 ### 初始化
@@ -790,7 +790,7 @@ Demo 已经在 `Packages/manifest.json` 中配置 MyFramework、HybridCLR 和 Ob
 | 渠道                 | 地址                                             |
 | ------------------ | ---------------------------------------------- |
 | QQ交流群              | 805116283（MyFramework 官方交流群）                   |
-| GitHub Issues      | https://github.com/ZHOURUIH/MyFramework/issues |
+| GitHub Issues      | https://github.com/whimwindgames/MyFramework/issues |
 | GitHub Discussions | 暂未开启                                           |
 
 群内主要讨论：
@@ -810,7 +810,7 @@ Demo 已经在 `Packages/manifest.json` 中配置 MyFramework、HybridCLR 和 Ob
 
 详细说明请查看文档目录：
 
-https://github.com/ZHOURUIH/MyFramework/tree/master/文档
+https://github.com/whimwindgames/MyFramework/tree/master/文档
 
 ---
 

@@ -5,9 +5,9 @@
 	"unity": "6000.0",
 	"description": "A reusable Unity game framework with UI, networking, resources, HybridCLR hot update and transactional release tooling.",
 	"license": "MIT",
-	"licensesUrl": "https://github.com/ZHOURUIH/MyFramework/blob/master/Packages/com.zhourui.myframework/LICENSE.md",
-	"documentationUrl": "https://github.com/ZHOURUIH/MyFramework/blob/master/Packages/com.zhourui.myframework/README.md",
-	"changelogUrl": "https://github.com/ZHOURUIH/MyFramework/blob/master/Packages/com.zhourui.myframework/CHANGELOG.md",
+	"licensesUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.zhourui.myframework/LICENSE.md",
+	"documentationUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.zhourui.myframework/README.md",
+	"changelogUrl": "https://github.com/whimwindgames/MyFramework/blob/master/Packages/com.zhourui.myframework/CHANGELOG.md",
 	"type": "library",
 	"keywords": [
 		"unity",
@@ -20,15 +20,15 @@
 	"author": {
 		"name": "ZHOURUIH",
 		"email": "785130190@qq.com",
-		"url": "https://github.com/ZHOURUIH/MyFramework"
+		"url": "https://github.com/whimwindgames/MyFramework"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/ZHOURUIH/MyFramework.git",
+		"url": "https://github.com/whimwindgames/MyFramework.git",
 		"directory": "Packages/com.zhourui.myframework"
 	},
 	"bugs": {
-		"url": "https://github.com/ZHOURUIH/MyFramework/issues"
+		"url": "https://github.com/whimwindgames/MyFramework/issues"
 	},
 	"dependencies": {
 		"com.code-philosophy.hybridclr": "8.11.0",

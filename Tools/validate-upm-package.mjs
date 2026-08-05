@@ -45,7 +45,7 @@ if (!/^\d+\.\d+\.\d+(?:-(?:alpha|beta|preview|rc)\.\d+)?$/.test(manifest.version
 }
 if (manifest.unity !== "6000.0") fail("package unity baseline must be 6000.0");
 if (manifest.license !== "MIT") fail("package license must be MIT");
-if (manifest.repository?.url !== "https://github.com/ZHOURUIH/MyFramework.git") {
+if (manifest.repository?.url !== "https://github.com/whimwindgames/MyFramework.git") {
   fail("OpenUPM repository must point at the public GitHub repository");
 }
 if (manifest.repository?.directory !== "Packages/com.zhourui.myframework") {

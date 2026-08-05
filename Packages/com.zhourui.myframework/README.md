@@ -40,7 +40,7 @@ MyFramework 会通过 OpenUPM 自动解析 UniTask、HybridCLR 和 Obfuz；UGUI�
 在 Unity Package Manager 中选择 **Install package from git URL**，输入：
 
 ```text
-https://github.com/ZHOURUIH/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
 ```
 
 Git URL 安装同样要求项目已经配置上述 OpenUPM scopes，以便解析框架依赖。开发阶段可以固定提交；生产项目必须固定到已经验证的标签或提交，不能直接跟随远程分支。
@@ -101,7 +101,7 @@ https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#7
 
 ## 仓库与上游同步
 
-- OpenUPM 公开仓库：`https://github.com/ZHOURUIH/MyFramework.git`
+- OpenUPM 公开仓库：`https://github.com/whimwindgames/MyFramework.git`
 - 自托管镜像：`https://git.whimwindgames.cn/gitadmin/MyFramework.git`
 
 自托管仓库保留官方提交历史。通用优化在独立分支验证后合并；同步官方更新时，应同时执行公共 API 和项目兼容检查。
