@@ -21,7 +21,7 @@ Packages/com.whimwindgames.myframework
 `package.json` 的 `version` 必须和 Git 标签中的版本完全一致。MyFramework 使用包名前缀隔离标签：
 
 ```text
-com.whimwindgames.myframework/1.1.0-preview.5
+com.whimwindgames.myframework/1.1.0-preview.6
 ```
 
 OpenUPM 元数据应设置：
@@ -41,7 +41,7 @@ topics:
   - asset-management
 gitTagPrefix: 'com.whimwindgames.myframework/'
 gitTagIgnore: ''
-minVersion: '1.1.0-preview.5'
+minVersion: '1.1.0-preview.6'
 trackingMode: git
 image: ''
 readme: 'master:Packages/com.whimwindgames.myframework/README.md'

@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.6] - 2026-08-05
+
+### Fixed
+
+- AssetBundle 资源加载现在使用 Schema 11 索引记录的实际内部地址；历史索引继续自动补充 `Assets/GameResources/` 前缀，修复新生产器的 addressable name 被旧路径规则再次加前缀后返回空资源的问题。
+
 ## [1.1.0-preview.5] - 2026-08-05
 
 ### Fixed

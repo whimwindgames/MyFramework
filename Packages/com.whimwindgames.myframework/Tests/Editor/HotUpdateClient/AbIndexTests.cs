@@ -61,6 +61,8 @@ public sealed class AbIndexTests
 		Assert.That(bundle.getAssetInfo("ui/main.prefab"), Is.Not.Null);
 		Assert.That(bundle.getAssetInfo("ui/main.prefab").getAssetName(),
 			Is.EqualTo("ui/main.prefab"));
+		Assert.That(bundle.getAssetInfo("ui/main.prefab").getAssetPath(),
+			Is.EqualTo("ui/main.prefab"));
 		Assert.That(AbIndex.tryRuntimeAtlas(out AbItem[] atlases), Is.True);
 		Assert.That(atlases.Length, Is.EqualTo(1));
 		Assert.That(atlases[0].key, Is.EqualTo("UI/Main.prefab"));

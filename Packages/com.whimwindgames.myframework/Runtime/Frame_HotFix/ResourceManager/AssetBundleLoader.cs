@@ -459,8 +459,9 @@ public class AssetBundleLoader
 		}
 
 		// 异步从资源包中加载资源
-		bundle.getAssetInfoByName(fileNameWithSuffix).setLoadState(LOAD_STATE.LOADING);
-		AssetBundleRequest assetRequest = bundle.getAssetBundle().LoadAssetWithSubAssetsAsync(P_GAME_RESOURCES_PATH + fileNameWithSuffix);
+		AssetInfo assetInfo = bundle.getAssetInfoByName(fileNameWithSuffix);
+		assetInfo.setLoadState(LOAD_STATE.LOADING);
+		AssetBundleRequest assetRequest = bundle.getAssetBundle().LoadAssetWithSubAssetsAsync(assetInfo.getAssetPath());
 		if (assetRequest == null)
 		{
 			bundle.notifyAssetLoaded(fileNameWithSuffix, null);

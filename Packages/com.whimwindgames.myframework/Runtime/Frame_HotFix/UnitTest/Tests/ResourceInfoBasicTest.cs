@@ -1,4 +1,5 @@
 using UnityEngine;
+using static FrameDefine;
 using static TestAssert;
 
 public static class ResourceInfoBasicTest
@@ -17,6 +18,7 @@ public static class ResourceInfoBasicTest
 		info.setAssetName("icon.prefab");
 		assertEqual(bundle, info.getAssetBundle());
 		assertEqual("icon.prefab", info.getAssetName());
+		assertEqual(P_GAME_RESOURCES_PATH + "icon.prefab", info.getAssetPath());
 		assertFalse(info.isLoaded());
 		info.setLoadState(LOAD_STATE.WAIT_FOR_LOAD);
 		assertEqual(LOAD_STATE.WAIT_FOR_LOAD, info.getLoadState());
@@ -41,6 +43,7 @@ public static class ResourceInfoBasicTest
 		info.resetProperty();
 		assertNull(info.getAssetBundle());
 		assertNull(info.getAssetName());
+		assertNull(info.getAssetPath());
 		assertEqual(LOAD_STATE.NONE, info.getLoadState());
 	}
 	private static void testAssetDataBaseLoadInfoStateAndCallbacks()
@@ -94,6 +97,7 @@ public static class ResourceInfoBasicTest
 		assertNotNull(asset);
 		assertEqual(bundle, asset.getAssetBundle());
 		assertEqual("a.prefab", asset.getAssetName());
+		assertEqual(P_GAME_RESOURCES_PATH + "a.prefab", asset.getAssetPath());
 		bundle.addParent("dep1");
 		assertTrue(bundle.getParents().ContainsKey("dep1"));
 		AssetBundleInfo child = new("child");

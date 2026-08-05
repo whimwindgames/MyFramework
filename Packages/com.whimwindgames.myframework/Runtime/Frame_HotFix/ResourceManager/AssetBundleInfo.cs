@@ -116,9 +116,13 @@ public class AssetBundleInfo : ClassObject
 	public void setLoadState(LOAD_STATE state)					{ mLoadState = state; }
 	public void addAssetName(string fileNameWithSuffix)
 	{
-		addAssetName(fileNameWithSuffix, fileNameWithSuffix);
+		addAssetName(fileNameWithSuffix, fileNameWithSuffix, P_GAME_RESOURCES_PATH + fileNameWithSuffix);
 	}
 	public void addAssetName(string fileNameWithSuffix, string assetName)
+	{
+		addAssetName(fileNameWithSuffix, assetName, assetName);
+	}
+	protected void addAssetName(string fileNameWithSuffix, string assetName, string assetPath)
 	{
 		if (mAssetList.ContainsKey(fileNameWithSuffix) || mAssetNameList.ContainsKey(assetName))
 		{
@@ -129,7 +133,7 @@ public class AssetBundleInfo : ClassObject
 		AssetInfo info = mAssetList.add(fileNameWithSuffix, new());
 		mAssetNameList.Add(assetName, info);
 		info.setAssetBundleInfo(this);
-		info.setAssetName(assetName);
+		info.setAssetName(assetName, assetPath);
 	}
 	public AssetInfo getAssetInfo(string fileNameWithSuffix) { return mAssetList.get(fileNameWithSuffix); }
 	public AssetInfo getAssetInfoByName(string assetName) { return mAssetNameList.get(assetName); }
