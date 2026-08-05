@@ -26,6 +26,7 @@ public static class AbIndex
 	public static Func<string, string> srcKey;
 	public static Func<string, string> keySrc;
 	public static Func<AbItem[]> atlasMap;
+	static AbItem[] sRuntimeAtlas;
 #if UNITY_EDITOR
 	public static Func<AbItem[]> itemMap;
 #endif
@@ -61,6 +62,32 @@ public static class AbIndex
 	public static AbItem[] editAtlas()
 	{
 		return atlasMap?.Invoke() ?? throw new InvalidOperationException("编辑器AB映射未初始化");
+	}
+
+	internal static void bindRuntime(IReadOnlyList<AbItem> items)
+	{
+		if (items == null)
+		{
+			sRuntimeAtlas = null;
+			return;
+		}
+		List<AbItem> atlases = new();
+		foreach (AbItem item in items)
+		{
+			if (!string.IsNullOrEmpty(item.atlas)) atlases.Add(item);
+		}
+		sRuntimeAtlas = atlases.ToArray();
+	}
+
+	public static bool tryRuntimeAtlas(out AbItem[] items)
+	{
+		if (sRuntimeAtlas == null)
+		{
+			items = null;
+			return false;
+		}
+		items = (AbItem[])sRuntimeAtlas.Clone();
+		return true;
 	}
 
 #if UNITY_EDITOR
@@ -145,6 +172,7 @@ public static class AbIndex
 		if (items.Count > MAX_ITEMS) throw new InvalidDataException("AB索引项过多");
 		HashSet<string> keys = new(StringComparer.OrdinalIgnoreCase);
 		HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
+		HashSet<string> atlases = new(StringComparer.Ordinal);
 		HashSet<string> bundles = new(StringComparer.Ordinal);
 		Dictionary<string, List<string>> pkgDeps = new(StringComparer.Ordinal);
 		string prev = null;
@@ -155,6 +183,7 @@ public static class AbIndex
 				!validAtl(item.atlas) || (!string.IsNullOrEmpty(item.scene) &&
 				(!validKey(item.scene) || !item.scene.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))) ||
 				!keys.Add(item.key) || !names.Add(item.name) ||
+				(!string.IsNullOrEmpty(item.atlas) && !atlases.Add(item.atlas)) ||
 				(prev != null && string.CompareOrdinal(prev, item.key) >= 0) ||
 				(isScene != !string.IsNullOrEmpty(item.scene)))
 			{

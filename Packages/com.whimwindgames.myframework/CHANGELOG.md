@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.5] - 2026-08-05
+
+### Fixed
+
+- `AtlasManager` 优先从当前 Schema 11 `AbIndex` 初始化 SpriteAtlas 名称到逻辑地址的映射，AssetBundle 模式不再依赖手工生成的 `Misc/AtlasPathConfig.txt`。
+- 编辑器 AssetDatabase 模式复用 `AbCfg` 的图集映射；历史索引仍保留 `AtlasPathConfig.txt` 回退路径。
+
 ## [1.1.0-preview.4] - 2026-08-05
 
 ### Fixed

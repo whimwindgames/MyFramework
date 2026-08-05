@@ -48,6 +48,7 @@ public sealed class AbIndexTests
 	{
 		AbItem value = item("UI/Main.prefab", "ui/main.unity3d");
 		value.name = "ui/main.prefab";
+		value.atlas = "MainAtlas";
 		byte[] raw = AbIndex.encode(new[] { value });
 		TestLoader loader = new();
 
@@ -60,6 +61,11 @@ public sealed class AbIndexTests
 		Assert.That(bundle.getAssetInfo("ui/main.prefab"), Is.Not.Null);
 		Assert.That(bundle.getAssetInfo("ui/main.prefab").getAssetName(),
 			Is.EqualTo("ui/main.prefab"));
+		Assert.That(AbIndex.tryRuntimeAtlas(out AbItem[] atlases), Is.True);
+		Assert.That(atlases.Length, Is.EqualTo(1));
+		Assert.That(atlases[0].key, Is.EqualTo("UI/Main.prefab"));
+		loader.ClearRuntimeIndex();
+		Assert.That(AbIndex.tryRuntimeAtlas(out _), Is.False);
 	}
 
 	[Test]
@@ -72,11 +78,27 @@ public sealed class AbIndexTests
 		}));
 	}
 
+	[Test]
+	public void IndexRejectsDuplicateAtlasNames()
+	{
+		AbItem first = item("ui/first.spriteatlasv2", "ui/first.unity3d");
+		first.atlas = "MainAtlas";
+		AbItem second = item("ui/second.spriteatlasv2", "ui/second.unity3d");
+		second.atlas = "MainAtlas";
+
+		Assert.Throws<InvalidDataException>(() => AbIndex.encode(new[] { first, second }));
+	}
+
 	sealed class TestLoader : AssetBundleLoader
 	{
 		public void Load(byte[] data)
 		{
 			initAssetConfig(data, "test");
+		}
+
+		public void ClearRuntimeIndex()
+		{
+			clearRuntimeIndex();
 		}
 	}
 

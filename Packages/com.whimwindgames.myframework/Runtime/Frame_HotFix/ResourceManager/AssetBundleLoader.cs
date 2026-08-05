@@ -61,6 +61,11 @@ public class AssetBundleLoader
 	public void destroy()
 	{
 		unloadAll();
+		clearRuntimeIndex();
+	}
+	protected void clearRuntimeIndex()
+	{
+		AbIndex.bindRuntime(null);
 	}
 	// StreamingAssets下的相对路径,带后缀,会自动转换为小写
 	public void addDontUnloadAssetBundle(string bundleFileName)
@@ -518,9 +523,12 @@ public class AssetBundleLoader
 		mInited = false;
 		mAssetBundleInfoList.Clear();
 		mAssetToBundleInfo.Clear();
+		clearRuntimeIndex();
 		if (AbIndex.isCurrent(fileBuffer))
 		{
-			initAssetConfig(AbIndex.decode(fileBuffer));
+			List<AbItem> items = AbIndex.decode(fileBuffer);
+			AbIndex.bindRuntime(items);
+			initAssetConfig(items);
 			finishAssetConfig();
 			return;
 		}

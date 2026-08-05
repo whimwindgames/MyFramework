@@ -35,9 +35,18 @@ public class AtlasManager : FrameSystem
 	{
 		// 注册一下SpriteAtlas的回调,否则在真机上没办法自动加载SpriteAtlas中的Sprite
 		SpriteAtlasManager.atlasRequested += onAtlasRequested;
+		mAtlasPathList.Clear();
 		if (isEditor())
 		{
 			mObject.AddComponent<TPSpriteManagerDebug>();
+		}
+		if (initIndexAtlas())
+		{
+			callback?.Invoke();
+			return;
+		}
+		if (isEditor())
+		{
 			if (!isFileExist(F_MISC_PATH + ATLAS_PATH_CONFIG))
 			{
 				logError("找不到文件" + F_MISC_PATH + ATLAS_PATH_CONFIG + ",可以执行菜单:快捷操作->生成" + ATLAS_PATH_CONFIG);
@@ -52,6 +61,33 @@ public class AtlasManager : FrameSystem
 			mResourceManager.unload(ref text);
 			callback?.Invoke();
 		});
+	}
+	protected bool initIndexAtlas()
+	{
+		if (!AbIndex.tryRuntimeAtlas(out AbItem[] items))
+		{
+#if UNITY_EDITOR
+			try
+			{
+				items = AbIndex.editAtlas();
+			}
+			catch (InvalidOperationException)
+			{
+				return false;
+			}
+#else
+			return false;
+#endif
+		}
+		foreach (AbItem item in items)
+		{
+			if (string.IsNullOrEmpty(item.atlas)) continue;
+			if (!mAtlasPathList.TryAdd(item.atlas, item.key))
+			{
+				throw new InvalidOperationException("图集名称重复:" + item.atlas);
+			}
+		}
+		return true;
 	}
 	public override void destroy()
 	{

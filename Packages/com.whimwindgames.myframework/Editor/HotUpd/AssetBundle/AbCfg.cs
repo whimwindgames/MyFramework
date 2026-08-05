@@ -65,9 +65,18 @@ public sealed class AbCfg : ScriptableObject
 		List<AbItem> vals = new();
 		foreach (AbPkg pkg in mapPlan().pkgs)
 		foreach (AbAst ast in pkg.asts)
-			if (UnityEditor.AssetDatabase.LoadAssetAtPath<UnityEngine.U2D.SpriteAtlas>(
-				ast.path) != null)
-				vals.Add(new AbItem { key = ast.key, src = ast.path });
+		{
+			SpriteAtlas atlas = AssetDatabase.LoadAssetAtPath<SpriteAtlas>(ast.path);
+			if (atlas != null)
+			{
+				vals.Add(new AbItem
+				{
+					key = ast.key,
+					src = ast.path,
+					atlas = atlas.name,
+				});
+			}
+		}
 		return vals.ToArray();
 	}
 
