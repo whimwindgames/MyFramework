@@ -33,6 +33,26 @@ public sealed class SchemaResourceBridgeTests
 	}
 
 	[Test]
+	public void EditorLaunchPreparationPreservesHostResourceBridge()
+	{
+		Func<string, string> read = path => "/editor-stage/" + path;
+		Func<string, CancellationToken, Task<string>> readAsync =
+			(path, ct) => Task.FromResult("/editor-stage/" + path);
+		FrameCrossParam.mReadPath = read;
+		FrameCrossParam.mReadPathA = readAsync;
+
+		MethodInfo prepare = typeof(HybridCLRSystem).GetMethod("schemaPrepareEdit",
+			BindingFlags.Static | BindingFlags.NonPublic);
+		Assert.That(prepare, Is.Not.Null);
+		prepare.Invoke(null, null);
+
+		Assert.That(FrameCrossParam.mReadPath, Is.SameAs(read));
+		Assert.That(FrameCrossParam.mReadPathA, Is.SameAs(readAsync));
+		Assert.That(FrameUtility.availableReadPath("StreamingAssets.bytes"),
+			Is.EqualTo("/editor-stage/StreamingAssets.bytes"));
+	}
+
+	[Test]
 	public void HotFixPreStartKeepsLegacyAndSchema11Overloads()
 	{
 		Type type = typeof(GameHotFixBase<>);

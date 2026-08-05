@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.3] - 2026-08-05
+
+### Fixed
+
+- 修复 `launchEdit(...)` 清空宿主在进入 Play Mode 前设置的本地资源读取桥，导致编辑器 AssetBundle 模式错误回退到 `Assets/StreamingAssets/<platform>` 的问题。
+
 ## [1.1.0-preview.2] - 2026-08-05
 
 ### Added

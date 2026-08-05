@@ -51,7 +51,7 @@ MyFramework 已支持通过 Unity Package Manager 以 Git 插件形式安装。
     }
   ],
   "dependencies": {
-    "com.whimwindgames.myframework": "1.1.0-preview.2"
+    "com.whimwindgames.myframework": "1.1.0-preview.3"
   }
 }
 ```
@@ -67,7 +67,7 @@ openupm add com.whimwindgames.myframework
 生产项目应固定版本标签：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.2
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.3
 ```
 
 安装方式：
@@ -686,7 +686,7 @@ openupm add com.whimwindgames.myframework
 或者使用固定版本的 Git URL：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.2
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.3
 ```
 
 ### 初始化

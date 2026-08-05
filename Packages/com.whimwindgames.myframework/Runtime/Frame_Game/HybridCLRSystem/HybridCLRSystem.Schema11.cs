@@ -128,12 +128,7 @@ public partial class HybridCLRSystem
 			{
 				return schemaFail(UpdCode.Load, "hotfix_asm");
 			}
-			FrameCrossParam.mLang = ResLocalizationText.mCurLanguage;
-			FrameCrossParam.mVer = "editor";
-			FrameCrossParam.mLocalizationName = FrameCrossParam.mLang;
-			FrameCrossParam.mPersistentDataVersion = FrameCrossParam.mVer;
-			FrameCrossParam.mReadPath = null;
-			FrameCrossParam.mReadPathA = null;
+			schemaPrepareEdit();
 			Volatile.Write(ref sRun, 2);
 			latched = true;
 			await schemaStartHot(entryAsm, Array.Empty<byte>(), ct);
@@ -163,6 +158,17 @@ public partial class HybridCLRSystem
 				Volatile.Write(ref sRun, 0);
 			}
 		}
+	}
+
+	private static void schemaPrepareEdit()
+	{
+		FrameCrossParam.mLang = ResLocalizationText.mCurLanguage;
+		FrameCrossParam.mVer = "editor";
+		FrameCrossParam.mLocalizationName = FrameCrossParam.mLang;
+		FrameCrossParam.mPersistentDataVersion = FrameCrossParam.mVer;
+		// The host may install an Editor-only AssetBundle resolver before Play mode.
+		// Keep that bridge alive so the hot layer reads the generated local Stage
+		// instead of falling back to Assets/StreamingAssets/<platform>.
 	}
 #endif
 
