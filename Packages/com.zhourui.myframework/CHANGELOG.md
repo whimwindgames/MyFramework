@@ -1,0 +1,20 @@
+# Changelog
+
+本文件记录 `com.zhourui.myframework` Unity Package 的可见变化。仓库中的示例游戏或项目专用调整不应记录在这里。
+
+## [Unreleased]
+
+### Added
+
+- 为通过 Git URL 安装的 UPM 包补齐包内许可证、说明文档和变更记录。
+- 在 `package.json` 中声明许可证、文档、变更记录和自托管仓库地址。
+- 建立公共 API 与 Unity 序列化兼容规则。
+
+### Compatibility
+
+- 未修改运行时或编辑器公共 API。
+- 未修改程序集名称、包名和初始化菜单路径。
+
+## [1.0.41] - 2026-08-02
+
+- 以官方 MyFramework `1.0.41`、提交 `80dea994fade479d5af9eb4184e24a3d865ecc10` 作为独立优化基线。

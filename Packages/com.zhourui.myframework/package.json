@@ -3,6 +3,10 @@
 	"displayName": "MyFramework",
 	"version": "1.0.41",
 	"description": "A Unity game framework by ZHOURUIH.",
+	"license": "MIT",
+	"licensesUrl": "https://git.whimwindgames.cn/gitadmin/MyFramework/src/branch/master/Packages/com.zhourui.myframework/LICENSE.md",
+	"documentationUrl": "https://git.whimwindgames.cn/gitadmin/MyFramework/src/branch/master/Packages/com.zhourui.myframework/README.md",
+	"changelogUrl": "https://git.whimwindgames.cn/gitadmin/MyFramework/src/branch/master/Packages/com.zhourui.myframework/CHANGELOG.md",
 	"keywords": [
 		"unity",
 		"framework",
@@ -15,6 +19,11 @@
 		"name": "ZHOURUIH",
 		"email": "785130190@qq.com",
 		"url": "https://github.com/ZHOURUIH/MyFramework"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://git.whimwindgames.cn/gitadmin/MyFramework.git",
+		"directory": "Packages/com.zhourui.myframework"
 	},
 	"dependencies": {
 		"com.unity.ugui": "1.0.0",
