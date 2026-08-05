@@ -36,21 +36,37 @@ public class NetConnectWebSocketJson : NetConnectWebSocket
 		}
 		
 		var netPacket = packet as NetPacketJson;
+		if (netPacket == null)
+		{
+			mNetPacketFactory.destroyPacket(packet);
+			logError("WebSocket JSON连接只能发送NetPacketJson");
+			return;
+		}
 		if (netPacket.isDestroy())
 		{
 			logError("消息对象已经被销毁,数据无效");
 			return;
 		}
-		string msgType = mPacketTypeIDList.get(netPacket.GetType());
-		if (msgType.isEmpty())
+		try
 		{
-			logError("消息类型未注册:" + netPacket.getPacketType().IToS());
-			return;
+			string msgType = mPacketTypeIDList.get(netPacket.GetType());
+			if (msgType.isEmpty())
+			{
+				logError("消息类型未注册:" + netPacket.getPacketType().IToS());
+				return;
+			}
+			WebSocketPacketBodyJson body = new(msgType, netPacket.writeContent(), (int)getNowUTCTimeStamp());
+			byte[] bytes = JsonConvert.SerializeObject(body).toBytes();
+			mOutputBuffer.Enqueue(new PacketSendInfo(bytes, bytes.count(), false, 0));
 		}
-		WebSocketPacketBodyJson body = new(msgType, netPacket.writeContent(), (int)getNowUTCTimeStamp());
-		byte[] bytes = JsonConvert.SerializeObject(body).toBytes();
-		mOutputBuffer.Enqueue(new PacketSendInfo(bytes, bytes.count(), false, 0));
-		mNetPacketFactory.destroyPacket(netPacket);
+		catch (Exception e)
+		{
+			logException(e, "WebSocket JSON消息序列化失败");
+		}
+		finally
+		{
+			mNetPacketFactory.destroyPacket(netPacket);
+		}
 	}
 	public void registeWSPacket<T>(string type) where T : NetPacketJson
 	{
@@ -83,7 +99,7 @@ public class NetConnectWebSocketJson : NetConnectWebSocket
 	{
 		index = size;
 		ARRAY_BYTE_PERSIST(out outPacketData, size.getGreaterPow2());
-		memcpy(outPacketData, mRecvBuff, 0, 0, size);
+		memcpy(outPacketData, buffer, 0, 0, size);
 		packetType = 0;
 		packetSize = size;
 		sequence = 0;

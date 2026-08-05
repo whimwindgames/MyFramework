@@ -2,6 +2,7 @@
 using System.Net.WebSockets;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using static UnityUtility;
 using static FrameUtility;
@@ -11,7 +12,6 @@ using static FrameDefine;
 using static FrameBaseUtility;
 
 // 当前程序作为客户端时使用,表示一个与WebSocket服务器的连接,用于非webgl平台
-// 使用System.Net.WebSockets实现,提供消息队列收发、输入缓冲和网络状态回调
 public abstract class NetConnectWebSocket : NetConnect
 {
 	protected Queue<PacketReceiveInfo> mReceiveBuffer = new();					// 在主线程中执行的消息列表
@@ -29,6 +29,10 @@ public abstract class NetConnectWebSocket : NetConnect
 	protected bool mSending;													// 是否正在发送一条消息
 	protected NET_STATE mNetState;												// 网络连接状态
 	protected WebSocketMessageType mMessageType = WebSocketMessageType.Text;	// 数据类型,文本还是二进制
+	private CancellationTokenSource mSocketCts;
+	private int mSocketGeneration;
+	private int mConnectedGeneration = -1;
+	private int mSendingGeneration = -1;
 	public virtual void init(float pingTime)
 	{
 		// 每隔一定时间发出一个ping包
@@ -38,6 +42,10 @@ public abstract class NetConnectWebSocket : NetConnect
 	public override void resetProperty()
 	{
 		base.resetProperty();
+		clearReceiveQueue();
+		clearSendQueue();
+		clearSocket();
+		// reset检查器要求字段在本方法中显式复位,队列内容已由上面的释放函数回收
 		mReceiveBuffer.Clear();
 		mOutputBuffer.Clear();
 		mInputBuffer.clear();
@@ -53,6 +61,10 @@ public abstract class NetConnectWebSocket : NetConnect
 		mSending = false;
 		mNetState = NET_STATE.NONE;
 		mMessageType = WebSocketMessageType.Text;
+		mSocketCts = null;
+		mSocketGeneration = 0;
+		mConnectedGeneration = -1;
+		mSendingGeneration = -1;
 	}
 	public void addHeader(string name, string value)			{ mHeader.addOrSet(name, value); }
 	public void setNetStateCallback(NetStateCallback callback)	{ mNetStateCallback = callback; }
@@ -66,7 +78,7 @@ public abstract class NetConnectWebSocket : NetConnect
 	{
 		if (isConnected() || isConnecting())
 		{
-			callback?.Invoke(false);
+			invokeConnectCallback(callback, false);
 			return;
 		}
 		mURL = url;
@@ -75,58 +87,79 @@ public abstract class NetConnectWebSocket : NetConnect
 			log("开始连接服务器:" + mURL);
 		}
 		mManualDisconnect = false;
-		notifyNetState(NET_STATE.CONNECTING);
-		// 创建socket
 		if (mWebSocket != null)
 		{
-			callback?.Invoke(false);
+			invokeConnectCallback(callback, false);
 			logError("当前Socket不为空");
 			return;
 		}
-		mWebSocket = new();
-		foreach (var item in mHeader)
-		{
-			mWebSocket.Options.SetRequestHeader(item.Key, item.Value);
-		}
+		notifyNetState(NET_STATE.CONNECTING);
+		await connectAsync(mURL, callback);
+	}
+	private async Task connectAsync(string url, BoolCallback callback)
+	{
+		int generation = ++mSocketGeneration;
+		ClientWebSocket socket = new();
+		CancellationTokenSource socketCts = new();
+		mWebSocket = socket;
+		mSocketCts = socketCts;
 		try
 		{
-			await mWebSocket.ConnectAsync(new Uri(mURL), default);
-			if (mWebSocket.State == WebSocketState.Open)
+			foreach (var item in mHeader)
+			{
+				socket.Options.SetRequestHeader(item.Key, item.Value);
+			}
+			using CancellationTokenSource timeout =
+				CancellationTokenSource.CreateLinkedTokenSource(socketCts.Token);
+			timeout.CancelAfter(TimeSpan.FromSeconds(10));
+			await socket.ConnectAsync(new Uri(url), timeout.Token);
+			if (!isCurrent(socket, generation))
+			{
+				invokeConnectCallback(callback, false);
+				return;
+			}
+			if (socket.State == WebSocketState.Open)
 			{
 				log("连接服务器成功");
 				notifyNetState(NET_STATE.CONNECTED);
-				callback?.Invoke(true);
+				invokeConnectCallback(callback, true);
 			}
 			else
 			{
 				log("连接服务器失败");
 				notifyNetState(NET_STATE.NET_CLOSE);
-				callback?.Invoke(false);
+				invokeConnectCallback(callback, false);
 			}
+		}
+		catch (OperationCanceledException)
+		{
+			if (!isCurrent(socket, generation))
+			{
+				invokeConnectCallback(callback, false);
+				return;
+			}
+			log("连接服务器失败:连接超时或已取消");
+			notifyNetState(NET_STATE.NET_CLOSE);
+			invokeConnectCallback(callback, false);
 		}
 		catch (Exception e)
 		{
+			if (!isCurrent(socket, generation))
+			{
+				invokeConnectCallback(callback, false);
+				return;
+			}
 			log("连接服务器失败:" + e.Message);
 			notifyNetState(NET_STATE.NET_CLOSE);
-			callback?.Invoke(false);
+			invokeConnectCallback(callback, false);
 		}
 	}
 	public void disconnect()
 	{
 		mManualDisconnect = true;
 		mPingTimer.stop(false);
-		try
-		{
-			foreach (PacketReceiveInfo item in mReceiveBuffer)
-			{
-				UN_ARRAY(item.mPacketData);
-			}
-		}
-		catch (Exception e)
-		{
-			logException(e, "使用读列表中错误");
-		}
-		mReceiveBuffer.Clear();
+		clearReceiveQueue();
+		clearSendQueue();
 		// 主动关闭时,网络状态应该是无状态
 		notifyNetState(NET_STATE.NONE);
 	}
@@ -141,27 +174,34 @@ public abstract class NetConnectWebSocket : NetConnect
 		sendThread();
 
 		// 解析所有已经收到的消息包
-		try
+		while (mReceiveBuffer.Count > 0)
 		{
-			while (mReceiveBuffer.Count > 0)
+			PacketReceiveInfo info = mReceiveBuffer.Dequeue();
+			NetPacket packet = null;
+			try
 			{
-				PacketReceiveInfo info = mReceiveBuffer.Dequeue();
-				NetPacket packet = parsePacket(info.mType, info.mPacketData, info.mPacketSize, info.mSequence, info.mFieldFlag);
-				byte[] temp = info.mPacketData;
-				UN_ARRAY_BYTE(ref temp);
+				packet = parsePacket(info.mType, info.mPacketData, info.mPacketSize,
+					info.mSequence, info.mFieldFlag);
 				if (packet == null)
 				{
 					continue;
 				}
 				using var a = new ProfilerScope(packet.GetType().ToString());
 				packet.execute();
-				mNetPacketFactory.destroyPacket(packet);
 			}
-		}
-		catch (Exception e)
-		{
-			logException(e, "socket packet error");
-			mReceiveBuffer.Clear();
+			catch (Exception e)
+			{
+				logException(e, "socket packet error");
+			}
+			finally
+			{
+				byte[] temp = info.mPacketData;
+				UN_ARRAY_BYTE(ref temp);
+				if (packet != null)
+				{
+					mNetPacketFactory.destroyPacket(packet);
+				}
+			}
 		}
 	}
 	public override void destroy()
@@ -169,38 +209,59 @@ public abstract class NetConnectWebSocket : NetConnect
 		base.destroy();
 		mManualDisconnect = true;
 		clearSocket();
-		mOutputBuffer.Clear();
-		mReceiveBuffer.Clear();
+		clearSendQueue();
+		clearReceiveQueue();
 	}
 	public void setPingAction(Action callback) { mPingCallback = callback; }
 	public abstract void sendNetPacket(NetPacket packet);
 	public NET_STATE getNetState() { return mNetState; }
 	public virtual async void clearSocket()
 	{
+		ClientWebSocket socket = mWebSocket;
+		CancellationTokenSource cts = mSocketCts;
+		if (socket == null && cts == null)
+		{
+			return;
+		}
+		mWebSocket = null;
+		mSocketCts = null;
+		++mSocketGeneration;
+		mConnectedGeneration = -1;
+		mSending = false;
+		mSendingGeneration = -1;
+		cts?.Cancel();
+		await closeSocketAsync(socket, cts);
+	}
+	private static async Task closeSocketAsync(ClientWebSocket socket,
+		CancellationTokenSource socketCts)
+	{
 		try
 		{
-			if (mWebSocket != null)
+			if (socket != null && (socket.State == WebSocketState.Open ||
+				socket.State == WebSocketState.CloseReceived))
 			{
-				if (mWebSocket.State == WebSocketState.Open)
-				{
-					await mWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client Close", CancellationToken.None);
-				}
-				// close是异步的,可能close执行完毕后mWebSocket已经被重置为空了
-				mWebSocket?.Dispose();
-				mWebSocket = null;
+				using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(2));
+				await socket.CloseAsync(WebSocketCloseStatus.NormalClosure,
+					"Client Close", timeout.Token);
 			}
 		}
-		catch (Exception e)
+		catch (Exception) { }
+		finally
 		{
-			log("关闭连接时异常:" + e.Message);
-			mWebSocket = null;
+			socket?.Dispose();
+			socketCts?.Dispose();
 		}
 	}
 	// 由于连接成功操作可能不在主线程,所以只能是外部在主线程通知网络管理器连接成功
 	public void notifyConnected()
 	{
+		if (mConnectedGeneration == mSocketGeneration)
+		{
+			return;
+		}
+		mConnectedGeneration = mSocketGeneration;
 		// 建立连接后将消息列表中残留的消息清空,双缓冲中的读写列表都要清空
-		mOutputBuffer.Clear();
+		clearSendQueue();
 		// 开始心跳计时
 		mPingTimer.start();
 		mInputBuffer.clear();
@@ -222,85 +283,140 @@ public abstract class NetConnectWebSocket : NetConnect
 		PacketSendInfo item = mOutputBuffer.Dequeue();
 		if (item.mData == null || item.mDataSize == 0)
 		{
+			releaseSend(item);
 			return;
 		}
 		mSending = true;
+		mSendingGeneration = mSocketGeneration;
 		doSend(item);
 	}
 	protected async void doSend(PacketSendInfo info)
 	{
+		ClientWebSocket socket = mWebSocket;
+		int generation = mSocketGeneration;
+		CancellationToken cancellationToken = mSocketCts?.Token ?? default;
+		await sendAsync(socket, generation, cancellationToken, info);
+	}
+	private async Task sendAsync(ClientWebSocket socket, int generation,
+		CancellationToken ct, PacketSendInfo info)
+	{
 		try
 		{
-			await mWebSocket.SendAsync(new ArraySegment<byte>(info.mData, 0, info.mDataSize), mMessageType, true, CancellationToken.None);
+			await socket.SendAsync(new ArraySegment<byte>(info.mData, 0, info.mDataSize),
+				mMessageType, true, ct);
 		}
-		catch (ObjectDisposedException){}
+		catch (OperationCanceledException) { }
+		catch (ObjectDisposedException) { }
 		catch (WebSocketException e)
 		{
-			socketException(e);
+			if (isCurrent(socket, generation)) socketException(e);
+		}
+		catch (Exception e)
+		{
+			logException(e, "WebSocket发送失败");
+			if (isCurrent(socket, generation)) notifyNetState(NET_STATE.NET_CLOSE);
 		}
 		finally
 		{
-			if (info.mDataNeedDestroy)
+			releaseSend(info);
+			if (mSendingGeneration == generation)
 			{
-				UN_ARRAY_BYTE(ref info.mData);
+				mSending = false;
+				mSendingGeneration = -1;
 			}
-			mSending = false;
 		}
 	}
 	// 接收Socket消息
 	protected async void receiveThread()
 	{
-		while (mWebSocket != null && mWebSocket.State == WebSocketState.Open && Application.isPlaying)
+		ClientWebSocket socket = mWebSocket;
+		if (socket == null)
+		{
+			return;
+		}
+		int generation = mSocketGeneration;
+		CancellationToken cancellationToken = mSocketCts?.Token ?? default;
+		await receiveAsync(socket, generation, cancellationToken);
+	}
+	private async Task receiveAsync(ClientWebSocket socket, int generation,
+		CancellationToken ct)
+	{
+		while (isCurrent(socket, generation) && socket.State == WebSocketState.Open &&
+			Application.isPlaying)
 		{
 			try
 			{
-				WebSocketReceiveResult result = await mWebSocket.ReceiveAsync(mRecvBuff, CancellationToken.None);
-				if (result.Count <= 0 || result.CloseStatus != null)
+				WebSocketReceiveResult result = await socket.ReceiveAsync(mRecvBuff, ct);
+				if (!isCurrent(socket, generation)) return;
+				if (result.MessageType == WebSocketMessageType.Close ||
+					result.CloseStatus != null)
 				{
 					// 服务器异常
 					notifyNetState(NET_STATE.SERVER_CLOSE, WebSocketError.Faulted);
 					return;
 				}
-				if (!mInputBuffer.addData(mRecvBuff, result.Count))
+				if (result.MessageType != mMessageType)
 				{
-					logError("添加数据到缓冲区失败!数量:" + result.Count + ",当前缓冲区中数据:" + mInputBuffer.getDataLength() + ",缓冲区大小:" + mInputBuffer.getBufferSize());
+					logError("WebSocket消息类型不匹配:" + result.MessageType);
+					notifyNetState(NET_STATE.NET_CLOSE, WebSocketError.Faulted);
+					return;
 				}
-				// 解析接收到的数据
-				while (true)
+				if (result.Count > 0 && !mInputBuffer.addData(mRecvBuff, result.Count))
 				{
-					PARSE_RESULT result0 = preParsePacket(mInputBuffer.getData(), mInputBuffer.getDataLength(), out int index, out byte[] packetData,
-											out ushort packetType, out int packetSize, out uint sequence, out ulong fieldFlag, out bool hasSign);
-					if (result0 != PARSE_RESULT.SUCCESS)
-					{
-						if (result0 == PARSE_RESULT.ERROR)
-						{
-							mInputBuffer.clear();
-						}
-						break;
-					}
-					mReceiveBuffer.Enqueue(new(packetData, fieldFlag, packetSize, sequence, packetType, hasSign));
-					if (!mInputBuffer.removeData(0, index))
-					{
-						logError("移除数据失败");
-					}
-					if (isDevOrEditor())
-					{
-						log("已接收 : " + packetType.IToS() + ", 字节数:" + index.IToS(), LOG_LEVEL.LOW);
-					}
-					if (mInputBuffer.getDataLength() == 0)
-					{
-						break;
-					}
+					logError("WebSocket消息超过接收上限:" +
+						mInputBuffer.getBufferSize());
+					mInputBuffer.clear();
+					notifyNetState(NET_STATE.NET_CLOSE, WebSocketError.Faulted);
+					return;
 				}
+				if (!result.EndOfMessage) continue;
+				parseReceiveBuffer();
 			}
+			catch (OperationCanceledException) { return; }
 			catch (ObjectDisposedException) { }
 			catch (WebSocketException e)
 			{
-				socketException(e);
+				if (isCurrent(socket, generation)) socketException(e);
+				return;
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
-				notifyNetState(NET_STATE.NET_CLOSE);
+				logException(e, "WebSocket接收失败");
+				if (isCurrent(socket, generation)) notifyNetState(NET_STATE.NET_CLOSE);
+				return;
+			}
+		}
+	}
+	private void parseReceiveBuffer()
+	{
+		while (mInputBuffer.getDataLength() > 0)
+		{
+			PARSE_RESULT result = preParsePacket(mInputBuffer.getData(),
+				mInputBuffer.getDataLength(), out int index, out byte[] packetData,
+				out ushort packetType, out int packetSize, out uint sequence,
+				out ulong fieldFlag, out bool hasSign);
+			if (result != PARSE_RESULT.SUCCESS)
+			{
+				if (packetData != null) UN_ARRAY_BYTE(ref packetData);
+				if (result == PARSE_RESULT.ERROR) mInputBuffer.clear();
+				return;
+			}
+			if (index <= 0 || index > mInputBuffer.getDataLength())
+			{
+				if (packetData != null) UN_ARRAY_BYTE(ref packetData);
+				mInputBuffer.clear();
+				throw new InvalidOperationException("WebSocket解析器返回了无效长度");
+			}
+			mReceiveBuffer.Enqueue(new(packetData, fieldFlag, packetSize, sequence,
+				packetType, hasSign));
+			if (!mInputBuffer.removeData(0, index))
+			{
+				throw new InvalidOperationException("移除WebSocket接收数据失败");
+			}
+			if (isDevOrEditor())
+			{
+				log("已接收 : " + packetType.IToS() + ", 字节数:" + index.IToS(),
+					LOG_LEVEL.LOW);
 			}
 		}
 	}
@@ -315,6 +431,7 @@ public abstract class NetConnectWebSocket : NetConnect
 		{
 			return;
 		}
+		NET_STATE lastState = mNetState;
 		mNetState = state;
 		if (!isConnected() && !isConnecting())
 		{
@@ -322,6 +439,7 @@ public abstract class NetConnectWebSocket : NetConnect
 		}
 		if (isConnected())
 		{
+			notifyConnected();
 			receiveThread();
 		}
 		if (!mManualDisconnect)
@@ -331,8 +449,48 @@ public abstract class NetConnectWebSocket : NetConnect
 			{
 				cmd.mErrorCode = errorCode;
 				cmd.mNetState = mNetState;
+				cmd.mLastNetState = lastState;
 				pushCommand(cmd, this);
 			}
+		}
+	}
+	private bool isCurrent(ClientWebSocket socket, int generation)
+	{
+		return ReferenceEquals(socket, mWebSocket) && generation == mSocketGeneration;
+	}
+	private static void invokeConnectCallback(BoolCallback callback, bool success)
+	{
+		try
+		{
+			callback?.Invoke(success);
+		}
+		catch (Exception e)
+		{
+			logException(e, "WebSocket连接回调异常");
+		}
+	}
+	private void clearReceiveQueue()
+	{
+		while (mReceiveBuffer.Count > 0)
+		{
+			PacketReceiveInfo item = mReceiveBuffer.Dequeue();
+			byte[] data = item.mPacketData;
+			UN_ARRAY_BYTE(ref data);
+		}
+		mInputBuffer.clear();
+	}
+	private void clearSendQueue()
+	{
+		while (mOutputBuffer.Count > 0)
+		{
+			releaseSend(mOutputBuffer.Dequeue());
+		}
+	}
+	private static void releaseSend(PacketSendInfo info)
+	{
+		if (info.mDataNeedDestroy)
+		{
+			UN_ARRAY_BYTE(ref info.mData);
 		}
 	}
 }
