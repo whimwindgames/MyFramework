@@ -160,8 +160,18 @@ public class GameFrameworkHotFix : IFramework
 	}
 	public void onApplicationQuit()
 	{
-		mOnApplicationQuitCallBack?.Invoke();
-		destroy();
+		try
+		{
+			mOnApplicationQuitCallBack?.Invoke();
+		}
+		catch (Exception e)
+		{
+			logException(e, "onApplicationQuit callback failed!");
+		}
+		finally
+		{
+			destroy();
+		}
 	}
 	public void registeOnApplicationQuit(Action action) { mOnApplicationQuitCallBack += action; }
 	public void unregisteOnApplicationQuit(Action action) { mOnApplicationQuitCallBack -= action; }
@@ -196,33 +206,91 @@ public class GameFrameworkHotFix : IFramework
 	// 销毁所有框架组件,触发销毁回调
 	public void destroy()
 	{
+		if (mIsDestroy)
+		{
+			return;
+		}
 		mIsDestroy = true;
 		if (mFrameComponentDestroy == null)
 		{
 			return;
 		}
-		mOnDestroy?.Invoke();
-		foreach (FrameSystem frame in mFrameComponentDestroy)
+		// 使用已按destroyOrder排序的快照,避免系统清理时修改注册列表导致遗漏或集合枚举异常
+		List<FrameSystem> destroyList = new(mFrameComponentDestroy);
+		try
 		{
-			frame?.willDestroy();
-		}
-		foreach (FrameSystem frame in mFrameComponentDestroy)
-		{
-			if (frame != null)
+			try
 			{
-				frame.destroy();
-				mFrameCallbackList.Remove(frame.getName(), out var callback);
-				callback?.Invoke(null);
+				mOnDestroy?.Invoke();
+			}
+			catch (Exception e)
+			{
+				logException(e, "GameFrameworkHotFix destroy callback failed!");
+			}
+			foreach (FrameSystem frame in destroyList)
+			{
+				if (frame == null)
+				{
+					continue;
+				}
+				try
+				{
+					frame.willDestroy();
+				}
+				catch (Exception e)
+				{
+					logException(e, "willDestroy failed! :" + frame.getName());
+				}
+			}
+			foreach (FrameSystem frame in destroyList)
+			{
+				if (frame == null)
+				{
+					continue;
+				}
+				string name = frame.getName();
+				try
+				{
+					frame.destroy();
+				}
+				catch (Exception e)
+				{
+					logException(e, "destroy failed! :" + name);
+				}
+				try
+				{
+					if (mFrameCallbackList != null && mFrameCallbackList.Remove(name, out var callback))
+					{
+						callback?.Invoke(null);
+					}
+				}
+				catch (Exception e)
+				{
+					logException(e, "destroy notify callback failed! :" + name);
+				}
 			}
 		}
-		mFrameComponentInit.Clear();
-		mFrameComponentUpdate.Clear();
-		mFrameComponentDestroy.Clear();
-		mFrameComponentMap.Clear();
-		mFrameComponentInit = null;
-		mFrameComponentUpdate = null;
-		mFrameComponentDestroy = null;
-		mFrameComponentMap = null;
+		finally
+		{
+			mFrameComponentInit?.Clear();
+			mFrameComponentUpdate?.Clear();
+			mFrameComponentDestroy?.Clear();
+			mFrameComponentMap?.Clear();
+			mFrameCallbackList?.Clear();
+			mOnApplicationQuitCallBack = null;
+			mOnApplicationFocusCallBack = null;
+			mFrameComponentInit = null;
+			mFrameComponentUpdate = null;
+			mFrameComponentDestroy = null;
+			mFrameComponentMap = null;
+			mFrameCallbackList = null;
+			mOnDestroy = null;
+			mOnMemoryModifiedCheck = null;
+			if (ReferenceEquals(mGameFrameworkHotFix, this))
+			{
+				mGameFrameworkHotFix = null;
+			}
+		}
 	}
 	public int getFPS() { return mFPS; }
 	// 销毁指定类型的框架组件并从更新列表中移除

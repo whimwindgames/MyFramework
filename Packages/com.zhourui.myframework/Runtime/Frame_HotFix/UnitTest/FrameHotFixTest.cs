@@ -18,6 +18,7 @@ public class FrameHotFixTest
         Register("CommandTest", CommandTest.Run);
         Register("CommandSystemTest", CommandSystemTest.Run);
         Register("ComponentTest", ComponentTest.Run);
+		Register("GameFrameworkHotFixLifecycleTest", GameFrameworkHotFixLifecycleTest.Run);
         Register("PoolTest", PoolTest.Run);
         Register("AssetBundleInfoTest", AssetBundleInfoTest.Run);
         Register("CurveTest", CurveTest.Run);
