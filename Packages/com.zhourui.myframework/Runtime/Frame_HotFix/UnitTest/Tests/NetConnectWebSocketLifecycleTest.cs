@@ -8,6 +8,7 @@ internal static class NetConnectWebSocketLifecycleTest
 	{
 		testJsonParserUsesAccumulatedBuffer();
 		testDisconnectClearsPendingData();
+		testWebGLDisconnectClearsPendingData();
 	}
 
 	private static void testJsonParserUsesAccumulatedBuffer()
@@ -44,6 +45,21 @@ internal static class NetConnectWebSocketLifecycleTest
 		assertEqual(0, connect.getInputLength(), "断开连接应清空累计输入缓冲区");
 	}
 
+	private static void testWebGLDisconnectClearsPendingData()
+	{
+		TestWebSocketWebGL connect = new();
+		connect.addPendingData();
+		assertEqual(1, connect.getReceiveCount(), "WebGL测试前应存在待处理接收包");
+		assertEqual(1, connect.getSendCount(), "WebGL测试前应存在待发送包");
+		assertTrue(connect.getInputLength() > 0, "WebGL测试前输入缓冲区应有数据");
+
+		connect.disconnect();
+
+		assertEqual(0, connect.getReceiveCount(), "WebGL断开连接应释放全部待处理接收包");
+		assertEqual(0, connect.getSendCount(), "WebGL断开连接应释放全部待发送包");
+		assertEqual(0, connect.getInputLength(), "WebGL断开连接应清空累计输入缓冲区");
+	}
+
 	private sealed class TestWebSocketJson : NetConnectWebSocketJson
 	{
 		public byte[] copyPayload(byte[] source, out int packetSize)
@@ -68,5 +84,43 @@ internal static class NetConnectWebSocketLifecycleTest
 		public int getReceiveCount() { return mReceiveBuffer.Count; }
 		public int getSendCount() { return mOutputBuffer.Count; }
 		public int getInputLength() { return mInputBuffer.getDataLength(); }
+	}
+
+	private sealed class TestWebSocketWebGL : NetConnectWebSocketWebGL
+	{
+		public override void sendNetPacket(NetPacket packet) { }
+
+		public void addPendingData()
+		{
+			byte[] receiveData = { 3 };
+			byte[] sendData = { 4 };
+			mReceiveBuffer.Enqueue(new PacketReceiveInfo(receiveData, 0, 1, 0, 0, false));
+			mOutputBuffer.Enqueue(new PacketSendInfo(sendData, 1, false, 0));
+			mInputBuffer.addData(receiveData, receiveData.Length);
+		}
+
+		public int getReceiveCount() { return mReceiveBuffer.Count; }
+		public int getSendCount() { return mOutputBuffer.Count; }
+		public int getInputLength() { return mInputBuffer.getDataLength(); }
+
+		protected override NetPacket parsePacket(ushort packetType, byte[] buffer, int size,
+			uint sequence, ulong fieldFlag)
+		{
+			return null;
+		}
+
+		protected override PARSE_RESULT preParsePacket(byte[] buffer, int size, out int index,
+			out byte[] outPacketData, out ushort packetType, out int packetSize,
+			out uint sequence, out ulong fieldFlag, out bool hasSign)
+		{
+			index = 0;
+			outPacketData = null;
+			packetType = 0;
+			packetSize = 0;
+			sequence = 0;
+			fieldFlag = 0;
+			hasSign = false;
+			return PARSE_RESULT.NOT_ENOUGH;
+		}
 	}
 }
