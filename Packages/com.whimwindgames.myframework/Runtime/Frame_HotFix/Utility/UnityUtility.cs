@@ -207,17 +207,21 @@ public class UnityUtility
 	}
 	public static void setScreenSize(Vector2 size, bool fullScreen)
 	{
+		syncScreenSize(size);
+		setScreenSizeBase(mScreenSize, fullScreen);
+		GameCamera camera = mCameraManager.getUICamera();
+		camera?.MOVE(new(0.0f, 0.0f, -(mScreenSize.y * 0.5f).divide((camera.getFOVY(true) * 0.5f).tan())));
+		GameCamera blurCamera = mCameraManager.getUIBlurCamera();
+		blurCamera?.MOVE(new(0.0f, 0.0f, -(mScreenSize.y * 0.5f).divide((blurCamera.getFOVY(true) * 0.5f).tan())));
+	}
+	public static void syncScreenSize(Vector2 size)
+	{
 		mScreenSize.x = (int)size.x;
 		mScreenSize.y = (int)size.y;
 		mHalfScreenSize = new(mScreenSize.x >> 1, mScreenSize.y >> 1);
 		mScreenAspect = mScreenSize.x.divide(mScreenSize.y);   // 屏幕宽高比
 		Vector2Int uiSize = FrameSettings.getUISize();
 		mScreenScale = new(mScreenSize.x * (1.0f / uiSize.x), mScreenSize.y * (1.0f / uiSize.y));   // 当前分辨率相对于标准分辨率的缩放
-		setScreenSizeBase(mScreenSize, fullScreen);
-		GameCamera camera = mCameraManager.getUICamera();
-		camera?.MOVE(new(0.0f, 0.0f, -(mScreenSize.y * 0.5f).divide((camera.getFOVY(true) * 0.5f).tan())));
-		GameCamera blurCamera = mCameraManager.getUIBlurCamera();
-		blurCamera?.MOVE(new(0.0f, 0.0f, -(mScreenSize.y * 0.5f).divide((blurCamera.getFOVY(true) * 0.5f).tan())));
 	}
 	public static List<GameObject> findGameObjectWithTag(GameObject parent, string tag)
 	{
@@ -1414,6 +1418,24 @@ public class UnityUtility
 		return Kernel32.GetLastError();
 	}
 #endif
+	// 兼容1.0.x位于UnityUtility中的PlayerPrefs API；实现统一委托给PrefsUtility。
+	public static bool prefsGetBool(string key, bool defaultValue = false) =>
+		PrefsUtility.prefsGetBool(key, defaultValue);
+	public static void prefsSetBool(string key, bool value, bool save = true) =>
+		PrefsUtility.prefsSetBool(key, value, save);
+	public static int prefsGetInt(string key, int defaultValue = 0) =>
+		PrefsUtility.prefsGetInt(key, defaultValue);
+	public static void prefsSetInt(string key, int value, bool save = true) =>
+		PrefsUtility.prefsSetInt(key, value, save);
+	public static float prefsGetFloat(string key, float defaultValue = 0.0f) =>
+		PrefsUtility.prefsGetFloat(key, defaultValue);
+	public static void prefsSetFloat(string key, float value, bool save = true) =>
+		PrefsUtility.prefsSetFloat(key, value, save);
+	public static string prefsGetString(string key) => PrefsUtility.prefsGetString(key);
+	public static void prefsSetString(string key, string value, bool save = true) =>
+		PrefsUtility.prefsSetString(key, value, save);
+	public static bool prefsHasKey(string key) => PrefsUtility.prefsHasKey(key);
+	public static void prefsDeleteKey(string key) => PrefsUtility.prefsDeleteKey(key);
 	//------------------------------------------------------------------------------------------------------------------------------
 	protected static IEnumerator instantiateCoroutine(GameObject origin, string name, GameObjectCallback callback)
 	{

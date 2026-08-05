@@ -17,6 +17,8 @@ public sealed class DllProdReq
 	public string compiledDir;
 	// 为空时读取项目 HybridCLRData/AOTBaselines。
 	public string baselineRoot;
+	// 首包生产可传入尚未公开的候选AOT基线；为空时读取已冻结Base。
+	public AotBaseInfo baseline;
 	public bool development;
 	public bool useObf;
 	// 正式生产默认分析最终DLL；测试夹具或只做结构诊断时可显式关闭。
@@ -58,8 +60,9 @@ public sealed class DllProd
 	public bool check()
 	{
 		checkReq();
-		mBase = AotBase.inspect(mReq.baselineRoot, mReq.cfg, mReq.plan,
-			mReq.target, mReq.useObf);
+		mBase = mReq.baseline ?? AotBase.inspect(mReq.baselineRoot, mReq.cfg,
+			mReq.plan, mReq.target, mReq.useObf);
+		checkBaseline(mBase);
 		checkAot(mBase);
 		if (!string.IsNullOrWhiteSpace(mReq.compiledDir))
 			checkCompiled(safeDir(mReq.compiledDir, "热更DLL编译目录"));
@@ -160,6 +163,15 @@ public sealed class DllProd
 			if (!frozen.Contains(name + ".dll"))
 				throw new InvalidDataException("补丁需要的AOT元数据不在冻结Base中:" + output);
 		}
+	}
+
+	void checkBaseline(AotBaseInfo info)
+	{
+		if (info?.dlls == null || info.cap == null ||
+			string.IsNullOrWhiteSpace(info.path) || info.baseUrl != mReq.cfg.baseUrl ||
+			info.pubKey != mReq.cfg.pubKey || !HotList.same(info.cap, mReq.plan.cap))
+			throw new InvalidDataException("候选AOT基线与DLL生产计划不一致");
+		_ = safeDir(info.path, "AOT基线");
 	}
 
 	string compile()
@@ -309,9 +321,24 @@ public sealed class DllProd
 			target = req.target,
 			compiledDir = req.compiledDir,
 			baselineRoot = req.baselineRoot,
+			baseline = cloneBase(req.baseline),
 			development = req.development,
 			useObf = req.useObf,
 			analyzeMetadata = req.analyzeMetadata,
+		};
+	}
+
+	static AotBaseInfo cloneBase(AotBaseInfo value)
+	{
+		if (value == null) return null;
+		return new AotBaseInfo
+		{
+			path = value.path,
+			dlls = value.dlls == null ? null : (string[])value.dlls.Clone(),
+			cap = value.cap == null ? null : new HotCap(value.cap.optAot, value.cap.allow),
+			obfCap = value.obfCap,
+			baseUrl = value.baseUrl,
+			pubKey = value.pubKey,
 		};
 	}
 

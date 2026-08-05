@@ -190,6 +190,12 @@ public class ResourceManager : FrameSystem
 		}
 		return res;
 	}
+	public bool hasKey(string key)
+	{
+		checkRelativePath(key);
+		return mLoadSource == LOAD_SOURCE.ASSET_BUNDLE ?
+			mAssetBundleLoader.hasKey(key) : mAssetDataBaseLoader.hasKey(key);
+	}
 	// 检查指定资源包的依赖项是否已经加载,如果没有会强制加载,一般来说用不上
 	// 不会出现还在被其他资源包依赖就已经被卸载的情况,因为卸载的时候会检查是否有被其他资源包依赖,除非是手动强制卸载
 	public void checkAssetBundleDependenceLoaded(string bundleName)

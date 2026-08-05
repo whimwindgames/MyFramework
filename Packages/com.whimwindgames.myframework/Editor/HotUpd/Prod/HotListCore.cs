@@ -35,7 +35,7 @@ public sealed class HotPlan
 	public readonly HotSet hot;
 	public readonly string[] baseReq;
 
-	internal HotPlan(HotCap cap, HotSet hot, string[] baseReq)
+	public HotPlan(HotCap cap, HotSet hot, string[] baseReq)
 	{
 		this.cap = cap;
 		this.hot = hot;

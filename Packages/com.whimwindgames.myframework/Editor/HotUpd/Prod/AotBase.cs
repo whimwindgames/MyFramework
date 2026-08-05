@@ -153,6 +153,14 @@ public static class AotBase
 			EditorUserBuildSettings.activeBuildTarget, null, null, false).dlls;
 	}
 
+	// 项目发布适配器通过稳定API读取随Base冻结的启动能力，
+	// 无需自行解析框架私有标记文件。
+	public static AotBaseInfo info(string env, string baseId)
+	{
+		return read(path(env, baseId), env, baseId,
+			EditorUserBuildSettings.activeBuildTarget, null, null, false);
+	}
+
 	public static AotBaseInfo check(AotBaseReq req)
 	{
 		checkReq(req, false);

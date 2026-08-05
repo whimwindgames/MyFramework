@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.2] - 2026-08-05
+
+### Added
+
+- 增加 `IHotEnt` 错误与取消感知入口，同时保留旧 `start(Action)` 启动签名。
+- 增加 `IHotPre / HotPreReg` AOT 扩展边界以及 Obfuz 项目模板适配器，项目生成程序集不再成为通用框架程序集的反向依赖。
+- 热更框架启动增加异常回传和首个可交互界面就绪确认，Schema 11 只在业务真正就绪后标记候选版本健康。
+- 增加候选 AOT 基线分析与 `IPackCommitHook`，首包可将项目侧 Base 登记、Player、AOT 基线、Stage 和首个 Release 纳入同一回滚事务。
+
+### Fixed
+
+- 修复启用 `USE_OBFUZ` 时 `Frame_HotFix` 直接引用项目生成的 `GeneratedEncryptionVirtualMachine` 而无法独立编译的问题。
+- 修复 ArcadeHub 已采用的热更入口契约未随首次 OpenUPM 预览包发布的问题。
+- 修复未定义 `USE_URP` 的项目被框架内置渲染辅助测试阻断编译的问题，并恢复项目级安卓插件包名覆盖入口。
+- 修复 `HotUpd_Core` 未列入固定 AOT 集合、可能被项目误选为 Hot 的问题。
+
 ## [1.1.0-preview.1] - 2026-08-05
 
 ### Added

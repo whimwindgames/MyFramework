@@ -19,6 +19,8 @@ public sealed class DllMetaReq
 	// 可传最终Stage（*.dll.bytes）或HybridCLR编译目录（*.dll）。
 	public string hotDir;
 	public string baselineRoot;
+	// 首包生产可直接分析尚未公开的候选AOT基线。
+	public AotBaseInfo baseline;
 	public bool useObf;
 }
 
@@ -46,8 +48,12 @@ public static class DllMeta
 		UpdRule.prod(req.cfg);
 		HotList.chk(req.plan);
 		HotList.chkCfg(req.cfg, req.plan.hot);
-		AotBaseInfo baseline = AotBase.inspect(req.baselineRoot, req.cfg, req.plan,
-			req.target, req.useObf);
+		AotBaseInfo baseline = req.baseline ?? AotBase.inspect(req.baselineRoot,
+			req.cfg, req.plan, req.target, req.useObf);
+		if (baseline?.dlls == null || baseline.cap == null ||
+			baseline.baseUrl != req.cfg.baseUrl || baseline.pubKey != req.cfg.pubKey ||
+			!HotList.same(baseline.cap, req.plan.cap))
+			throw new InvalidDataException("候选AOT基线与元数据分析计划不一致");
 		return analyzeCandidate(req.hotDir, baseline, req.plan.hot, req.target);
 	}
 

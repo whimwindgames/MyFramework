@@ -191,8 +191,42 @@ public sealed class PackFlowTests
 		Assert.That(Directory.Exists(target), Is.False);
 	}
 
+	[Test]
+	public void ProjectCommitHookJoinsSuccessfulPackTransaction()
+	{
+		UpdCfg cfg = makeCfg();
+		HotPlan plan = HotList.fromCfg(cfg);
+		FakeCommitHook hook = new();
+		FakePackApi api = new(mStripped, cfg, mRunPath, true);
+		PackFlow flow = makeFlow(cfg, plan, api, false, false, hook);
+
+		_ = flow.build();
+
+		Assert.That(hook.validated, Is.EqualTo(1));
+		Assert.That(hook.promoted, Is.EqualTo(1));
+		Assert.That(hook.accepted, Is.EqualTo(1));
+		Assert.That(hook.disposed, Is.EqualTo(1));
+	}
+
+	[Test]
+	public void ProjectCommitHookIsDisposedWhenPlayerFails()
+	{
+		UpdCfg cfg = makeCfg();
+		HotPlan plan = HotList.fromCfg(cfg);
+		FakeCommitHook hook = new();
+		FakePackApi api = new(mStripped, cfg, mRunPath, false);
+		PackFlow flow = makeFlow(cfg, plan, api, false, false, hook);
+
+		Assert.Throws<UnityEditor.Build.BuildFailedException>(() => flow.build());
+
+		Assert.That(hook.validated, Is.EqualTo(1));
+		Assert.That(hook.promoted, Is.Zero);
+		Assert.That(hook.accepted, Is.Zero);
+		Assert.That(hook.disposed, Is.EqualTo(1));
+	}
+
 	PackFlow makeFlow(UpdCfg cfg, HotPlan plan, FakePackApi api, bool embed,
-		bool release)
+		bool release, IPackCommitHook hook = null)
 	{
 		return new PackFlow(new PackReq
 		{
@@ -215,8 +249,22 @@ public sealed class PackFlowTests
 				plan = plan,
 				newBase = true,
 			} : null,
+			commitHook = hook,
 			api = api,
 		});
+	}
+
+	sealed class FakeCommitHook : IPackCommitHook
+	{
+		public int validated;
+		public int promoted;
+		public int accepted;
+		public int disposed;
+
+		public void validate() { ++validated; }
+		public void promote() { ++promoted; }
+		public void accept() { ++accepted; }
+		public void Dispose() { ++disposed; }
 	}
 
 	UpdCfg makeCfg()

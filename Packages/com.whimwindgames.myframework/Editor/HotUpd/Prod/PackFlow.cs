@@ -31,6 +31,8 @@ public sealed class PackReq
 	public string runSetPath = "Assets/Resources/PlatRunSet.asset";
 	// 可选：把一个已经完成的Stage作为首个签名Release，与Player/Base一起提交。
 	public RelReq release;
+	// 可选：项目自己的Base登记、审计等事务。
+	public IPackCommitHook commitHook;
 	// 测试、CI或定制构建器可替换；为空时使用Unity/HybridCLR正式实现。
 	public IPackApi api;
 }
@@ -57,6 +59,15 @@ public interface IPackApi
 	void generateAll(BuildTarget target);
 	PackBuildResult build(BuildPlayerOptions options);
 	string strippedAot(BuildTarget target);
+}
+
+// 项目侧状态与Player、AOT基线、首个Release一起提交。
+// validate不得修改状态；promote后的失败由Dispose回滚；accept后只释放资源。
+public interface IPackCommitHook : IDisposable
+{
+	void validate();
+	void promote();
+	void accept();
 }
 
 public sealed class UnityPackApi : IPackApi
@@ -153,6 +164,7 @@ public sealed class PackFlow
 		probeWritable(Path.GetDirectoryName(baseline));
 		mApi.validate(mReq.target);
 		DllObf.chk(mReq.plan.hot, mReq.useObf);
+		mReq.commitHook?.validate();
 		return true;
 	}
 
@@ -163,6 +175,7 @@ public sealed class PackFlow
 		using HybridSettingsTx hybrid = new(mReq.plan.cap);
 		using RunSetTx run = new(mReq.runSetPath, mReq.cfg, HotList.aotDeny(mReq.plan.cap));
 		using EmbedTx embed = new(mReq.embedStage, mReq.cfg.platform);
+		using IPackCommitHook hook = mReq.commitHook;
 		AotPending aot = null;
 		RelBuild.RelPending release = null;
 		try
@@ -207,9 +220,11 @@ public sealed class PackFlow
 			release?.promote();
 			pack.promote();
 			aot.promote();
+			hook?.promote();
 			string releaseId = release?.publish();
 			pack.accept();
 			aot.accept();
+			hook?.accept();
 			report = new PackReport
 			{
 				outputRoot = pack.finalRoot,
@@ -365,6 +380,7 @@ public sealed class PackFlow
 			embedStage = req.embedStage,
 			runSetPath = req.runSetPath,
 			release = cloneRelease(req.release),
+			commitHook = req.commitHook,
 			api = req.api,
 		};
 	}

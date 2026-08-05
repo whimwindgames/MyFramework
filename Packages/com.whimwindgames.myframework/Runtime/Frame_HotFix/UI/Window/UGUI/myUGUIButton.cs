@@ -26,4 +26,5 @@ public class myUGUIButton : myUGUIImageSimple
 	{
 		mButton.onClick.AddListener(callback);
 	}
+	public void setInteractable(bool interactable) { mButton.interactable = interactable; }
 }

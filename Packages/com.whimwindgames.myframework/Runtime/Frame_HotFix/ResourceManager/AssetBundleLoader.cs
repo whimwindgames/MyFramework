@@ -174,6 +174,11 @@ public class AssetBundleLoader
 		AssetBundleInfo bundleInfo = asset.getAssetBundle();
 		return bundleInfo.getLoadState() == LOAD_STATE.LOADED && bundleInfo.getAssetInfo(fileNameLower).isLoaded();
 	}
+	public bool hasKey(string key)
+	{
+		return mInited && !string.IsNullOrEmpty(key) &&
+			mAssetToBundleInfo.ContainsKey(key.ToLower());
+	}
 	// 获得资源,如果资源包未加载,则返回空,文件名称带后缀,GameResources下的相对路径
 	public T getAsset<T>(string fileName) where T : UObject
 	{

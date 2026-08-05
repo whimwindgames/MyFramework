@@ -1,9 +1,9 @@
 ﻿#if USE_OBFUZ
 using Obfuz;
-using Obfuz.EncryptionVM;
 #endif
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using static FrameBaseHotFix;
 using static FrameBaseDefine;
@@ -11,120 +11,175 @@ using static UnityUtility;
 using static FrameUtility;
 using static FrameBaseUtility;
 
-// HotFix中顶层管理器的基类,负责热更的启动和框架组件的初始化,以及一些热更相关的全局操作
-// T需要是子类自己,这样在父类中就可以创建子类的实例
+// HotFix中顶层管理器的基类,负责热更启动、框架组件初始化和首屏就绪确认。
 #if USE_OBFUZ
 [ObfuzIgnore]
 #endif
-public abstract class GameHotFixBase<T> where T : GameHotFixBase<T>
+public abstract class GameHotFixBase<T> : IHotEnt where T : GameHotFixBase<T>
 {
-	protected static GameHotFixBase<T> mInstance;               // 在子类中创建
-	protected List<FrameSystem> mFrameComponentInit = new();    // 存储框架组件,用于初始化,由于这里向GameFrameworkHotFix注册后,已经过了GameFrameworkHotFix集中调用init的时机,所以需要单独进行初始化操作
-	protected Action mFinishCallback;                           // 存储的启动热更完成的回调
-	protected bool mAutoCallFinish = true;                      // 是否允许在初始化以后自动调用start传递的callback参数,如果不自动调用,就需要手动调用,可以在派生类的构造中设置此变量
+	protected static GameHotFixBase<T> mInstance;
+	protected readonly List<FrameSystem> mFrameComponentInit = new();
+	protected Action<Exception> mFinishCallback;
+	private CancellationToken mStartCt;
+	private int mFinishState;
+	private int mLoadState;
+
+	// 保留旧入口签名，旧项目无需改名或改调用方式。
 	public void start(Action callback)
 	{
-		mFinishCallback = callback;
-		GameFrameworkHotFix.startHotFix(() =>
+		start(error =>
 		{
-			// 创建系统组件
-			initFrameSystem();
-			mGameFrameworkHotFix.sortList();
-			mFrameComponentInit.Sort(FrameSystem.compareInit);
-
-			// 注册表格类型,单独将注册表格写到一个函数中,是因为其他的注册系统很可能会访问表格
-			// 所以尽量先把表格加载完,再去注册其他的系统
-			registerAllTable();
-
-#if USE_SQLITE
-			mSQLiteManager.loadAllAsync(() =>
+			if (error != null)
 			{
-#endif
-				mExcelManager.loadAllAsync(() =>
-				{
-					// 表格加载完后才注册对象类型
-					registerAll();
-					onAllLoaded();
-				});
-#if USE_SQLITE
-			});
-#endif
+				logException(error, "热更入口启动失败");
+				return;
+			}
+			callback?.Invoke();
+		}, CancellationToken.None);
+	}
+
+	public void start(Action<Exception> callback, CancellationToken ct)
+	{
+		mFinishCallback = callback;
+		mStartCt = ct;
+		Volatile.Write(ref mFinishState, 0);
+		Volatile.Write(ref mLoadState, 0);
+		ct.ThrowIfCancellationRequested();
+		GameFrameworkHotFix.mOnPackageName += getAndroidPluginBundleName;
+		GameFrameworkHotFix.startHotFix(error =>
+		{
+			if (mStartCt.IsCancellationRequested) return;
+			if (error != null)
+			{
+				finish(error);
+				return;
+			}
+			try
+			{
+				initFrameSystem();
+				mGameFrameworkHotFix.sortList();
+				mFrameComponentInit.Sort(FrameSystem.compareInit);
+				registerAllTable();
+				registerAll();
+				loadData(onAllLoaded);
+			}
+			catch (Exception ex) { finish(ex); }
 		});
 	}
-	public static void callbackFinish() { mInstance.mFinishCallback?.Invoke(); }
+
+	public static void callbackFinish()
+	{
+		mInstance?.finish(null);
+	}
+
 	public static GameHotFixBase<T> createHotFixInstance()
 	{
 		mInstance = createInstance<GameHotFixBase<T>>(typeof(T));
 		return mInstance;
 	}
-	//----------------------------------------------------------------------------------------------------------------------------------
+
 	protected void onAllLoaded()
 	{
-		if (isEditor())
+		if (mStartCt.IsCancellationRequested ||
+			Interlocked.CompareExchange(ref mLoadState, 1, 0) != 0) return;
+		bool inited = false;
+		try
 		{
-			mExcelManager.checkAll();
-#if USE_SQLITE
-			mSQLiteManager.checkAll();
-#endif
-		}
-
-		onPreInit();
-		// 初始化所有系统组件
-		foreach (FrameSystem frame in mFrameComponentInit)
-		{
-			try
+			if (isEditor())
 			{
+				mExcelManager.checkAll();
+#if USE_SQLITE
+				mSQLiteManager.checkAll();
+#endif
+			}
+			onPreInit();
+			foreach (FrameSystem frame in mFrameComponentInit)
+			{
+				mStartCt.ThrowIfCancellationRequested();
 				DateTime start = DateTime.Now;
 				frame.init();
 				if (isDevOrEditor() && (int)(DateTime.Now - start).TotalMilliseconds > 1)
 				{
-					log(frame.getName() + "初始化消耗时间:" + (int)(DateTime.Now - start).TotalMilliseconds + "毫秒");
+					log(frame.getName() + "初始化消耗时间:" +
+						(int)(DateTime.Now - start).TotalMilliseconds + "毫秒");
 				}
 			}
-			catch (Exception e)
+			foreach (FrameSystem frame in mFrameComponentInit)
 			{
-				logError("init failed! :" + frame.getName() + ", info:" + e.Message + ", stack:" + e.StackTrace);
-			}
-		}
-		foreach (FrameSystem frame in mFrameComponentInit)
-		{
-			try
-			{
+				mStartCt.ThrowIfCancellationRequested();
 				DateTime start = DateTime.Now;
 				frame.lateInit();
 				if (isDevOrEditor() && (int)(DateTime.Now - start).TotalMilliseconds > 1)
 				{
-					log(frame.getName() + " late初始化消耗时间:" + (int)(DateTime.Now - start).TotalMilliseconds + "毫秒");
+					log(frame.getName() + " late初始化消耗时间:" +
+						(int)(DateTime.Now - start).TotalMilliseconds + "毫秒");
 				}
 			}
-			catch (Exception e)
-			{
-				logError("late init failed! :" + frame.getName() + ", info:" + e.Message + ", stack:" + e.StackTrace);
-			}
+			onPostInit();
+			mStartCt.ThrowIfCancellationRequested();
+			mGameFrameworkHotFix.setAllInited(true);
+			inited = true;
+			enterScene(getStartGameSceneType());
+			mStartCt.ThrowIfCancellationRequested();
+			waitReady(readyDone);
 		}
-		onPostInit();
-		mGameFrameworkHotFix.setAllInited(true);
-		log("启动游戏耗时:" + (int)(DateTime.Now - mGameFrameworkHotFix.getStartTime()).TotalMilliseconds + "毫秒");
-		if (mAutoCallFinish)
+		catch (OperationCanceledException) when (mStartCt.IsCancellationRequested)
 		{
-			mFinishCallback?.Invoke();
+			resetInit(inited);
 		}
-		// 进入主场景
-		enterScene(getStartGameSceneType());
+		catch (Exception ex)
+		{
+			resetInit(inited);
+			finish(ex);
+		}
 	}
+
+	private void resetInit(bool inited)
+	{
+		if (!inited) return;
+		try { mGameFrameworkHotFix.setAllInited(false); }
+		catch (Exception ex) { logException(ex); }
+	}
+
+	private void finish(Exception error)
+	{
+		if (mStartCt.IsCancellationRequested ||
+			Interlocked.CompareExchange(ref mFinishState, 1, 0) != 0) return;
+		Action<Exception> callback = mFinishCallback;
+		mFinishCallback = null;
+		GameFrameworkHotFix.mOnPackageName -= getAndroidPluginBundleName;
+		try { callback?.Invoke(error); }
+		catch (Exception ex) { logException(ex); }
+	}
+
+	protected virtual string getAndroidPluginBundleName()
+	{
+		return FrameCrossParam.mAndroidPluginPackage;
+	}
+
 	protected abstract void registerAll();
-	protected abstract void registerAllTable();
+	// 旧项目可继续覆盖该入口；不使用表格的项目无需实现。
+	protected virtual void registerAllTable() { }
 	protected abstract void initFrameSystem();
+	protected virtual void loadData(Action done)
+	{
+#if USE_SQLITE
+		mSQLiteManager.loadAllAsync(() => mExcelManager.loadAllAsync(done));
+#else
+		mExcelManager.loadAllAsync(done);
+#endif
+	}
 	protected virtual void onPreInit() { }
 	protected virtual void onPostInit() { }
+	protected virtual void waitReady(Action<Exception> done) { done?.Invoke(null); }
 	protected abstract Type getStartGameSceneType();
+
 	protected void registeFrameSystem<T0>(Action<T0> callback) where T0 : FrameSystem, new()
 	{
 		mFrameComponentInit.Add(mGameFrameworkHotFix.registeFrameSystem(callback));
 	}
-	// [ObfuzIgnore]指示Obfuz不要混淆这个函数
-	// 初始化EncryptionService后被混淆的代码才能正常运行，
-	// 此函数通过反射进行调用,并且不能使用任何会被混淆的代码
+
+	// 旧启动链仍可从持久化目录读取密钥；Schema 11直接传入已校验字节。
 #if USE_OBFUZ
 	[ObfuzIgnore]
 #endif
@@ -135,43 +190,41 @@ public abstract class GameHotFixBase<T> where T : GameHotFixBase<T>
 			callback?.Invoke();
 			return;
 		}
-
-		// 在这之前需要确保PersistentAssets中的密钥文件是最新的
 		string filePath = F_PERSISTENT_ASSETS_PATH + DYNAMIC_SECRET_FILE;
-		if (!isWebGL())
-		{
-			filePath = "file://" + filePath;
-		}
-		GameEntryBase.startCoroutine(openFileAsyncInternal(filePath, true, (byte[] bytes) =>
-		{
-			preStart(bytes, callback);
-		}));
+		if (!isWebGL()) filePath = "file://" + filePath;
+		GameEntryBase.startCoroutine(openFileAsyncInternal(filePath, true,
+			bytes => preStart(bytes, callback)));
 	}
-	// Schema 11直接传入已校验的密钥字节，避免再从可变路径读取。
+
 #if USE_OBFUZ
 	[ObfuzIgnore]
 #endif
-	protected static void preStart(byte[] bytes, Action callback)
+	protected static void preStart(byte[] secret, Action callback)
 	{
-		if (isEditor())
-		{
-			callback?.Invoke();
-			return;
-		}
-#if USE_OBFUZ
-		if (bytes == null || bytes.Length == 0)
-		{
-			throw new InvalidOperationException("dynamic_secret");
-		}
-		EncryptionService<DefaultDynamicEncryptionScope>.Encryptor = new GeneratedEncryptionVirtualMachine(bytes);
-#endif
 		try
 		{
+			if (!isEditor()) HotPreReg.run(secret);
 			callback?.Invoke();
 		}
-		catch (Exception e)
+		catch (Exception ex)
 		{
-			Debug.LogException(e);
+			Debug.LogException(ex);
+			throw;
 		}
+	}
+
+	private void readyDone(Exception error)
+	{
+		if (mStartCt.IsCancellationRequested || Volatile.Read(ref mFinishState) != 0) return;
+		if (error != null)
+		{
+			resetInit(true);
+			finish(error);
+			return;
+		}
+		log("启动游戏耗时:" +
+			(int)(DateTime.Now - mGameFrameworkHotFix.getStartTime()).TotalMilliseconds +
+			"毫秒");
+		finish(null);
 	}
 }

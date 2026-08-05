@@ -10,6 +10,7 @@ public static class HotAsm
 	{
 		"Frame_Base",
 		"Frame_Game",
+		"HotUpd_Core",
 		"HotUpd_Client",
 	};
 

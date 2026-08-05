@@ -5,6 +5,7 @@ using Obfuz;
 #endif
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using static FrameBaseUtility;
 using static UnityUtility;
 using static FrameUtility;
@@ -38,11 +39,42 @@ public class GameFrameworkHotFix : IFramework
 	protected bool mIsDestroy;														// 框架是否已经被销毁
 	public static Action mOnDestroy;
 	public static Action<int, long, long, long, long> mOnMemoryModifiedCheck;
+	public static Func<string> mOnPackageName;
 	public static void startHotFix(Action callback)
 	{
+		startHotFix(error =>
+		{
+			if (error != null)
+			{
+				logException(error, "热更框架启动失败");
+				return;
+			}
+			callback?.Invoke();
+		});
+	}
+	public static void startHotFix(Action<Exception> callback)
+	{
 		GameFrameworkHotFix framework = new();
-		GameEntryBase.getInstance().setFrameworkHotFix(framework);
-		framework.init(callback);
+		GameEntryBase entry = GameEntryBase.getInstance() ??
+			throw new InvalidOperationException("GameEntryBase未初始化");
+		entry.setFrameworkHotFix(framework);
+		int finished = 0;
+		void finish(Exception error)
+		{
+			if (Interlocked.Exchange(ref finished, 1) != 0) return;
+			if (error != null)
+			{
+				framework.destroy();
+				if (ReferenceEquals(entry.getFrameworkHotFix(), framework))
+				{
+					entry.setFrameworkHotFix(null);
+				}
+			}
+			try { callback?.Invoke(error); }
+			catch (Exception ex) { logException(ex, "热更框架启动回调执行失败"); }
+		}
+		try { framework.init(finish); }
+		catch (Exception ex) { finish(ex); }
 	}
 	public DateTime getStartTime() { return mStartTime; }
 	public DateTime getFrameStartTime() { return mFrameStartTime; }
@@ -349,35 +381,49 @@ public class GameFrameworkHotFix : IFramework
 	}
 	//------------------------------------------------------------------------------------------------------------------------------
 	// 初始化入口:按preInitAsync -> initAsync -> resourceAvailable顺序执行
-	protected void init(Action callback)
+	protected void init(Action<Exception> callback)
 	{
 		// 先执行所有的preInitAsync
-		preInitAsync(() =>
+		preInitAsync(error =>
 		{
+			if (error != null)
+			{
+				callback?.Invoke(error);
+				return;
+			}
 			// 再执行所有的initAsync,因为部分initAsync会依赖于preInitAsync
-			int initedCount = 0;
+			int count = mFrameComponentInit.count();
+			int done = 0;
+			int term = 0;
+			Action<Exception> finish = err =>
+			{
+				if (err != null)
+				{
+					if (Interlocked.CompareExchange(ref term, 1, 0) == 0) callback?.Invoke(err);
+					return;
+				}
+				if (Interlocked.Increment(ref done) != count ||
+					Interlocked.CompareExchange(ref term, 1, 0) != 0) return;
+				try { resourceAvailable(); }
+				catch (Exception ex) { callback?.Invoke(ex); return; }
+				callback?.Invoke(null);
+			};
+			if (count == 0)
+			{
+				try { resourceAvailable(); }
+				catch (Exception ex) { callback?.Invoke(ex); return; }
+				callback?.Invoke(null);
+				return;
+			}
 			foreach (FrameSystem item in mFrameComponentInit)
 			{
-				item.initAsync(() =>
-				{
-					if (++initedCount == mFrameComponentInit.count())
-					{
-						resourceAvailable();
-						try
-						{
-							callback?.Invoke();
-						}
-						catch(Exception e)
-						{
-							logException(e);
-						}
-					}
-				});
+				try { item.initAsync(finish); }
+				catch (Exception ex) { finish(ex); }
 			}
 		});
 	}
 	// 预初始化:注册所有框架组件、初始化Android插件、执行init/lateInit,然后执行各组件的preInitAsync
-	protected void preInitAsync(Action callback)
+	protected void preInitAsync(Action<Exception> callback)
 	{
 		using var a = new ProfilerScope(0);
 		// 通过代码添加接受java日志的节点
@@ -397,7 +443,8 @@ public class GameFrameworkHotFix : IFramework
 		registeFrameSystem<AndroidPluginManager>(null);
 		registeFrameSystem<AndroidAssetLoader>(null);
 		registeFrameSystem<AndroidMainClass>(null);
-		AndroidPluginManager.initAndroidPlugin(FrameSettings.getAndroidPluginBundleName());
+		AndroidPluginManager.initAndroidPlugin(mOnPackageName?.Invoke() ??
+			FrameSettings.getAndroidPluginBundleName());
 		AndroidAssetLoader.initJava(AndroidPluginManager.getPackageName() + ".AssetLoader");
 		AndroidMainClass.initJava(AndroidPluginManager.getPackageName() + ".MainClass");
 		log("start game hotfix!");
@@ -444,19 +491,36 @@ public class GameFrameworkHotFix : IFramework
 		catch (Exception e)
 		{
 			logException(e, "init failed! " + (e.InnerException?.Message ?? "empty"));
+			callback?.Invoke(e);
+			return;
 		}
 		mCurTime = DateTime.Now;
 
-		int initedCount = 0;
+		int count = mFrameComponentInit.count();
+		if (count == 0)
+		{
+			callback?.Invoke(null);
+			return;
+		}
+		int done = 0;
+		int term = 0;
+		Action<Exception> finish = error =>
+		{
+			if (error != null)
+			{
+				if (Interlocked.CompareExchange(ref term, 1, 0) == 0) callback?.Invoke(error);
+				return;
+			}
+			if (Interlocked.Increment(ref done) == count &&
+				Interlocked.CompareExchange(ref term, 1, 0) == 0)
+			{
+				callback?.Invoke(null);
+			}
+		};
 		foreach (FrameSystem item in mFrameComponentInit)
 		{
-			item.preInitAsync(() =>
-			{
-				if (++initedCount == mFrameComponentInit.count())
-				{
-					callback?.Invoke();
-				}
-			});
+			try { item.preInitAsync(finish); }
+			catch (Exception ex) { finish(ex); }
 		}
 	}
 	// 注册所有内置框架组件,按依赖顺序排列

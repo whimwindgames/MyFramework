@@ -219,13 +219,7 @@ public partial class HybridCLRSystem
 	{
 		Type type = schemaFindEntry(hotAssembly);
 		MethodInfo pre = schemaFindMethod(type, "preStart", typeof(byte[]), typeof(Action));
-		if (pre == null && (secret == null || secret.Length == 0))
-		{
-			pre = schemaFindMethod(type, "preStart", typeof(Action));
-		}
-		MethodInfo create = schemaFindMethod(type, "createHotFixInstance");
-		MethodInfo start = schemaFindMethod(type, "start", typeof(Action));
-		if (pre == null || create == null || start == null || !create.IsStatic || start.IsStatic)
+		if (pre == null)
 		{
 			UpdFail.bad(UpdCode.Load, "hotfix_api", UpdPhase.Load);
 		}
@@ -258,8 +252,19 @@ public partial class HybridCLRSystem
 			}
 			try
 			{
-				object instance = create.Invoke(null, null);
-				start.Invoke(instance, new object[1] { onDone });
+				IHotEnt instance = (IHotEnt)Activator.CreateInstance(type);
+				instance.start(error =>
+				{
+					if (error != null)
+					{
+						if (Interlocked.CompareExchange(ref term, 2, 0) == 0)
+						{
+							done.TrySetException(schemaRootException(error));
+						}
+						return;
+					}
+					onDone();
+				}, wait.Token);
 			}
 			catch (Exception ex)
 			{
@@ -271,10 +276,7 @@ public partial class HybridCLRSystem
 		};
 		try
 		{
-			object[] args = pre.GetParameters().Length == 2
-				? new object[2] { secret, onStart }
-				: new object[1] { onStart };
-			pre.Invoke(null, args);
+			pre.Invoke(null, new object[2] { secret, onStart });
 		}
 		catch (Exception ex)
 		{
@@ -295,12 +297,33 @@ public partial class HybridCLRSystem
 
 	private static Type schemaFindEntry(Assembly assembly)
 	{
-		Type type = assembly.GetType("GameHotFix");
-		if (type == null || type.IsAbstract || type.IsInterface || type.BaseType?.Name != "GameHotFixBase`1")
+		Type[] types;
+		try
+		{
+			types = assembly.GetTypes();
+		}
+		catch (ReflectionTypeLoadException ex)
+		{
+			UpdFail.bad(UpdCode.Load, "hotfix_types", UpdPhase.Load, ex);
+			return null;
+		}
+		Type found = null;
+		for (int i = 0; i < types.Length; ++i)
+		{
+			Type type = types[i];
+			if (type == null || type.IsAbstract || type.IsInterface ||
+				!typeof(IHotEnt).IsAssignableFrom(type)) continue;
+			if (found != null)
+			{
+				UpdFail.bad(UpdCode.Load, "hotfix_entry", UpdPhase.Load);
+			}
+			found = type;
+		}
+		if (found == null)
 		{
 			UpdFail.bad(UpdCode.Load, "hotfix_entry", UpdPhase.Load);
 		}
-		return type;
+		return found;
 	}
 
 	private static MethodInfo schemaFindMethod(Type type, string name, params Type[] parameters)

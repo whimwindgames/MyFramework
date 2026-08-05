@@ -3,10 +3,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor.SceneManagement;
+#endif
 using static UnityUtility;
 using static FrameBaseHotFix;
 using static FileUtility;
 using static FrameBaseUtility;
+using static FrameDefine;
 using static StringUtility;
 using static FrameUtility;
 
@@ -16,8 +20,15 @@ public class SceneSystem : FrameSystem
 	protected Dictionary<Type, List<SceneRegisteInfo>> mScriptMappingList = new();	// 场景脚本类型与场景注册信息的映射,允许多个相似的场景共用同一个场景脚本
 	protected Dictionary<string, SceneRegisteInfo> mSceneRegisteList = new();		// 场景注册信息
 	protected Dictionary<string, SceneInstance> mSceneList = new();					// 已经加载的所有场景
+	protected Dictionary<int, string> mKeySceneList = new();                    // 逻辑地址加载的附加场景
 	public override void destroy()
 	{
+		foreach (int handle in new List<int>(mKeySceneList.Keys))
+		{
+			Scene scene = findSceneByHandle(handle);
+			if (scene.IsValid() && scene.isLoaded) SceneManager.UnloadSceneAsync(scene);
+		}
+		mKeySceneList.Clear();
 		base.destroy();
 		mSceneList.forKey(item => unloadSceneOnly(item));
 		mSceneList.Clear();
@@ -63,6 +74,50 @@ public class SceneSystem : FrameSystem
 	}
 	public string getScenePath(string name) { return mSceneRegisteList.get(name)?.mScenePath ?? EMPTY; }
 	public T getScene<T>(string name) where T : SceneInstance { return mSceneList.get(name) as T; }
+	// 使用GameResources逻辑地址加载不绑定SceneInstance的附加场景，供大厅托管小游戏。
+	public CustomAsyncOperation loadKey(string key, Action<Scene> callback)
+	{
+		if (string.IsNullOrEmpty(key) || !key.endWith(".unity"))
+		{
+			throw new ArgumentException("场景逻辑地址无效:" + key, nameof(key));
+		}
+		CustomAsyncOperation op = new();
+		void begin()
+		{
+			GameEntryBase.startCoroutine(loadKeyCoroutine(key, callback, op));
+		}
+#if UNITY_EDITOR
+		if (GameEntryBase.getInstance().mFrameworkParam.mLoadSource == LOAD_SOURCE.ASSET_DATABASE)
+		{
+			begin();
+			return op;
+		}
+#endif
+		string bundle = generateFileAssetBundleName(key);
+		mResourceManager.preloadAssetBundleAsync(bundle, info =>
+		{
+			if (info == null)
+			{
+				callback?.Invoke(default);
+				op.setFailed("场景资源包加载失败:" + key);
+				return;
+			}
+			begin();
+		});
+		return op;
+	}
+	public AsyncOperation unloadKey(Scene scene)
+	{
+		if (!scene.IsValid()) throw new ArgumentException("场景实例无效", nameof(scene));
+		if (!mKeySceneList.Remove(scene.handle, out string key))
+		{
+			throw new InvalidOperationException("场景未由逻辑地址接口加载:" + scene.path);
+		}
+		AsyncOperation op = SceneManager.UnloadSceneAsync(scene);
+		if (op == null) throw new InvalidOperationException("场景卸载未启动:" + scene.path);
+		op.completed += _ => mResourceManager?.unloadPath(getFilePath(key));
+		return op;
+	}
 	public int getScriptMappingCount(Type classType) { return mScriptMappingList.get(classType).count(); }
 	public void setMainScene(string name)
 	{
@@ -180,6 +235,63 @@ public class SceneSystem : FrameSystem
 		}
 	}
 	//------------------------------------------------------------------------------------------------------------------------------
+	protected static Scene findSceneByHandle(int handle)
+	{
+		for (int i = 0; i < SceneManager.sceneCount; ++i)
+		{
+			Scene scene = SceneManager.GetSceneAt(i);
+			if (scene.handle == handle) return scene;
+		}
+		return default;
+	}
+	protected IEnumerator loadKeyCoroutine(string key, Action<Scene> callback,
+		CustomAsyncOperation op)
+	{
+		string sceneName = getFileNameNoSuffixNoDir(key);
+		AsyncOperation request;
+		try
+		{
+#if UNITY_EDITOR
+			if (GameEntryBase.getInstance().mFrameworkParam.mLoadSource == LOAD_SOURCE.ASSET_DATABASE)
+			{
+				request = EditorSceneManager.LoadSceneAsyncInPlayMode(
+					P_GAME_RESOURCES_PATH + key,
+					new LoadSceneParameters(LoadSceneMode.Additive));
+			}
+			else
+#endif
+			{
+				request = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+			}
+			if (request == null) throw new InvalidOperationException("场景加载未启动:" + key);
+			request.allowSceneActivation = true;
+		}
+		catch (Exception ex)
+		{
+			logException(ex);
+			callback?.Invoke(default);
+			op.setFailed(ex.Message);
+			yield break;
+		}
+		while (!request.isDone) yield return null;
+		try
+		{
+			Scene scene = SceneManager.GetSceneByName(sceneName);
+			if (!scene.IsValid() || !scene.isLoaded)
+			{
+				throw new InvalidOperationException("场景加载结果无效:" + key);
+			}
+			mKeySceneList.Add(scene.handle, key);
+			callback?.Invoke(scene);
+			op.setFinish();
+		}
+		catch (Exception ex)
+		{
+			logException(ex);
+			callback?.Invoke(default);
+			op.setFailed(ex.Message);
+		}
+	}
 	protected IEnumerator loadSceneCoroutine(SceneInstance scene, CustomAsyncOperation op)
 	{
 		scene.setState(LOAD_STATE.LOADING);

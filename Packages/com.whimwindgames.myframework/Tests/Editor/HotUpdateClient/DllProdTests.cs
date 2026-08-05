@@ -90,6 +90,38 @@ public sealed class DllProdTests
 	}
 
 	[Test]
+	public void CandidateBaselineCanProduceDllsBeforeBaseIsPublished()
+	{
+		UpdCfg cfg = makeCfg();
+		HotPlan plan = HotList.fromCfg(cfg);
+		string target = AotBase.path(mBaselineRoot, cfg.env, cfg.baseId,
+			BuildTarget.StandaloneOSX);
+		using AotPending pending = AotBase.prepare(new AotBaseReq
+		{
+			source = mAotSource,
+			root = mBaselineRoot,
+			cfg = cfg,
+			plan = plan,
+			target = BuildTarget.StandaloneOSX,
+		});
+		DllProd prod = DllBuild.make(new DllProdReq
+		{
+			cfg = cfg,
+			plan = plan,
+			target = BuildTarget.StandaloneOSX,
+			compiledDir = mCompiled,
+			baseline = pending.info,
+			analyzeMetadata = false,
+		});
+
+		DllReport report = prod.make(mStage);
+
+		Assert.That(report.baseline, Is.EqualTo(pending.path));
+		Assert.That(Directory.Exists(target), Is.False);
+		Assert.That(File.Exists(Path.Combine(mStage, "Frame_Base.dll.bytes")), Is.True);
+	}
+
+	[Test]
 	public void BaselineTamperingIsRejected()
 	{
 		UpdCfg cfg = makeCfg();

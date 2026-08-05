@@ -18,12 +18,15 @@ public class GameFramework : IFramework
 	public static Action mOnInitFrameSystem;                                            // 用于通知注册所有的应用层框架组件
 	public static Action mOnRegisteStuff;												// 用于通知注册应用层对象
 	public static Action mOnDestroy;                                                    // 用于通知应用层销毁
+	public static Func<string> mOnPackageName;                                          // 项目可覆盖安卓插件包名
 	public virtual void init()
 	{
 		registeFrameSystem<AndroidPluginManager>(null);
 		registeFrameSystem<AndroidAssetLoader>(null);
 		registeFrameSystem<AndroidMainClass>(null);
-		AndroidPluginManager.initAnroidPlugin(FrameSettings.getAndroidPluginBundleName());
+		FrameCrossParam.mAndroidPluginPackage = mOnPackageName?.Invoke() ??
+			FrameSettings.getAndroidPluginBundleName();
+		AndroidPluginManager.initAnroidPlugin(FrameCrossParam.mAndroidPluginPackage);
 		AndroidAssetLoader.initJava(AndroidPluginManager.getPackageName() + ".AssetLoader");
 		AndroidMainClass.initJava(AndroidPluginManager.getPackageName() + ".MainClass");
 		logBase("start game!");
@@ -122,6 +125,10 @@ public class GameFramework : IFramework
 		}
 		mFrameComponentList.Clear();
 		mFrameComponentList = null;
+		mOnInitFrameSystem = null;
+		mOnRegisteStuff = null;
+		mOnDestroy = null;
+		mOnPackageName = null;
 	}
 	//------------------------------------------------------------------------------------------------------------------------------
 	protected virtual void initSDK(){}

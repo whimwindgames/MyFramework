@@ -62,6 +62,11 @@ public class myUGUIInputField : myUGUIImageSimple, IInputField
 	public string getText() { return mInputField.text; }
 	public bool isFocused() { return mInputField.isFocused; }
 	public bool isVisible() { return isActiveInHierarchy(); }
+	public void setPassword(bool password)
+	{
+		mInputField.contentType = password ? InputField.ContentType.Password :
+			InputField.ContentType.Standard;
+	}
 	public void focus(bool active = true)
 	{
 		if (active)

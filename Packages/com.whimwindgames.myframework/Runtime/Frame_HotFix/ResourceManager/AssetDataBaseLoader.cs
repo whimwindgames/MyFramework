@@ -85,6 +85,10 @@ public class AssetDataBaseLoader
 	{
 		return mLoadedPath.TryGetValue(getFilePath(name), out var resList) && resList.ContainsKey(name);
 	}
+	public bool hasKey(string key)
+	{
+		return !string.IsNullOrEmpty(key) && isFileExist(P_GAME_RESOURCES_PATH + key);
+	}
 	public UObject getAsset(string name)
 	{
 		return mLoadedPath.get(getFilePath(name))?.get(name)?.getObject();

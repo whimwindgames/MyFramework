@@ -4,6 +4,11 @@ using UnityEditor;
 
 public static class DllBuild
 {
+	public static string obfMapPath(bool enabled)
+	{
+		return enabled ? DllObf.mapPath() : null;
+	}
+
 	public static HotPlan plan(UpdCfg cfg)
 	{
 		return HotList.fromCfg(cfg);

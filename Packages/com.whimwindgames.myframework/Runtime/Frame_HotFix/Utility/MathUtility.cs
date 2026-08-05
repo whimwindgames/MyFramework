@@ -7,6 +7,8 @@ using static UnityUtility;
 // 数学相关工具函数,所有与数学计算相关的函数都在这里
 public class MathUtility
 {
+	// 保留旧的静态调用形式；新代码仍可使用value.getGreaterPow2()扩展写法。
+	public static int getGreaterPow2(int value) { return IntExtension.getGreaterPow2(value); }
 	private static AStarMinHeap mTempOpenList;                                      // 避免GC
 	private static readonly int[] mDeltaX8 = { -1, 0, 1, -1, 1, -1, 0, 1 };         // 8方向寻路的偏移量X
 	private static readonly int[] mDeltaY8 = { -1, -1, -1, 0, 0, 1, 1, 1 };         // 8方向寻路的偏移量Y

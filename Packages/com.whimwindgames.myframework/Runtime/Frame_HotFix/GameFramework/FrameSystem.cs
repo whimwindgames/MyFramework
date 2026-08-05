@@ -23,6 +23,17 @@ public class FrameSystem : ComponentOwner
 	// HotFix层的所有系统组件:所有组件的init->所有组件的lateInit,因为一般HotFix层不会涉及到在初始化时立即去异步加载资源,所以没有异步的初始化
 	public virtual void preInitAsync(Action callback) { callback?.Invoke(); }
 	public virtual void initAsync(Action callback) { callback?.Invoke(); }
+	// 带错误结果的重载供可靠启动链使用，同时继续兼容只接收Action的旧派生类。
+	public virtual void preInitAsync(Action<Exception> callback)
+	{
+		try { preInitAsync(() => callback?.Invoke(null)); }
+		catch (Exception ex) { callback?.Invoke(ex); }
+	}
+	public virtual void initAsync(Action<Exception> callback)
+	{
+		try { initAsync(() => callback?.Invoke(null)); }
+		catch (Exception ex) { callback?.Invoke(ex); }
+	}
 	public virtual void init()
 	{
 		if (mCreateObject)

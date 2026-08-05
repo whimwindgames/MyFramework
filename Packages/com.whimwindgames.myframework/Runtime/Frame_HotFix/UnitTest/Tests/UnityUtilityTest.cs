@@ -639,15 +639,19 @@ public static class UnityUtilityTest
 		GameObject go = new GameObject();
 		Camera cam = go.AddComponent<Camera>();
 
+#if USE_URP
 		setRenderType(cam, UnityEngine.Rendering.Universal.CameraRenderType.Overlay);
+#endif
 
 		findShaders(go);
 		findUGUIShaders(go);
 
+#if USE_URP
 		float oldScale = getRenderScale();
 		setRenderScale(1.0f);
 		getRenderScale();
 		setRenderScale(oldScale);
+#endif
 
 		GameObject parent = new GameObject("Parent");
 		setNormalProperty(go, parent);
