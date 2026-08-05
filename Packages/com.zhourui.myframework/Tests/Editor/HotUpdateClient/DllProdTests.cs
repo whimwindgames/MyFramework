@@ -6,21 +6,13 @@ using UnityEditor;
 
 public sealed class DllProdTests
 {
-	const string PRIVATE_KEY = @"-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIA2cf6+WptVEp4gue/gUp9Foqfcp9Ukcgi9H/r63+L4CoAoGCCqGSM49
-AwEHoUQDQgAExfOti6UHch1nfkzc9nYeEwKwZn6+o08ZgeO/K4P1Mn9xOVlEOIQF
-DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
------END EC PRIVATE KEY-----
-";
-	const string PUBLIC_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExfOti6UHch1nfkzc9nYeEwKwZn6+" +
-		"o08ZgeO/K4P1Mn9xOVlEOIQFDOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==";
-
 	string mRoot;
 	string mAotSource;
 	string mCompiled;
 	string mStage;
 	string mBaselineRoot;
 	string mProject;
+	RelKeyPair mKeys;
 
 	[SetUp]
 	public void SetUp()
@@ -32,6 +24,7 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 		mStage = Path.Combine(mRoot, "stage");
 		mBaselineRoot = Path.Combine(mRoot, "baselines");
 		mProject = Path.GetFullPath(Path.Combine(UnityEngine.Application.dataPath, ".."));
+		mKeys = RelKey.generate();
 		Directory.CreateDirectory(mAotSource);
 		Directory.CreateDirectory(mCompiled);
 		Directory.CreateDirectory(mStage);
@@ -203,7 +196,7 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 		freeze(cfg, plan);
 		string output = Path.Combine(mRoot, "release-output");
 		string key = Path.Combine(mRoot, "private.pem");
-		File.WriteAllText(key, PRIVATE_KEY);
+		File.WriteAllText(key, mKeys.privatePem);
 		ProdFlow flow = new(new ProdReq
 		{
 			stage = mStage,
@@ -273,7 +266,7 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 			env = "test",
 			platform = FrameBaseDefine.MACOS,
 			baseId = "base-dll",
-			pubKey = PUBLIC_KEY,
+			pubKey = mKeys.publicKey,
 			aotDlls = new[] { "Frame_Base.dll.bytes" },
 			codeDlls = hot,
 			entryDll = FrameBaseDefine.HOTFIX_BYTES_FILE,

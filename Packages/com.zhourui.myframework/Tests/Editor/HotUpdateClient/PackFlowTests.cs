@@ -6,15 +6,6 @@ using UnityEngine;
 
 public sealed class PackFlowTests
 {
-	const string PRIVATE_KEY = @"-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIA2cf6+WptVEp4gue/gUp9Foqfcp9Ukcgi9H/r63+L4CoAoGCCqGSM49
-AwEHoUQDQgAExfOti6UHch1nfkzc9nYeEwKwZn6+o08ZgeO/K4P1Mn9xOVlEOIQF
-DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
------END EC PRIVATE KEY-----
-";
-	const string PUBLIC_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExfOti6UHch1nfkzc9nYeEwKwZn6+" +
-		"o08ZgeO/K4P1Mn9xOVlEOIQFDOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==";
-
 	string mRoot;
 	string mStage;
 	string mStripped;
@@ -22,6 +13,7 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 	string mOutput;
 	string mReleaseOutput;
 	string mPrivateKey;
+	string mPublicKey;
 	string mProject;
 	string mRunPath;
 	string mEmbedPath;
@@ -68,7 +60,9 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 			Path.Combine(mStage, FrameBaseDefine.HOTFIX_FRAME_BYTES_FILE));
 		copyAsmBytes(FrameBaseDefine.HOTFIX,
 			Path.Combine(mStage, FrameBaseDefine.HOTFIX_BYTES_FILE));
-		File.WriteAllText(mPrivateKey, PRIVATE_KEY);
+		RelKeyPair pair = RelKey.generate();
+		File.WriteAllText(mPrivateKey, pair.privatePem);
+		mPublicKey = pair.publicKey;
 	}
 
 	[TearDown]
@@ -238,7 +232,7 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 			env = "test",
 			platform = FrameBaseDefine.MACOS,
 			baseId = "base-pack",
-			pubKey = PUBLIC_KEY,
+			pubKey = mPublicKey,
 			aotDlls = new[] { "Frame_Base.dll.bytes" },
 			codeDlls = hot,
 			entryDll = FrameBaseDefine.HOTFIX_BYTES_FILE,

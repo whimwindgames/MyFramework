@@ -111,7 +111,7 @@ public partial class HybridCLRSystem
 	{
 #if USE_HYBRID_CLR
 		Dictionary<string, byte[]> downloadFilesResource = new();
-		foreach (string aotFile in AOTGenericReferences.PatchedAOTAssemblyList)
+		foreach (string aotFile in HybridCLRReferenceUtility.getPatchedAOTAssemblyList())
 		{
 			downloadFilesResource.Add(aotFile + ".bytes", null);
 		}
@@ -147,7 +147,7 @@ public partial class HybridCLRSystem
 			return false;
 		}
 #if USE_HYBRID_CLR
-		foreach (string aotFile in AOTGenericReferences.PatchedAOTAssemblyList)
+		foreach (string aotFile in HybridCLRReferenceUtility.getPatchedAOTAssemblyList())
 		{
 			// 为aot assembly加载原始metadata
 			// 一旦加载后，如果AOT泛型函数对应native实现不存在，则自动替换为解释模式执行

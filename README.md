@@ -33,20 +33,41 @@ MyFramework 不是单纯封装 Unity API 的运行时框架，而是一套围绕
 
 MyFramework 已支持通过 Unity Package Manager 以 Git 插件形式安装。
 
-### 1. 通过 Git URL 安装
+### 1. 通过 OpenUPM 安装（推荐）
 
-推荐使用发布分支安装，用户不需要手动指定具体版本号。
+在 `Packages/manifest.json` 中配置 OpenUPM Registry：
 
-GitHub：
-
-```text
-https://github.com/ZHOURUIH/MyFramework.git?path=/Packages/com.zhourui.myframework
+```json
+{
+  "scopedRegistries": [
+    {
+      "name": "package.openupm.com",
+      "url": "https://package.openupm.com",
+      "scopes": [
+        "com.zhourui",
+        "com.code-philosophy",
+        "com.cysharp"
+      ]
+    }
+  ],
+  "dependencies": {
+    "com.zhourui.myframework": "1.1.0-preview.1"
+  }
+}
 ```
 
-Gitee：
+也可以使用 OpenUPM CLI：
 
 ```text
-https://gitee.com/inothingtodo/MyFramework.git?path=/Packages/com.zhourui.myframework
+openupm add com.zhourui.myframework
+```
+
+### 2. 通过 Git URL 安装
+
+生产项目应固定版本标签：
+
+```text
+https://github.com/ZHOURUIH/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
 ```
 
 安装方式：
@@ -58,13 +79,11 @@ Window
             Install package from git URL...
 ```
 
-然后输入上面的 Git URL。
-
-> GitHub 访问不稳定时，可以使用 Gitee 地址。
+然后输入上面的 Git URL。Git 安装仍需先配置 OpenUPM scopes，以便解析 UniTask、HybridCLR 和 Obfuz 依赖。自托管 Git 服务作为源码镜像使用，OpenUPM 的公开发布源固定为 GitHub。
 
 ---
 
-### 2. 初始化工程
+### 3. 初始化工程
 
 安装插件后，新建工程中还没有默认启动场景、业务入口脚本和运行时配置文件，需要执行初始化菜单。
 
@@ -255,8 +274,8 @@ Game       -> HotFix
 | 项目              | 状态                   |
 | --------------- | -------------------- |
 | 持续迭代            | 5+ 年                 |
-| 当前作者项目 Unity 版本 | Unity 6000.2         |
-| 推荐 Unity 版本     | Unity 2022.3 LTS 或更高 |
+| 当前预览版本验证环境      | Unity 6000.3.11f1    |
+| 最低 Unity 版本       | Unity 6000.0         |
 | 已用于个人 MMORPG 项目 | ✅                    |
 | 已用于公司手游项目       | ✅                    |
 | 客户端项目规模         | 20万+ 行               |
@@ -644,30 +663,30 @@ Assets
 
 ### 环境
 
-推荐：
+最低版本：
 
 ```text
-Unity 2022.3 LTS 或更高版本
+Unity 6000.0
 ```
 
-作者当前项目使用：
+当前预览版本验证环境：
 
 ```text
-Unity 6000.2
+Unity 6000.3.11f1
 ```
 
 ### 安装
 
-在 Package Manager 中通过 Git URL 安装：
+推荐通过 OpenUPM 安装：
 
 ```text
-https://github.com/ZHOURUIH/MyFramework.git?path=/Packages/com.zhourui.myframework#release
+openupm add com.zhourui.myframework
 ```
 
-国内访问 GitHub 不稳定时，可以使用 Gitee：
+或者使用固定版本的 Git URL：
 
 ```text
-https://gitee.com/inothingtodo/MyFramework.git?path=/Packages/com.zhourui.myframework#release
+https://github.com/ZHOURUIH/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
 ```
 
 ### 初始化
@@ -740,7 +759,7 @@ Demo 当前实现了以 Rogue-like 为核心的塔防战斗玩法，主要包含
 推荐使用：
 
 ```text
-Unity 2022.3 LTS
+以 Demo 仓库自身 `ProjectSettings/ProjectVersion.txt` 为准；MyFramework `1.1.x` 要求 Unity 6000.0 或更高版本。
 ```
 
 克隆项目：
@@ -836,4 +855,4 @@ https://github.com/ZHOURUIH/MyFramework_Tool
 
 ## License
 
-MIT
+MyFramework 主体使用 MIT License。第三方组件及派生实现的许可证见包内 `Third Party Notices.md`。

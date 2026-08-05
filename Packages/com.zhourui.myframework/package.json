@@ -1,12 +1,14 @@
 {
 	"name": "com.zhourui.myframework",
 	"displayName": "MyFramework",
-	"version": "1.0.41",
-	"description": "A Unity game framework by ZHOURUIH.",
+	"version": "1.1.0-preview.1",
+	"unity": "6000.0",
+	"description": "A reusable Unity game framework with UI, networking, resources, HybridCLR hot update and transactional release tooling.",
 	"license": "MIT",
-	"licensesUrl": "https://git.whimwindgames.cn/gitadmin/MyFramework/src/branch/master/Packages/com.zhourui.myframework/LICENSE.md",
-	"documentationUrl": "https://git.whimwindgames.cn/gitadmin/MyFramework/src/branch/master/Packages/com.zhourui.myframework/README.md",
-	"changelogUrl": "https://git.whimwindgames.cn/gitadmin/MyFramework/src/branch/master/Packages/com.zhourui.myframework/CHANGELOG.md",
+	"licensesUrl": "https://github.com/ZHOURUIH/MyFramework/blob/master/Packages/com.zhourui.myframework/LICENSE.md",
+	"documentationUrl": "https://github.com/ZHOURUIH/MyFramework/blob/master/Packages/com.zhourui.myframework/README.md",
+	"changelogUrl": "https://github.com/ZHOURUIH/MyFramework/blob/master/Packages/com.zhourui.myframework/CHANGELOG.md",
+	"type": "library",
 	"keywords": [
 		"unity",
 		"framework",
@@ -22,12 +24,19 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://git.whimwindgames.cn/gitadmin/MyFramework.git",
+		"url": "https://github.com/ZHOURUIH/MyFramework.git",
 		"directory": "Packages/com.zhourui.myframework"
 	},
+	"bugs": {
+		"url": "https://github.com/ZHOURUIH/MyFramework/issues"
+	},
 	"dependencies": {
+		"com.code-philosophy.hybridclr": "8.11.0",
+		"com.code-philosophy.obfuz": "3.1.0",
+		"com.cysharp.unitask": "2.5.10",
 		"com.unity.ugui": "1.0.0",
 		"com.unity.textmeshpro": "3.0.6",
-		"com.unity.nuget.newtonsoft-json": "3.2.1"
+		"com.unity.nuget.newtonsoft-json": "3.2.1",
+		"com.unity.render-pipelines.universal": "17.0.0"
 	}
 }

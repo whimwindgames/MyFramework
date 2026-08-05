@@ -4,15 +4,46 @@
 
 仓库根目录包含完整示例工程；业务项目应通过 Unity Package Manager 引用本目录，不应复制整套示例工程。
 
-## 安装
+## 通过 OpenUPM 安装
+
+MyFramework 的正式分发渠道是 OpenUPM。项目的 `Packages/manifest.json` 需要把 MyFramework 及其公共依赖的作用域交给 OpenUPM：
+
+```json
+{
+  "scopedRegistries": [
+    {
+      "name": "package.openupm.com",
+      "url": "https://package.openupm.com",
+      "scopes": [
+        "com.zhourui",
+        "com.code-philosophy",
+        "com.cysharp"
+      ]
+    }
+  ],
+  "dependencies": {
+    "com.zhourui.myframework": "1.1.0-preview.1"
+  }
+}
+```
+
+也可以使用 OpenUPM CLI：
+
+```text
+openupm add com.zhourui.myframework
+```
+
+MyFramework 会通过 OpenUPM 自动解析 UniTask、HybridCLR 和 Obfuz；UGUI、TextMeshPro、Newtonsoft.Json 和 URP 从 Unity Registry 解析。
+
+## 通过 Git URL 安装
 
 在 Unity Package Manager 中选择 **Install package from git URL**，输入：
 
 ```text
-https://git.whimwindgames.cn/gitadmin/MyFramework.git?path=/Packages/com.zhourui.myframework
+https://github.com/ZHOURUIH/MyFramework.git?path=/Packages/com.zhourui.myframework#com.zhourui.myframework/1.1.0-preview.1
 ```
 
-开发阶段可在 URL 末尾追加分支名；生产项目应固定到已经验证的标签或提交，避免远程分支变化导致构建结果漂移。
+Git URL 安装同样要求项目已经配置上述 OpenUPM scopes，以便解析框架依赖。开发阶段可以固定提交；生产项目必须固定到已经验证的标签或提交，不能直接跟随远程分支。
 
 ## 初始化
 
@@ -38,7 +69,7 @@ MyFramework/初始化/初始化框架+HybridCLR+Obfuz
 - `Editor_Frame`：初始化、生成、检查和构建工具。
 - `EditorRes_Frame`：编辑器资源与辅助数据。
 
-## Schema 11 热更新（迁移中）
+## Schema 11 热更新
 
 - `HotUpd_Core` 提供协议、签名、哈希、事务存储、Active/Previous/Candidate 回滚和 `UpdRes` 资源映射，不依赖 UniTask。
 - `HotUpd_Client` 提供 `UpdCore`、HTTPS Latest/Manifest、内置资源复用、并发下载和 HTTP Range 续传。
@@ -52,7 +83,7 @@ MyFramework/初始化/初始化框架+HybridCLR+Obfuz
 - `PackFlow` 提供完整 Player/Base 外层事务：临时同步 HybridCLR Hot 分类和 `PlatRunSet`，可选内置完整 Stage，执行 GenerateAll 与 Player 构建，回读内置资源后才同时提升 Player、AOT 基线和首个签名 Release。配置了 HybridCLR 的非 Development 直接 Build 会被阻止。
 - `AbIndex` 提供确定性的 Schema 11 AssetBundle 索引编解码，会拒绝重复、乱序、缺失依赖、循环依赖和尾随数据。
 - 为保持 ArcadeHub 公开 API 的名称和签名，`Frame_Game` 在本迁移分支中需要 UniTask 2.5.0 或更高版本。使用客户端的项目程序集应显式引用 `Frame_Game`、`HotUpd_Core`、`HotUpd_Client` 和 `UniTask`，并通过 `PlatRunSet` 或自行构造 `UpdCfg` 提供平台配置。
-- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。项目生产窗口、Obfuz 项目适配器、真实 Android/iOS 安装包与网络端到端验收仍在迁移，不应将本分支标记为正式发行版。
+- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。`1.1.0-preview.1` 是预览版本：生产工具核心和自动化测试已经完成，真实 Android/iOS IL2CPP 安装包与业务服务器端到端验收仍应由接入项目执行。
 
 生产目录结构、Base 冻结规则和 API 示例见 [Schema 11 Release Production](Documentation~/HotUpdateRelease.md)，AB 配置与构建规则见 [AssetBundle Production](Documentation~/AssetBundleProduction.md)，HybridCLR 分层与基线规则见 [HybridCLR Production](Documentation~/HybridCLRProduction.md)。
 
@@ -68,13 +99,13 @@ https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask#7
 
 完整规则见 [API Compatibility](Documentation~/APICompatibility.md)。
 
-## 上游同步
+## 仓库与上游同步
 
-- 自托管仓库：`https://git.whimwindgames.cn/gitadmin/MyFramework.git`
-- 官方上游：`https://github.com/ZHOURUIH/MyFramework.git`
+- OpenUPM 公开仓库：`https://github.com/ZHOURUIH/MyFramework.git`
+- 自托管镜像：`https://git.whimwindgames.cn/gitadmin/MyFramework.git`
 
 自托管仓库保留官方提交历史。通用优化在独立分支验证后合并；同步官方更新时，应同时执行公共 API 和项目兼容检查。
 
 ## 许可证
 
-MyFramework 主体使用 MIT License，详见 [LICENSE.md](LICENSE.md)。如果后续引入带独立许可证的第三方代码，必须在包内同时保留对应许可证和声明。
+MyFramework 主体使用 MIT License，详见 [LICENSE.md](LICENSE.md)。第三方组件及派生代码的归属和许可证见 [Third Party Notices](Third%20Party%20Notices.md)。

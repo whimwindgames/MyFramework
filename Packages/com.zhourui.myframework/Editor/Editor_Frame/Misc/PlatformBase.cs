@@ -122,7 +122,7 @@ public abstract class PlatformBase
 		copyFile(hotFixSrcPath + HOTFIX_FRAME_FILE, mAssetBundleFullPath + HOTFIX_FRAME_BYTES_FILE);
 		// 拷贝补充数据dll
 		string aotDllSrcPath = SettingsUtil.GetAssembliesPostIl2CppStripDir(EditorUserBuildSettings.activeBuildTarget) + "/";
-		foreach (string aotFile in AOTGenericReferences.PatchedAOTAssemblyList)
+		foreach (string aotFile in HybridCLRReferenceUtility.getPatchedAOTAssemblyList())
 		{
 			copyFile(aotDllSrcPath + aotFile, mAssetBundleFullPath + aotFile + DATA_SUFFIX);
 		}
@@ -177,7 +177,7 @@ public abstract class PlatformBase
 			mAssetBundleFullPath + HOTFIX_FRAME_BYTES_FILE
 		};
 #if USE_HYBRID_CLR
-		foreach (string aotFile in AOTGenericReferences.PatchedAOTAssemblyList)
+		foreach (string aotFile in HybridCLRReferenceUtility.getPatchedAOTAssemblyList())
 		{
 			dllList.Add(mAssetBundleFullPath + aotFile + DATA_SUFFIX);
 		}

@@ -1,0 +1,30 @@
+name: UPM Package
+
+on:
+  push:
+    branches:
+      - master
+      - "codex/**"
+    tags:
+      - "com.zhourui.myframework/**"
+  pull_request:
+    paths:
+      - "Packages/com.zhourui.myframework/**"
+      - "Tools/validate-upm-package.mjs"
+      - ".github/workflows/upm-package.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate package metadata and compatibility
+        run: node Tools/validate-upm-package.mjs
+      - name: Verify OpenUPM package archive
+        run: npm pack ./Packages/com.zhourui.myframework --dry-run

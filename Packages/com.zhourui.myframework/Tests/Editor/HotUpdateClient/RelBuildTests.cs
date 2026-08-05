@@ -4,19 +4,11 @@ using NUnit.Framework;
 
 public sealed class RelBuildTests
 {
-	const string PRIVATE_KEY = @"-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIA2cf6+WptVEp4gue/gUp9Foqfcp9Ukcgi9H/r63+L4CoAoGCCqGSM49
-AwEHoUQDQgAExfOti6UHch1nfkzc9nYeEwKwZn6+o08ZgeO/K4P1Mn9xOVlEOIQF
-DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
------END EC PRIVATE KEY-----
-";
-	const string PUBLIC_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExfOti6UHch1nfkzc9nYeEwKwZn6+" +
-		"o08ZgeO/K4P1Mn9xOVlEOIQFDOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==";
-
 	string mRoot;
 	string mSource;
 	string mOutput;
 	string mKey;
+	string mPublicKey;
 
 	[SetUp]
 	public void SetUp()
@@ -28,7 +20,9 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 		mKey = Path.Combine(mRoot, "private.pem");
 		Directory.CreateDirectory(mSource);
 		Directory.CreateDirectory(mOutput);
-		File.WriteAllText(mKey, PRIVATE_KEY);
+		RelKeyPair pair = RelKey.generate();
+		File.WriteAllText(mKey, pair.privatePem);
+		mPublicKey = pair.publicKey;
 		writeSource("bundle-v1");
 	}
 
@@ -113,7 +107,7 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 		};
 	}
 
-	static UpdCfg makeCfg()
+	UpdCfg makeCfg()
 	{
 		string[] hot =
 		{
@@ -126,7 +120,7 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 			env = "test",
 			platform = FrameBaseDefine.ANDROID,
 			baseId = "base-7",
-			pubKey = PUBLIC_KEY,
+			pubKey = mPublicKey,
 			aotDlls = new[] { "AotMeta.dll.bytes" },
 			codeDlls = hot,
 			entryDll = FrameBaseDefine.HOTFIX_BYTES_FILE,

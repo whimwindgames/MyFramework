@@ -7,21 +7,13 @@ using UnityEngine;
 
 public sealed class AbBuildTests
 {
-	const string PRIVATE_KEY = @"-----BEGIN EC PRIVATE KEY-----
-MHcCAQEEIA2cf6+WptVEp4gue/gUp9Foqfcp9Ukcgi9H/r63+L4CoAoGCCqGSM49
-AwEHoUQDQgAExfOti6UHch1nfkzc9nYeEwKwZn6+o08ZgeO/K4P1Mn9xOVlEOIQF
-DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
------END EC PRIVATE KEY-----
-";
-	const string PUBLIC_KEY = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAExfOti6UHch1nfkzc9nYeEwKwZn6+" +
-		"o08ZgeO/K4P1Mn9xOVlEOIQFDOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==";
-
 	string mRoot;
 	string mAssetRoot;
 	string mAssetPath;
 	string mBundleOut;
 	string mReleaseOut;
 	string mKey;
+	string mPublicKey;
 	AbCfg mCfg;
 
 	[SetUp]
@@ -35,7 +27,9 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 		mKey = Path.Combine(mRoot, "private.pem");
 		Directory.CreateDirectory(mRoot);
 		Directory.CreateDirectory(mReleaseOut);
-		File.WriteAllText(mKey, PRIVATE_KEY);
+		RelKeyPair pair = RelKey.generate();
+		File.WriteAllText(mKey, pair.privatePem);
+		mPublicKey = pair.publicKey;
 
 		mAssetRoot = "Assets/__MyFrameworkAbTests_" + token;
 		mAssetPath = mAssetRoot + "/data.txt";
@@ -189,7 +183,7 @@ DOs0b/ryx/L+8xFS9Sf0tFIvuuIViBcHeg==
 			env = "test",
 			platform = FrameBaseDefine.MACOS,
 			baseId = "base-ab",
-			pubKey = PUBLIC_KEY,
+			pubKey = mPublicKey,
 			aotDlls = new[] { "AotMeta.dll.bytes" },
 			codeDlls = hot,
 			entryDll = FrameBaseDefine.HOTFIX_BYTES_FILE,

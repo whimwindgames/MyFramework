@@ -1,9 +1,7 @@
 {
     "name": "Frame_Base",
     "rootNamespace": "",
-    "references": [
-		"TTWebGL"
-	],
+    "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

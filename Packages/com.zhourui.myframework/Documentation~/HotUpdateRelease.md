@@ -30,6 +30,16 @@
 
 ## API 示例
 
+首次部署前可以生成一对新的 P-256 密钥：
+
+```csharp
+RelKeyPair keys = RelKey.generate();
+File.WriteAllText(absolutePrivateKeyOutsideProject, keys.privatePem);
+string publicKeyDerBase64 = keys.publicKey;
+```
+
+私钥只能写入项目和 Git 工作区外的安全位置；`publicKey` 写入 `UpdCfg.pubKey` 并随 Base 冻结。正式环境应根据组织安全规范限制私钥文件权限和备份访问。
+
 ```csharp
 string[] codeDlls =
 {
