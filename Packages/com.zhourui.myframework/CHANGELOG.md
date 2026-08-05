@@ -9,6 +9,7 @@
 - 为通过 Git URL 安装的 UPM 包补齐包内许可证、说明文档和变更记录。
 - 在 `package.json` 中声明许可证、文档、变更记录和自托管仓库地址。
 - 建立公共 API 与 Unity 序列化兼容规则。
+- `CustomAsyncOperation` 增加成功、失败、取消终态及错误信息查询，同时保留原有 `setFinish()` 调用方式。
 
 ### Fixed
 

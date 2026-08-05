@@ -15,10 +15,20 @@ public static class AsyncOperationAndTaskGroupTest
 	{
 		CustomAsyncOperation op = new();
 		assertTrue(op.keepWaiting, "默认应等待");
+		assertEqual(ASYNC_OPERATION_STATUS.PENDING, op.getStatus(), "默认状态应为等待");
 		assertEqual(op, op.setFinish(), "setFinish 返回自身便于链式调用");
 		assertFalse(op.keepWaiting, "setFinish 后不再等待");
+		assertTrue(op.isSuccess(), "setFinish 后应成功");
+		assertFalse(op.tryComplete(ASYNC_OPERATION_STATUS.FAILED, "late"), "异步操作只能结束一次");
+		assertEqual(ASYNC_OPERATION_STATUS.SUCCEEDED, op.getStatus(), "迟到结果不能覆盖终态");
 		op.Reset();
 		assertTrue(op.keepWaiting, "Reset 后重新等待");
+		op.setFailed("failed");
+		assertEqual(ASYNC_OPERATION_STATUS.FAILED, op.getStatus(), "失败状态应可查询");
+		assertEqual("failed", op.getError(), "失败原因应可查询");
+		op.Reset();
+		op.setCanceled("canceled");
+		assertEqual(ASYNC_OPERATION_STATUS.CANCELED, op.getStatus(), "取消状态应可查询");
 	}
 	private static void testCustomMultiAsyncOperation()
 	{
