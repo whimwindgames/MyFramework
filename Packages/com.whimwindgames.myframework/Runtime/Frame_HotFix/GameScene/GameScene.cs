@@ -203,6 +203,9 @@ public abstract class GameScene : ComponentOwner
 	public SceneProcedure addProcedure(Type type, Type parent = null)
 	{
 		var procedure = createInstance<SceneProcedure>(type);
+		procedure.setAssignID(procedure.getObjectInstanceID());
+		procedure.setDestroy(false);
+		procedure.onCreate();
 		procedure.setGameScene(this);
 		if (parent != null)
 		{

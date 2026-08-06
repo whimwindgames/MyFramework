@@ -629,19 +629,36 @@ public class FrameBaseUtility
 	// 通过WWW加载本地资源时,需要确保路径的前缀正确
 	public static void checkDownloadPath(ref string path)
 	{
-		if (isEditor() || isWindows())
+		if (isEditor() || isWindows() || isIOS() || isLinux() || isMacOS())
 		{
-			path = ensurePrefix(path, "file:///");
-		}
-		else if (isIOS() || isLinux() || isMacOS())
-		{
-			path = ensurePrefix(path, "file://");
+			path = localPathToFileURL(path);
 		}
 		else if (isAndroid())
 		{
 			// android本地加载需要添加jar:file://前缀
 			path = ensurePrefix(path, "jar:file://");
 		}
+	}
+	private static string localPathToFileURL(string path)
+	{
+		if (string.IsNullOrEmpty(path))
+		{
+			return path;
+		}
+		// 旧实现会把以“/”开头的 macOS/Linux 绝对路径拼成 file:////，
+		// Uri 会把第一个目录误识别成 host。先还原成普通绝对路径再统一编码。
+		if (path.StartsWith("file:////", StringComparison.OrdinalIgnoreCase))
+		{
+			path = path.Substring("file:///".Length);
+		}
+		if (Uri.TryCreate(path, UriKind.Absolute, out Uri uri) && uri.IsFile)
+		{
+			// UnityWebRequest 的本地文件实现会把“+”按表单空格解析，
+			// 即使它在标准 URI 路径中可以不转义，也必须显式编码为 %2B。
+			return uri.AbsoluteUri.Replace("+", "%2B");
+		}
+		// 保留历史兜底行为，避免非标准平台路径因为 URI 转换失败而不可读。
+		return ensurePrefix(path, isWindows() ? "file:///" : "file://");
 	}
 	// fileName为绝对路径
 	public static IEnumerator openFileAsyncInternal(string fileName, bool errorIfNull, BytesCallback callback)

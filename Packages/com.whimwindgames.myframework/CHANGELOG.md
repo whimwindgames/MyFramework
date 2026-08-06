@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.7] - 2026-08-06
+
+### Fixed
+
+- 恢复直接创建 `GameScene`、`SceneProcedure` 与 `SceneInstance` 时的 `ClassObject` 生命周期激活，避免延时命令将新对象误判为已销毁并丢弃场景切换任务。
+- 本地文件读取统一生成并编码标准 `file:///` URI，修复 macOS/Linux 绝对路径被拼成四斜杠，以及中文、空格或加号 AssetBundle 路径触发 `Malformed URL`/404 的问题。
+
 ## [1.1.0-preview.6] - 2026-08-05
 
 ### Fixed

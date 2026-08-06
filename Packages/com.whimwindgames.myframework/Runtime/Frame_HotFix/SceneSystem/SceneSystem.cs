@@ -345,6 +345,9 @@ public class SceneSystem : FrameSystem
 			return null;
 		}
 		var scene = createInstance<SceneInstance>(info.mSceneType);
+		scene.setAssignID(scene.getObjectInstanceID());
+		scene.setDestroy(false);
+		scene.onCreate();
 		scene.setName(sceneName);
 		scene.setType(info.mSceneType);
 		notifySceneChanged(scene, true);

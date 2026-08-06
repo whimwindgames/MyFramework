@@ -27,6 +27,9 @@ public class GameSceneManager : FrameSystem
 		else
 		{
 			var pScene = createInstance<GameScene>(type);
+			pScene.setAssignID(pScene.getObjectInstanceID());
+			pScene.setDestroy(false);
+			pScene.onCreate();
 			pScene.setName(type.ToString());
 			// 如果有上一个场景,则先销毁上一个场景,只是暂时保存下上个场景的指针,然后在更新中将场景销毁
 			if (mCurScene != null)
