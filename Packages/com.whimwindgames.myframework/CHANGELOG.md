@@ -2,7 +2,15 @@
 
 本文件记录 `com.whimwindgames.myframework` Unity Package 的可见变化。仓库中的示例游戏或项目专用调整不应记录在这里。
 
-## [Unreleased]
+## [1.1.0-preview.17] - 2026-08-06
+
+### Added
+
+- `FrameAssetGateway` 增加可选的同步单资源与批量资源租约入口，宿主可把 `Resources`、编辑器目录或已驻留内存的配置接入同一个可观察资源边界。
+- 增加 `IFrameSynchronousAssetProvider`、`IFrameSynchronousAssetCatalog` 与幂等 `FrameAssetCollectionLease<T>`；远程后端无需实现同步能力，调用时会得到明确的“不支持”错误。
+- 增加 `FrameResourceManagerAssetProvider`，把框架原有 `ResourceManager` 的 AssetDatabase/AssetBundle、异步加载、引用计数和子资源能力接入 `FrameAssetGateway`，并允许宿主解析逻辑地址而不改业务侧 API。
+- 增加 `FrameAssetProviderHandoff`，让互不引用的 AOT 宿主与 HotFix 资源程序集安全交接唯一 Provider；网关替换和迁移期回退策略仍由宿主掌控。
+- 增加 `FrameFallbackAssetProvider` 作为迁移期目录路由：主后端已登记的地址只走主后端，只有目录未命中才走旧后端，避免加载错误被旧资源静默掩盖。
 
 ## [1.1.0-preview.16] - 2026-08-06
 

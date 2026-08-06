@@ -22,7 +22,7 @@ MyFramework 的正式分发渠道是 OpenUPM。项目的 `Packages/manifest.json
     }
   ],
   "dependencies": {
-    "com.whimwindgames.myframework": "1.1.0-preview.16"
+    "com.whimwindgames.myframework": "1.1.0-preview.17"
   }
 }
 ```
@@ -40,7 +40,7 @@ MyFramework 会通过 OpenUPM 自动解析 UniTask、HybridCLR 和 Obfuz；UGUI�
 在 Unity Package Manager 中选择 **Install package from git URL**，输入：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.16
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.17
 ```
 
 Git URL 安装同样要求项目已经配置上述 OpenUPM scopes，以便解析框架依赖。开发阶段可以固定提交；生产项目必须固定到已经验证的标签或提交，不能直接跟随远程分支。
@@ -123,6 +123,23 @@ Provider 通过 `StateChanged` 报告传输状态，通过 `Interrupted` 报告�
 房间快照重建完成、玩法输入何时恢复等业务就绪条件仍由宿主决定，可在完成后调用
 `context.Network.MarkReady(...)`。
 
+资源实现通过 `IFrameAssetProvider` 接入。框架自带的 HotFix `ResourceManager` 可直接
+适配为统一 Provider，宿主仍可保留原来的逻辑地址：
+
+```csharp
+IFrameAssetProvider provider = new FrameResourceManagerAssetProvider(
+    resourceManager,
+    (logicalAddress, assetType) => addressMap.Resolve(logicalAddress, assetType));
+
+FrameAssetProviderHandoff.Publish(provider);
+context.Assets.UseProvider(provider);
+```
+
+分批迁移旧资源系统时，可以在同一个网关后临时使用 `FrameFallbackAssetProvider`。
+它只在主目录没有登记地址时访问旧后端；主目录已经登记但加载失败时不会静默回退，
+避免发布包继续使用旧资源掩盖迁移错误。同步加载和 `LoadAll` 只会选择明确支持同步能力的后端。
+完成 AssetDatabase、AssetBundle、本地/远程更新、回滚和 IL2CPP 验收后，应删除旧后端。
+
 ## Schema 11 热更新
 
 - `HotUpd_Core` 提供协议、签名、哈希、事务存储、Active/Previous/Candidate 回滚和 `UpdRes` 资源映射，不依赖 UniTask。
@@ -137,7 +154,7 @@ Provider 通过 `StateChanged` 报告传输状态，通过 `Interrupted` 报告�
 - `PackFlow` 提供完整 Player/Base 外层事务：临时同步 HybridCLR Hot 分类和 `PlatRunSet`，可选内置完整 Stage，执行 GenerateAll 与 Player 构建，回读内置资源后才同时提升 Player、AOT 基线和首个签名 Release。配置了 HybridCLR 的非 Development 直接 Build 会被阻止。
 - `AbIndex` 提供确定性的 Schema 11 AssetBundle 索引编解码，会拒绝重复、乱序、缺失依赖、循环依赖和尾随数据。
 - 为保持 ArcadeHub 公开 API 的名称和签名，`Frame_Game` 在本迁移分支中需要 UniTask 2.5.0 或更高版本。使用客户端的项目程序集应显式引用 `Frame_Game`、`HotUpd_Core`、`HotUpd_Client` 和 `UniTask`，并通过 `PlatRunSet` 或自行构造 `UpdCfg` 提供平台配置。
-- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。`1.1.0-preview.16` 是预览版本：生产工具核心和自动化测试已经完成，真实 Android/iOS IL2CPP 安装包与业务服务器端到端验收仍应由接入项目执行。
+- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。`1.1.0-preview.17` 是预览版本：生产工具核心和自动化测试已经完成，真实 Android/iOS IL2CPP 安装包与业务服务器端到端验收仍应由接入项目执行。
 
 生产目录结构、Base 冻结规则和 API 示例见 [Schema 11 Release Production](Documentation~/HotUpdateRelease.md)，AB 配置与构建规则见 [AssetBundle Production](Documentation~/AssetBundleProduction.md)，HybridCLR 分层与基线规则见 [HybridCLR Production](Documentation~/HybridCLRProduction.md)。
 
