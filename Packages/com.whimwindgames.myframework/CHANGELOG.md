@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.16] - 2026-08-06
+
+### Fixed
+
+- OpenUPM 与 Git URL 安装示例固定到本次发布版本，确保标签、包清单和文档一致。
+
 ## [1.1.0-preview.15] - 2026-08-06
 
 ### Added
