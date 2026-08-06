@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.13] - 2026-08-06
+
+### Added
+
+- `FrameNetworkSession` 成为运行上下文的通用网络所有者，统一管理宿主 Provider、逐帧驱动、请求取消、操作观测、自动重试和销毁。
+- 增加 `IFrameNetworkProvider`、`FrameNetworkInterrupted`、`FrameNetworkRecoveryResult` 与 `FrameNetworkRecoveryCompleted`，宿主可保留自己的传输、协议和鉴权实现，同时把恢复编排交给框架。
+- 增加 `FrameNetworkOperationChanged`，为每个类型化网络操作发布开始、成功、取消、失败、耗时和结果类型信息。
+- `FrameNetworkSession.GetApi<T>()` 支持从当前 Provider 获取宿主协议能力，业务项目无需依赖具体传输类型。
+
+### Compatibility
+
+- `FrameRuntimeContext.Network` 仍保留原 `SetState`、`ReportRetryScheduled`、`BeginRecovery` 和 `MarkReady` 调用面；旧的渐进接入代码可继续编译。
+- 框架不实现 WebSocket、Protobuf/JSON、账号登录或房间协议；这些职责由宿主 Provider 实现并由网络会话统一拥有。
+
 ## [1.1.0-preview.12] - 2026-08-06
 
 ### Fixed

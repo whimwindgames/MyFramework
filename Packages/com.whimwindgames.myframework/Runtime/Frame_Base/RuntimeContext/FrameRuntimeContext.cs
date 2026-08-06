@@ -10,7 +10,8 @@ public sealed class FrameRuntimeContext : IDisposable
 	public FrameConfigurationStore Configuration { get; }
 	public FrameEventBus Events { get; }
 	public FrameLifecycle Lifecycle { get; }
-	public FrameNetworkLifecycle Network { get; }
+	public FrameNetworkSession Network { get; }
+	public FrameNetworkLifecycle NetworkLifecycle => Network.Lifecycle;
 	public FrameAssetGateway Assets { get; }
 	public FrameViewRouter Views { get; }
 
@@ -22,7 +23,9 @@ public sealed class FrameRuntimeContext : IDisposable
 		Configuration = new FrameConfigurationStore();
 		Events = new FrameEventBus(LogSink);
 		Lifecycle = new FrameLifecycle(Name, Events, LogSink);
-		Network = new FrameNetworkLifecycle($"{Name}.Network", Events, LogSink);
+		FrameNetworkLifecycle networkLifecycle =
+			new($"{Name}.Network", Events, LogSink);
+		Network = new FrameNetworkSession($"{Name}.Network", Events, LogSink, networkLifecycle);
 		Assets = new FrameAssetGateway($"{Name}.Assets", Events, LogSink);
 		Views = new FrameViewRouter($"{Name}.Views", Events, LogSink);
 
@@ -32,6 +35,7 @@ public sealed class FrameRuntimeContext : IDisposable
 		Services.Set(Events);
 		Services.Set(Lifecycle);
 		Services.Set(Network);
+		Services.Set(NetworkLifecycle);
 		Services.Set(Assets);
 		Services.Set(Views);
 	}
@@ -85,6 +89,7 @@ public sealed class FrameRuntimeContext : IDisposable
 		}
 		finally
 		{
+			Network.Shutdown();
 			Views.Shutdown();
 			Assets.Shutdown();
 			Services.Clear();

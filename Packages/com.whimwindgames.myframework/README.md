@@ -22,7 +22,7 @@ MyFramework 的正式分发渠道是 OpenUPM。项目的 `Packages/manifest.json
     }
   ],
   "dependencies": {
-    "com.whimwindgames.myframework": "1.1.0-preview.10"
+    "com.whimwindgames.myframework": "1.1.0-preview.13"
   }
 }
 ```
@@ -40,7 +40,7 @@ MyFramework 会通过 OpenUPM 自动解析 UniTask、HybridCLR 和 Obfuz；UGUI�
 在 Unity Package Manager 中选择 **Install package from git URL**，输入：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.10
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.13
 ```
 
 Git URL 安装同样要求项目已经配置上述 OpenUPM scopes，以便解析框架依赖。开发阶段可以固定提交；生产项目必须固定到已经验证的标签或提交，不能直接跟随远程分支。
@@ -98,20 +98,30 @@ context.MarkRunning("ready");
 - `Services` 使用类型作为键，重复注册默认报错，只有 `Set` 或 `replace: true` 才会替换，避免依赖被静默覆盖。
 - `Configuration` 支持同一类型的默认值和命名值，并提供递增版本号。
 - `Events` 对订阅者逐个派发；一个订阅者异常不会中断后续订阅者。
-- `Lifecycle` 只负责描述宿主的启动与退出状态，不会自动创建 UI、资源、网络或场景 Manager。
-- `Dispose()` 会先发布退出阶段，再清理上下文拥有的登记和订阅；宿主业务对象的实际销毁顺序仍由项目控制。
+- `Lifecycle` 只负责描述宿主的启动与退出状态；网络、资源和视图使用上下文提供的通用边界，不要求框架模板 Manager。
+- `Dispose()` 会先发布退出阶段，再关闭上下文拥有的网络 Provider、视图路由、资源网关、登记和订阅；宿主自行登记的业务对象仍由项目控制。
 
-网络实现可以复用确定性重试策略，并把已有状态机映射到同一上下文，而不必改写协议：
+网络实现通过 `IFrameNetworkProvider` 接入。框架会话拥有 Provider 的 Tick、请求取消、重试和销毁；
+WebSocket、Protobuf/JSON、鉴权与房间协议继续由宿主 Provider 实现：
 
 ```csharp
 FrameRetryPolicy retry = new(6, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(8));
-context.Network.SetState(FrameNetworkState.CONNECTING, "gateway connect");
-context.Network.ReportRetryScheduled(attempt, retry, "socket closed");
-context.Network.BeginRecovery("authoritative room snapshot");
-context.Network.MarkReady("input restored");
+context.Network.UseProvider(new MyGameNetworkProvider(), retry);
+
+LoginResult result = await context.Network.ExecuteAsync(
+    "account.login",
+    token => context.Network.GetApi<IMyGameApi>().LoginAsync(token),
+    cancellationToken);
+
+// Unity 主线程逐帧驱动；退出时也可显式 await context.Network.StopAsync(token)。
+context.Network.Tick();
 ```
 
-`FrameNetworkLifecycle` 只发布状态、原因和重试时机。WebSocket、Protobuf/JSON、账号登录、房间快照、请求去重和断线恢复仍由宿主网络层负责。
+Provider 通过 `StateChanged` 报告传输状态，通过 `Interrupted` 报告可恢复或不可恢复的中断；
+可恢复中断由 `FrameRetryPolicy` 和 `RecoverAsync` 自动编排。`FrameNetworkOperationChanged`、
+`FrameNetworkRetryScheduled` 与 `FrameNetworkRecoveryCompleted` 都从同一个 `Events` 总线观察。
+房间快照重建完成、玩法输入何时恢复等业务就绪条件仍由宿主决定，可在完成后调用
+`context.Network.MarkReady(...)`。
 
 ## Schema 11 热更新
 
@@ -127,7 +137,7 @@ context.Network.MarkReady("input restored");
 - `PackFlow` 提供完整 Player/Base 外层事务：临时同步 HybridCLR Hot 分类和 `PlatRunSet`，可选内置完整 Stage，执行 GenerateAll 与 Player 构建，回读内置资源后才同时提升 Player、AOT 基线和首个签名 Release。配置了 HybridCLR 的非 Development 直接 Build 会被阻止。
 - `AbIndex` 提供确定性的 Schema 11 AssetBundle 索引编解码，会拒绝重复、乱序、缺失依赖、循环依赖和尾随数据。
 - 为保持 ArcadeHub 公开 API 的名称和签名，`Frame_Game` 在本迁移分支中需要 UniTask 2.5.0 或更高版本。使用客户端的项目程序集应显式引用 `Frame_Game`、`HotUpd_Core`、`HotUpd_Client` 和 `UniTask`，并通过 `PlatRunSet` 或自行构造 `UpdCfg` 提供平台配置。
-- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。`1.1.0-preview.10` 是预览版本：生产工具核心和自动化测试已经完成，真实 Android/iOS IL2CPP 安装包与业务服务器端到端验收仍应由接入项目执行。
+- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。`1.1.0-preview.13` 是预览版本：生产工具核心和自动化测试已经完成，真实 Android/iOS IL2CPP 安装包与业务服务器端到端验收仍应由接入项目执行。
 
 生产目录结构、Base 冻结规则和 API 示例见 [Schema 11 Release Production](Documentation~/HotUpdateRelease.md)，AB 配置与构建规则见 [AssetBundle Production](Documentation~/AssetBundleProduction.md)，HybridCLR 分层与基线规则见 [HybridCLR Production](Documentation~/HybridCLRProduction.md)。
 
