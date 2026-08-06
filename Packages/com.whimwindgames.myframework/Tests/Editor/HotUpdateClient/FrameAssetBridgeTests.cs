@@ -13,9 +13,17 @@ public sealed class FrameAssetBridgeTests
 		public void Write(FrameLogRecord record) { Records.Add(record); }
 	}
 
-	private sealed class FakeAssetProvider : IFrameAssetProvider
+	private sealed class FakeAssetProvider : IFrameAssetProvider, IFrameAssetCatalog
 	{
 		public int ReleaseCount;
+		public string MissingAddress;
+
+		public Task<bool> ExistsAsync<T>(string address,
+			CancellationToken cancellationToken = default) where T : UnityEngine.Object
+		{
+			cancellationToken.ThrowIfCancellationRequested();
+			return Task.FromResult(!string.Equals(address, MissingAddress, StringComparison.Ordinal));
+		}
 
 		public Task<FrameAssetLease<T>> LoadAsync<T>(string address,
 			CancellationToken cancellationToken = default) where T : UnityEngine.Object
@@ -101,6 +109,19 @@ public sealed class FrameAssetBridgeTests
 		using FrameRuntimeContext context = new("Test", new CollectingLogSink());
 		Assert.ThrowsAsync<InvalidOperationException>(async () =>
 			await context.Assets.LoadAsync<GameObject>("missing"));
+	}
+
+	[Test]
+	public async Task GatewayUsesOptionalProviderCatalogWithoutLoadingAnAsset()
+	{
+		using FrameRuntimeContext context = new("Test", new CollectingLogSink());
+		FakeAssetProvider provider = new() { MissingAddress = "missing" };
+		context.Assets.UseProvider(provider);
+
+		Assert.That(await context.Assets.ExistsAsync<GameObject>("present"), Is.True);
+		Assert.That(await context.Assets.ExistsAsync<GameObject>("missing"), Is.False);
+		Assert.That(await context.Assets.ExistsAsync<GameObject>(string.Empty), Is.False);
+		Assert.That(context.Assets.ActiveLeaseCount, Is.Zero);
 	}
 
 	[Test]

@@ -137,7 +137,7 @@ Provider 通过 `StateChanged` 报告传输状态，通过 `Interrupted` 报告�
 - `PackFlow` 提供完整 Player/Base 外层事务：临时同步 HybridCLR Hot 分类和 `PlatRunSet`，可选内置完整 Stage，执行 GenerateAll 与 Player 构建，回读内置资源后才同时提升 Player、AOT 基线和首个签名 Release。配置了 HybridCLR 的非 Development 直接 Build 会被阻止。
 - `AbIndex` 提供确定性的 Schema 11 AssetBundle 索引编解码，会拒绝重复、乱序、缺失依赖、循环依赖和尾随数据。
 - 为保持 ArcadeHub 公开 API 的名称和签名，`Frame_Game` 在本迁移分支中需要 UniTask 2.5.0 或更高版本。使用客户端的项目程序集应显式引用 `Frame_Game`、`HotUpd_Core`、`HotUpd_Client` 和 `UniTask`，并通过 `PlatRunSet` 或自行构造 `UpdCfg` 提供平台配置。
-- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。`1.1.0-preview.14` 是预览版本：生产工具核心和自动化测试已经完成，真实 Android/iOS IL2CPP 安装包与业务服务器端到端验收仍应由接入项目执行。
+- 旧 `AssetVersionSystem` 当前继续保留，旧入口行为不变。`1.1.0-preview.15` 是预览版本：生产工具核心和自动化测试已经完成，真实 Android/iOS IL2CPP 安装包与业务服务器端到端验收仍应由接入项目执行。
 
 生产目录结构、Base 冻结规则和 API 示例见 [Schema 11 Release Production](Documentation~/HotUpdateRelease.md)，AB 配置与构建规则见 [AssetBundle Production](Documentation~/AssetBundleProduction.md)，HybridCLR 分层与基线规则见 [HybridCLR Production](Documentation~/HybridCLRProduction.md)。
 

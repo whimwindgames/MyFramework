@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.15] - 2026-08-06
+
+### Added
+
+- 增加可选 `IFrameAssetCatalog` 和 `FrameAssetGateway.ExistsAsync<T>()`，让宿主的 Addressables、AssetBundle 或编辑器资源目录查询继续经过统一资源网关边界。
+
+### Changed
+
+- 资源目录查询不会创建租约或改变活动租约计数；未安装 Provider、Provider 不支持目录或上下文已关闭时均给出明确错误。
+
 ## [1.1.0-preview.14] - 2026-08-06
 
 ### Fixed

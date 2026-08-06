@@ -87,6 +87,16 @@ public interface IFrameAssetProvider
 }
 
 /// <summary>
+/// Optional provider capability for checking an address without starting a load. Hosts whose
+/// resource backend has no catalog can omit it; callers then receive a clear not-supported error.
+/// </summary>
+public interface IFrameAssetCatalog
+{
+	Task<bool> ExistsAsync<T>(string address,
+		CancellationToken cancellationToken = default) where T : UnityEngine.Object;
+}
+
+/// <summary>
 /// Observable facade over a host-provided asset backend. It owns no backend and never disposes
 /// outstanding host leases implicitly; the consumer that receives a lease remains its owner.
 /// </summary>
@@ -150,6 +160,25 @@ public sealed class FrameAssetGateway
 	{
 		return executeAsync(address, FrameAssetKind.INSTANCE,
 			(provider, token) => provider.InstantiateAsync(address, parent, token), cancellationToken);
+	}
+
+	public Task<bool> ExistsAsync<T>(string address,
+		CancellationToken cancellationToken = default) where T : UnityEngine.Object
+	{
+		throwIfStopped();
+		if (string.IsNullOrWhiteSpace(address))
+		{
+			return Task.FromResult(false);
+		}
+		IFrameAssetProvider provider = Provider ??
+			throw new InvalidOperationException("No frame asset provider is installed.");
+		if (provider is not IFrameAssetCatalog catalog)
+		{
+			throw new NotSupportedException(
+				$"Asset provider {provider.GetType().FullName} does not expose a catalog.");
+		}
+		cancellationToken.ThrowIfCancellationRequested();
+		return catalog.ExistsAsync<T>(address, cancellationToken);
 	}
 
 	public void ClearProvider(IFrameAssetProvider provider = null)
