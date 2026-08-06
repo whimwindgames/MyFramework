@@ -151,6 +151,23 @@ public sealed class FrameNetworkSessionTests
 	}
 
 	[Test]
+	public void DisconnectFollowingNonRetryableInterruptionDoesNotHideFailure()
+	{
+		using FrameRuntimeContext context = new("Test", new CollectingLogSink());
+		TestProvider provider = new();
+		context.Network.UseProvider(provider);
+
+		provider.Interrupt(false, "account frozen");
+		provider.ChangeState(FrameNetworkState.DISCONNECTED, "socket closed");
+
+		Assert.That(context.Network.State, Is.EqualTo(FrameNetworkState.FAILED));
+		Assert.That(context.Network.Reason, Is.EqualTo("account frozen"));
+
+		provider.ChangeState(FrameNetworkState.CONNECTING, "user requested login");
+		Assert.That(context.Network.State, Is.EqualTo(FrameNetworkState.CONNECTING));
+	}
+
+	[Test]
 	public async Task StopAsyncUsesProviderThenPermanentlyStopsSession()
 	{
 		FrameRuntimeContext context = new("Test", new CollectingLogSink());

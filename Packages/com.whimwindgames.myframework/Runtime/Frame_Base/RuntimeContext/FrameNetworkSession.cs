@@ -362,6 +362,14 @@ public sealed class FrameNetworkSession : IDisposable
 
 	private void onProviderStateChanged(FrameNetworkProviderStateChanged change)
 	{
+		// 顶号、冻结等不可恢复中断通常紧接一个底层 socket Disconnected 通知。
+		// 该传输事实不能覆盖已经确定的 FAILED 业务终态；显式 Connecting/Reconnecting
+		// 仍可在用户发起新会话时离开失败态。
+		if (Lifecycle.State == FrameNetworkState.FAILED &&
+			change.State == FrameNetworkState.DISCONNECTED)
+		{
+			return;
+		}
 		Lifecycle.SetState(change.State, change.Reason);
 	}
 
