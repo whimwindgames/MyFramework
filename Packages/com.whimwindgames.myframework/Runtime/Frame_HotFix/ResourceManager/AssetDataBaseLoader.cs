@@ -87,7 +87,7 @@ public class AssetDataBaseLoader
 	}
 	public bool hasKey(string key)
 	{
-		return !string.IsNullOrEmpty(key) && isFileExist(P_GAME_RESOURCES_PATH + key);
+		return !string.IsNullOrEmpty(key) && isFileExist(resolveAssetPath(key));
 	}
 	public UObject getAsset(string name)
 	{
@@ -220,7 +220,7 @@ public class AssetDataBaseLoader
 		info.setState(LOAD_STATE.LOADING);
 		if (isEditor())
 		{
-			string filePath = P_GAME_RESOURCES_PATH + name;
+			string filePath = resolveAssetPath(name);
 			if (isFileExist(filePath))
 			{
 				info.setObject(loadAssetAtPath<T>(filePath));
@@ -248,7 +248,7 @@ public class AssetDataBaseLoader
 	{
 		if (isEditor())
 		{
-			string filePath = P_GAME_RESOURCES_PATH + info.getResourceName();
+			string filePath = resolveAssetPath(info.getResourceName());
 			if (isFileExist(filePath))
 			{
 				info.setObject(loadAssetAtPath<T>(filePath));
@@ -291,5 +291,11 @@ public class AssetDataBaseLoader
 		{
 			logException(e);
 		}
+	}
+	private static string resolveAssetPath(string key)
+	{
+		return AbIndex.tryEditSrc(key, out string sourcePath)
+			? sourcePath
+			: P_GAME_RESOURCES_PATH + key;
 	}
 }

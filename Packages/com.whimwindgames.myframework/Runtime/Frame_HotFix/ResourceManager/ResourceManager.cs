@@ -452,15 +452,10 @@ public class ResourceManager : FrameSystem
 		}
 		return null;
 	}
-	// 检查路径的合法性,需要带后缀,且需要是相对于GameResources的路径
+	// 检查路径或Schema 11逻辑地址的合法性。旧GameResources相对路径通常带后缀，
+	// 显式AB逻辑地址可以不带后缀，并由AB索引映射到实际资源。
 	protected static void checkRelativePath(string path)
 	{
-		// 需要带后缀
-		if (!path.Contains('.'))
-		{
-			logError("资源文件名需要带后缀:" + path);
-			return;
-		}
 		// 不能是绝对路径
 		if (path.startWith(FrameBaseDefine.F_ASSETS_PATH))
 		{

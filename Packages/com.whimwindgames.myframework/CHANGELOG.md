@@ -2,6 +2,13 @@
 
 本文件记录 `com.whimwindgames.myframework` Unity Package 的可见变化。仓库中的示例游戏或项目专用调整不应记录在这里。
 
+## [1.1.0-preview.18] - 2026-08-06
+
+### Fixed
+
+- HotFix `AssetDataBaseLoader` 现在通过 Schema 11 `AbIndex` 把逻辑地址解析为实际 AssetDatabase 路径，与 Player 中的 AssetBundle 寻址一致；未配置映射时继续兼容原 `Assets/GameResources` 相对路径。
+- `ResourceManager` 接受合法的无扩展名 Schema 11 逻辑地址，不再用旧文件路径规则产生误报。
+
 ## [1.1.0-preview.17] - 2026-08-06
 
 ### Added

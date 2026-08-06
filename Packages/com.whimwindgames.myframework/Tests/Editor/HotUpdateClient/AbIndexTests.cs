@@ -91,6 +91,28 @@ public sealed class AbIndexTests
 		Assert.Throws<InvalidDataException>(() => AbIndex.encode(new[] { first, second }));
 	}
 
+	[Test]
+	public void EditorCatalogResolvesLogicalAddressThroughSchemaMap()
+	{
+		Func<string, string> original = AbIndex.keySrc;
+		try
+		{
+			AbIndex.keySrc = null;
+			Assert.That(AbIndex.tryEditSrc("logical/readme", out _), Is.False);
+
+			AbIndex.keySrc = key => key == "logical/readme"
+				? "Packages/com.whimwindgames.myframework/README.md"
+				: null;
+			Assert.That(AbIndex.tryEditSrc("logical/readme", out string source), Is.True);
+			Assert.That(source, Is.EqualTo("Packages/com.whimwindgames.myframework/README.md"));
+			Assert.That(new AssetDataBaseLoader().hasKey("logical/readme"), Is.True);
+		}
+		finally
+		{
+			AbIndex.keySrc = original;
+		}
+	}
+
 	sealed class TestLoader : AssetBundleLoader
 	{
 		public void Load(byte[] data)

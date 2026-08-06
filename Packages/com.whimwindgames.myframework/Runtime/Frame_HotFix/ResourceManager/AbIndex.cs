@@ -54,8 +54,13 @@ public static class AbIndex
 	public static bool tryEditSrc(string key, out string src)
 	{
 		if (!validKey(key)) throw new InvalidDataException("资源逻辑地址无效:" + key);
-		if (keySrc == null) throw new InvalidOperationException("编辑器AB映射未初始化");
-		src = keySrc(key);
+		Func<string, string> resolver = keySrc;
+		if (resolver == null)
+		{
+			src = null;
+			return false;
+		}
+		src = resolver(key);
 		return !string.IsNullOrEmpty(src);
 	}
 
