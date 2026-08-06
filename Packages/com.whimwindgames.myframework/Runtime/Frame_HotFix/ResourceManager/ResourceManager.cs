@@ -285,10 +285,11 @@ public class ResourceManager : FrameSystem
 		return loadGameResourceAsyncInternal<T>(name, (UObject res, UObject[] subRes, byte[] bytes, string loadPath) =>
 		{
 			CLASS(out ResourceRef<T> resRef);
-			if (res != null)
+			T typed = AssetInfo.findAsset<T>(res, subRes);
+			if (typed != null)
 			{
-				// 只需要对主资源添加引用封装,子资源都是跟随主资源的生命周期,不需要单独添加引用封装
-				resRef.set(res as T);
+				// 只为调用者请求的类型建立引用；同文件的其余子资源跟随同一AssetInfo生命周期。
+				resRef.set(typed);
 			}
 			if (callback == null)
 			{
@@ -303,12 +304,13 @@ public class ResourceManager : FrameSystem
 	// 异步加载资源,name是GameResources下的相对路径,带后缀名,errorIfNull表示当找不到资源时是否报错提示
 	public CustomAsyncOperation loadGameResourceAsync<T>(string name, Action<ResourceRef<T>, string> callback, bool errorIfNull = true) where T : UObject
 	{
-		return loadGameResourceAsyncInternal<T>(name, (UObject asset, UObject[] _, byte[] _, string loadPath) =>
+		return loadGameResourceAsyncInternal<T>(name, (UObject asset, UObject[] assets, byte[] _, string loadPath) =>
 		{
 			CLASS(out ResourceRef<T> resRef);
-			if (asset != null)
+			T typed = AssetInfo.findAsset<T>(asset, assets);
+			if (typed != null)
 			{
-				resRef.set(asset as T);
+				resRef.set(typed);
 			}
 			if (callback == null)
 			{
@@ -325,12 +327,13 @@ public class ResourceManager : FrameSystem
 	public CustomAsyncOperation loadGameResourceAsyncSafe<T>(IRecyclable relatedObj, string name, Action<ResourceRef<T>, string> callback, bool errorIfNull = true) where T : UObject
 	{
 		long assignID = relatedObj?.getAssignID() ?? 0;
-		return loadGameResourceAsyncInternal<T>(name, (UObject asset, UObject[] _, byte[] _, string loadPath) =>
+		return loadGameResourceAsyncInternal<T>(name, (UObject asset, UObject[] assets, byte[] _, string loadPath) =>
 		{
 			CLASS(out ResourceRef<T> resRef);
-			if (asset != null)
+			T typed = AssetInfo.findAsset<T>(asset, assets);
+			if (typed != null)
 			{
-				resRef.set(asset as T);
+				resRef.set(typed);
 			}
 			if (callback == null || assignID != (relatedObj?.getAssignID() ?? 0))
 			{
@@ -345,12 +348,13 @@ public class ResourceManager : FrameSystem
 	// 异步加载资源,name是GameResources下的相对路径,带后缀名,errorIfNull表示当找不到资源时是否报错提示
 	public CustomAsyncOperation loadGameResourceAsync<T>(string name, Action<ResourceRef<T>> callback, bool errorIfNull = true) where T : UObject
 	{
-		return loadGameResourceAsyncInternal<T>(name, (UObject asset, UObject[] _, byte[] _, string _) =>
+		return loadGameResourceAsyncInternal<T>(name, (UObject asset, UObject[] assets, byte[] _, string _) =>
 		{
 			CLASS(out ResourceRef<T> resRef);
-			if (asset != null)
+			T typed = AssetInfo.findAsset<T>(asset, assets);
+			if (typed != null)
 			{
-				resRef.set(asset as T);
+				resRef.set(typed);
 			}
 			if (callback == null)
 			{
@@ -367,12 +371,13 @@ public class ResourceManager : FrameSystem
 	public CustomAsyncOperation loadGameResourceAsyncSafe<T>(IRecyclable relatedObj, string name, Action<ResourceRef<T>> callback, bool errorIfNull = true) where T : UObject
 	{
 		long assignID = relatedObj?.getAssignID() ?? 0;
-		return loadGameResourceAsyncInternal<T>(name, (UObject asset, UObject[] _, byte[] _, string _) =>
+		return loadGameResourceAsyncInternal<T>(name, (UObject asset, UObject[] assets, byte[] _, string _) =>
 		{
 			CLASS(out ResourceRef<T> resRef);
-			if (asset != null)
+			T typed = AssetInfo.findAsset<T>(asset, assets);
+			if (typed != null)
 			{
-				resRef.set(asset as T);
+				resRef.set(typed);
 			}
 			if (callback == null || assignID != (relatedObj?.getAssignID() ?? 0))
 			{

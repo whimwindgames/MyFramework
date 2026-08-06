@@ -2,6 +2,14 @@
 
 本文件记录 `com.whimwindgames.myframework` Unity Package 的可见变化。仓库中的示例游戏或项目专用调整不应记录在这里。
 
+## [1.1.0-preview.19] - 2026-08-06
+
+### Fixed
+
+- AssetBundle 同步与异步泛型加载现在会从主资源和全部子资源中选择请求类型；PNG 等以 `Texture2D` 为主资源、`Sprite` 为子资源的资产可直接通过逻辑地址加载。
+- 异步 AssetBundle 加载会登记全部子资源的包归属，使类型化资源租约能够按原有引用计数语义释放。
+- 加载失败产生的空 `ResourceRef<T>` 可安静回收，不再追加误导性的二次错误日志。
+
 ## [1.1.0-preview.18] - 2026-08-06
 
 ### Fixed

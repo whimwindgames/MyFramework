@@ -35,7 +35,6 @@ public class ResourceRef<T> : ClassObject where T : UObject
 		base.destroy();
 		if (mResource == null)
 		{
-			logError("resource is null");
 			return;
 		}
 		mResourceManager.removeReference(mResource, ref mToken);

@@ -42,7 +42,7 @@ public class AssetInfo : ClassObject
 	public T loadAsset<T>() where T : UObject
 	{
 		doLoadAssets();
-		return mSubAssets.get(0) as T;
+		return getAsset<T>();
 	}
 	// 同步加载所有子资源
 	public UObject[] loadAsset()
@@ -51,6 +51,22 @@ public class AssetInfo : ClassObject
 		return mSubAssets;
 	}
 	public UObject getAsset() { return mSubAssets.get(0); }
+	public T getAsset<T>() where T : UObject { return findAsset<T>(getAsset(), mSubAssets); }
+	public static T findAsset<T>(UObject mainAsset, UObject[] assets) where T : UObject
+	{
+		if (mainAsset is T main)
+		{
+			return main;
+		}
+		foreach (UObject asset in assets.safe())
+		{
+			if (asset is T typed)
+			{
+				return typed;
+			}
+		}
+		return null;
+	}
 	public string getAssetName() { return mAssetName; }
 	public string getAssetPath() { return mAssetPath; }
 	public void setLoadState(LOAD_STATE state) { mLoadState = state; }

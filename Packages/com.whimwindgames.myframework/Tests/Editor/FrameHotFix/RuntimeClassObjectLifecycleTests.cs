@@ -104,6 +104,29 @@ public sealed class RuntimeClassObjectLifecycleTests
 		assertCreated(instance, SceneInstanceProbe.Created);
 	}
 
+	[Test]
+	public void AssetInfoSelectsTheRequestedTypedSubAsset()
+	{
+		var texture = new UnityEngine.Texture2D(2, 2);
+		var sprite = UnityEngine.Sprite.Create(texture,
+			new UnityEngine.Rect(0, 0, 2, 2), new UnityEngine.Vector2(0.5f, 0.5f));
+		var info = new AssetInfo();
+		try
+		{
+			info.setSubAssets(new UnityEngine.Object[] { texture, sprite });
+
+			Assert.That(info.getAsset<UnityEngine.Texture2D>(), Is.SameAs(texture));
+			Assert.That(info.getAsset<UnityEngine.Sprite>(), Is.SameAs(sprite));
+			Assert.That(AssetInfo.findAsset<UnityEngine.GameObject>(texture,
+				new UnityEngine.Object[] { texture, sprite }), Is.Null);
+		}
+		finally
+		{
+			UnityEngine.Object.DestroyImmediate(sprite);
+			UnityEngine.Object.DestroyImmediate(texture);
+		}
+	}
+
 	private static void assertCreated(ClassObject value, int createdCount)
 	{
 		Assert.That(value, Is.Not.Null);

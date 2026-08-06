@@ -258,10 +258,18 @@ public class AssetBundleInfo : ClassObject
 		T asset = info.loadAsset<T>();
 		if (asset != null)
 		{
-			mObjectToAsset.TryAdd(asset, info);
-			mResourceManager.notifyAssetLoaded(asset, this);
+			trackAsset(asset, info);
 		}
 		return asset;
+	}
+	public void trackAsset(UObject asset, AssetInfo info)
+	{
+		if (asset == null || info == null)
+		{
+			return;
+		}
+		mObjectToAsset.TryAdd(asset, info);
+		mResourceManager.notifyAssetLoaded(asset, this);
 	}
 	// 同步加载资源的子集
 	public UObject[] loadSubAssets(string fileNameWithSuffix, out UObject mainAsset)
@@ -341,12 +349,6 @@ public class AssetBundleInfo : ClassObject
 		if (mLoadState != LOAD_STATE.NONE)
 		{
 			assetInfo.setSubAssets(assets);
-			UObject asset = assetInfo.getAsset();
-			if (asset != null)
-			{
-				mObjectToAsset.TryAdd(asset, assetInfo);
-				mResourceManager.notifyAssetLoaded(asset, this);
-			}
 		}
 		assetInfo.callbackAll();
 	}

@@ -306,7 +306,17 @@ public class AssetBundleLoader
 			doneCallback?.Invoke(null, null, null, fileName);
 			return null;
 		}
-		return asset.getAssetBundle().loadAssetAsync(fileNameLower, doneCallback, fileName);
+		AssetBundleInfo bundle = asset.getAssetBundle();
+		return bundle.loadAssetAsync(fileNameLower,
+			(UObject mainAsset, UObject[] assets, byte[] bytes, string loadPath) =>
+			{
+				T typed = AssetInfo.findAsset<T>(mainAsset, assets);
+				if (typed != null)
+				{
+					bundle.trackAsset(typed, asset);
+				}
+				doneCallback?.Invoke(mainAsset, assets, bytes, loadPath);
+			}, fileName);
 	}
 	// 请求异步加载资源包
 	public void requestLoadAssetBundle(AssetBundleInfo bundleInfo)
