@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.10] - 2026-08-06
+
+### Added
+
+- 增加 `FrameRetryPolicy`，提供带上限且不会发生整数溢出的确定性指数退避，宿主网络实现可复用同一重试预算。
+- `FrameRuntimeContext` 增加 `FrameNetworkLifecycle`，统一观察连接、进房、就绪、重连、快照恢复、停止与失败状态。
+- 增加 `FrameNetworkStateChanged` 与 `FrameNetworkRetryScheduled` 事件，记录严格递增顺序号、原因、尝试次数、预算和延迟。
+
+### Compatibility
+
+- 网络生命周期只描述状态和重试时机，不实现传输、协议、鉴权、房间恢复或业务请求；宿主既有网络所有权和公共 API 保持不变。
+
 ## [1.1.0-preview.9] - 2026-08-06
 
 ### Added

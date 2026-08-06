@@ -10,6 +10,7 @@ public sealed class FrameRuntimeContext : IDisposable
 	public FrameConfigurationStore Configuration { get; }
 	public FrameEventBus Events { get; }
 	public FrameLifecycle Lifecycle { get; }
+	public FrameNetworkLifecycle Network { get; }
 
 	public FrameRuntimeContext(string name, IFrameLogSink logSink = null)
 	{
@@ -19,12 +20,14 @@ public sealed class FrameRuntimeContext : IDisposable
 		Configuration = new FrameConfigurationStore();
 		Events = new FrameEventBus(LogSink);
 		Lifecycle = new FrameLifecycle(Name, Events, LogSink);
+		Network = new FrameNetworkLifecycle($"{Name}.Network", Events, LogSink);
 
 		Services.Set(this);
 		Services.Set(Services);
 		Services.Set(Configuration);
 		Services.Set(Events);
 		Services.Set(Lifecycle);
+		Services.Set(Network);
 	}
 
 	public void Log(FrameLogLevel level, string message, Exception exception = null, string category = null)
