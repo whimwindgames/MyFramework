@@ -102,4 +102,21 @@ public sealed class FrameAssetBridgeTests
 		Assert.ThrowsAsync<InvalidOperationException>(async () =>
 			await context.Assets.LoadAsync<GameObject>("missing"));
 	}
+
+	[Test]
+	public async Task LeaseCanReleaseAfterRuntimeContextIsDisposed()
+	{
+		FrameRuntimeContext context = new("Test", new CollectingLogSink());
+		FakeAssetProvider provider = new();
+		context.Assets.UseProvider(provider);
+		FrameAssetLease<GameObject> lease = await context.Assets.InstantiateAsync("ui/late-release");
+
+		context.Dispose();
+		Assert.DoesNotThrow(lease.Dispose);
+
+		Assert.That(provider.ReleaseCount, Is.EqualTo(1));
+		Assert.That(context.Assets.ActiveLeaseCount, Is.Zero);
+		Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+			await context.Assets.LoadAsync<GameObject>("after-shutdown"));
+	}
 }

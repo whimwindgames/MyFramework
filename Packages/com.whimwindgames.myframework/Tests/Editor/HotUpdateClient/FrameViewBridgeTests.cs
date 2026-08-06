@@ -96,4 +96,16 @@ public sealed class FrameViewBridgeTests
 		Assert.That(observed.Error, Is.EqualTo("missing route"));
 		Assert.That(log.Records, Has.Count.EqualTo(1));
 	}
+
+	[Test]
+	public void RouterRejectsNewNavigationAfterRuntimeContextIsDisposed()
+	{
+		FrameRuntimeContext context = new("Test", new CollectingLogSink());
+		context.Views.UseAdapter(new FakeViewAdapter());
+		context.Dispose();
+
+		Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+			await context.Views.ShowAsync(new FrameViewRequest(
+				"after-shutdown", FrameViewLayer.WINDOW)));
+	}
 }

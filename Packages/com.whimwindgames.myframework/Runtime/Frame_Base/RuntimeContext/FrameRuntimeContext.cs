@@ -85,8 +85,8 @@ public sealed class FrameRuntimeContext : IDisposable
 		}
 		finally
 		{
-			Views.ClearAdapter();
-			Assets.ClearProvider();
+			Views.Shutdown();
+			Assets.Shutdown();
 			Services.Clear();
 			Configuration.Clear();
 			Events.Dispose();

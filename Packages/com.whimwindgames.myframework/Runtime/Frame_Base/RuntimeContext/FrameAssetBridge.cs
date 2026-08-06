@@ -99,6 +99,7 @@ public sealed class FrameAssetGateway
 	private IFrameAssetProvider mProvider;
 	private long mSequence;
 	private int mActiveLeaseCount;
+	private int mStopped;
 
 	public FrameAssetGateway(string owner, FrameEventBus events, IFrameLogSink logSink)
 	{
@@ -122,6 +123,7 @@ public sealed class FrameAssetGateway
 
 	public void UseProvider(IFrameAssetProvider provider, bool replace = false)
 	{
+		throwIfStopped();
 		if (provider == null)
 		{
 			throw new ArgumentNullException(nameof(provider));
@@ -165,6 +167,7 @@ public sealed class FrameAssetGateway
 		Func<IFrameAssetProvider, CancellationToken, Task<FrameAssetLease<T>>> operation,
 		CancellationToken cancellationToken) where T : UnityEngine.Object
 	{
+		throwIfStopped();
 		if (string.IsNullOrWhiteSpace(address))
 		{
 			throw new ArgumentException("Asset address cannot be empty.", nameof(address));
@@ -213,7 +216,32 @@ public sealed class FrameAssetGateway
 	private void publish<T>(string address, FrameAssetKind kind,
 		FrameAssetOperationState state, string error = null) where T : UnityEngine.Object
 	{
-		mEvents.Publish(new FrameAssetOperationChanged(
-			Interlocked.Increment(ref mSequence), address, typeof(T), kind, state, error));
+		if (Volatile.Read(ref mStopped) != 0)
+		{
+			return;
+		}
+		try
+		{
+			mEvents.Publish(new FrameAssetOperationChanged(
+				Interlocked.Increment(ref mSequence), address, typeof(T), kind, state, error));
+		}
+		catch (ObjectDisposedException) when (Volatile.Read(ref mStopped) != 0)
+		{
+			// A host operation raced context shutdown; its lease remains valid and host-owned.
+		}
+	}
+
+	public void Shutdown()
+	{
+		Interlocked.Exchange(ref mStopped, 1);
+		ClearProvider();
+	}
+
+	private void throwIfStopped()
+	{
+		if (Volatile.Read(ref mStopped) != 0)
+		{
+			throw new ObjectDisposedException(nameof(FrameAssetGateway));
+		}
 	}
 }

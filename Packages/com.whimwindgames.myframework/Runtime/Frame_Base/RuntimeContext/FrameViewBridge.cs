@@ -104,6 +104,7 @@ public sealed class FrameViewRouter
 	private readonly IFrameLogSink mLogSink;
 	private IFrameViewAdapter mAdapter;
 	private long mSequence;
+	private int mStopped;
 
 	public FrameViewRouter(string owner, FrameEventBus events, IFrameLogSink logSink)
 	{
@@ -125,6 +126,7 @@ public sealed class FrameViewRouter
 
 	public void UseAdapter(IFrameViewAdapter adapter, bool replace = false)
 	{
+		throwIfStopped();
 		if (adapter == null)
 		{
 			throw new ArgumentNullException(nameof(adapter));
@@ -142,6 +144,7 @@ public sealed class FrameViewRouter
 	public async Task<FrameViewHandle> ShowAsync(FrameViewRequest request,
 		CancellationToken cancellationToken = default)
 	{
+		throwIfStopped();
 		if (request == null)
 		{
 			throw new ArgumentNullException(nameof(request));
@@ -183,6 +186,7 @@ public sealed class FrameViewRouter
 	public async Task HideAsync(FrameViewHandle handle,
 		CancellationToken cancellationToken = default)
 	{
+		throwIfStopped();
 		if (handle == null)
 		{
 			throw new ArgumentNullException(nameof(handle));
@@ -212,6 +216,7 @@ public sealed class FrameViewRouter
 
 	public Task<bool> BackAsync(CancellationToken cancellationToken = default)
 	{
+		throwIfStopped();
 		IFrameViewAdapter adapter = Adapter ??
 			throw new InvalidOperationException("No frame view adapter is installed.");
 		cancellationToken.ThrowIfCancellationRequested();
@@ -232,7 +237,32 @@ public sealed class FrameViewRouter
 	private void publish(string route, FrameViewLayer layer, FrameViewState state,
 		string error = null)
 	{
-		mEvents.Publish(new FrameViewStateChanged(
-			Interlocked.Increment(ref mSequence), route, layer, state, error));
+		if (Volatile.Read(ref mStopped) != 0)
+		{
+			return;
+		}
+		try
+		{
+			mEvents.Publish(new FrameViewStateChanged(
+				Interlocked.Increment(ref mSequence), route, layer, state, error));
+		}
+		catch (ObjectDisposedException) when (Volatile.Read(ref mStopped) != 0)
+		{
+			// A host transition raced context shutdown; no further observation is required.
+		}
+	}
+
+	public void Shutdown()
+	{
+		Interlocked.Exchange(ref mStopped, 1);
+		ClearAdapter();
+	}
+
+	private void throwIfStopped()
+	{
+		if (Volatile.Read(ref mStopped) != 0)
+		{
+			throw new ObjectDisposedException(nameof(FrameViewRouter));
+		}
 	}
 }

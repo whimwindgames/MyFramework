@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.12] - 2026-08-06
+
+### Fixed
+
+- 资源网关和视图路由在 `FrameRuntimeContext` 销毁后进入明确关闭态，拒绝新操作且不再向已关闭的事件总线发布。
+- 宿主可在运行上下文销毁后安全释放已取得的 `FrameAssetLease<T>`，适配 Unity 不确定的 `OnDestroy` 顺序。
+
+### Compatibility
+
+- 资源租约所有权仍在宿主；关闭运行上下文不会隐式释放存活资源。
+
 ## [1.1.0-preview.11] - 2026-08-06
 
 ### Added
