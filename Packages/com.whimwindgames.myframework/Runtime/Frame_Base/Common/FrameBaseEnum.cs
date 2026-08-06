@@ -11,6 +11,26 @@ public enum WINDOW_MODE : byte
 	FULL_SCREEN_CUSTOM_RESOLUTION,  // 全屏并且使用下面设置的分辨率
 }
 
+// GameEntryBase 对宿主3D物理设置的处理方式。
+// LEGACY_FRAMEWORK 必须保持为0，使旧场景缺少新增序列化字段时继续沿用历史行为。
+public enum FRAME_PHYSICS_MODE : byte
+{
+	[EnumLabel("框架脚本模拟"), Tooltip("沿用旧行为：Physics使用Script模式并启用autoSyncTransforms")]
+	LEGACY_FRAMEWORK,
+	[EnumLabel("保留宿主设置"), Tooltip("不修改项目当前的Physics模拟模式和autoSyncTransforms")]
+	PRESERVE_HOST,
+}
+
+// GameEntryBase 对宿主分辨率、UGUI根节点和UI相机的处理方式。
+// LEGACY_FRAMEWORK 必须保持为0，以兼容旧场景的序列化数据。
+public enum FRAME_SCREEN_MODE : byte
+{
+	[EnumLabel("框架管理"), Tooltip("沿用旧行为：由框架设置分辨率并适配UGUI根节点和UI相机")]
+	LEGACY_FRAMEWORK,
+	[EnumLabel("保留宿主设置"), Tooltip("不修改分辨率、UGUI根节点尺寸和UI相机参数")]
+	PRESERVE_HOST,
+}
+
 // 等比缩放比例的计算方式
 public enum ASPECT_BASE : byte
 {

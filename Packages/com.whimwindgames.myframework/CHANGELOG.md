@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.8] - 2026-08-06
+
+### Fixed
+
+- 将框架贴图、音频和模型的自动导入规范限定到 `Assets/GameResources`，接入成熟宿主项目时不再改写其他目录的资源导入设置。
+- 声明 `Frame_Base` 中 Android 桥接代码所需的 `com.unity.modules.androidjni` 内置模块依赖，宿主项目无需再临时补包。
+- `GameEntryBase` 增加保留宿主3D物理与屏幕设置的兼容模式；旧场景仍默认沿用框架历史行为。
+- UI根节点、UI相机、模糊相机和主相机支持名称配置及运行时对象绑定，不再只能依赖模板场景固定名称。
+
+### Added
+
+- 增加“安全接入成熟项目”初始化入口，只生成编辑器/运行时设置，不复制模板、不修改场景、输入和 Build Settings。
+- 增加与UI实现无关的 `FrameScreenContext`，统一提供横竖屏、宽高比、安全区、四边 inset、归一化安全区和变化通知。
+- `FrameSettings` 可选按横竖屏使用不同UI标准分辨率；默认关闭以保持旧项目布局行为。
+- AOT 与 HotFix 启动流程增加可覆写的平台系统、内置 Manager、跨层参数恢复阶段；HotFix 支持传入宿主框架子类工厂，旧启动重载保持不变。
+
+### Compatibility
+
+- 保留 `AssetsImport` 类型、Unity 导入回调和既有公共 API 名称；仅收紧框架资源导入规则的生效范围。
+
 ## [1.1.0-preview.7] - 2026-08-06
 
 ### Fixed

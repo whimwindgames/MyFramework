@@ -24,9 +24,10 @@ public class CameraManager : FrameSystem
 	public override void init()
 	{
 		base.init();
-		mUGUICamera = createCamera(UI_CAMERA, mLayoutManager.getRootObject(), 0);
-		mUGUIBlurCamera = createCamera(BLUR_CAMERA, mLayoutManager.getRootObject(), 0, false, false);
-		mDefaultCamera = createCamera(MAIN_CAMERA);
+		GameObject root = mLayoutManager.getRootObject();
+		mUGUICamera = createCamera(FrameSceneBindings.getUICamera(root, true), 0);
+		mUGUIBlurCamera = createCamera(FrameSceneBindings.getUIBlurCamera(root), 0, false, false);
+		mDefaultCamera = createCamera(FrameSceneBindings.getMainCamera(true));
 		mMainCamera = mDefaultCamera;
 		// 主动调用主摄像机的激活操作,这样可以确认主摄像机的音频监听组件是生效的
 		activeCamera(mMainCamera, true);
@@ -80,6 +81,10 @@ public class CameraManager : FrameSystem
 	// 如果创建的是Overlay摄像机,则是否将其加入到MainCamera的CameraStack中
 	public GameCamera createCamera(GameObject obj, int overlayCameraDepth = 0, bool active = true, bool addUICameraStack = true)
 	{
+		if (obj == null)
+		{
+			return null;
+		}
 		CLASS(out GameCamera camera);
 		camera.setName(obj.name);
 		camera.setObject(obj);

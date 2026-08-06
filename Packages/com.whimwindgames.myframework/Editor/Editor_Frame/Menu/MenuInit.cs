@@ -73,6 +73,16 @@ public class MenuInit
     {
         doInit(true);
     }
+    [MenuItem(MENU_NAME + "安全接入成熟项目", false, -10)]
+    public static void initExistingProjectSafe()
+    {
+        // 只创建框架设置；不复制模板、不打开或修改场景、不修改输入和Build Settings。
+        FrameEditorSettings.getInstance();
+        FrameEditorSettings.save();
+        MenuSetting.createRuntimeSettinsFile();
+        AssetDatabase.SaveAssets();
+        Debug.Log("MyFramework安全接入完成：已生成设置，未修改场景、输入和Build Settings");
+    }
     //---------------------------------------------------------------------------------------------------------------------------
     // Unity重新编译并DomainReload以后,继续执行初始化中断的挂接流程
     [InitializeOnLoadMethod]

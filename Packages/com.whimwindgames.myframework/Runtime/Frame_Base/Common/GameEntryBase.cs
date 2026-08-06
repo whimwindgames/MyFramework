@@ -10,22 +10,32 @@ using static FrameBaseDefine;
 public class GameEntryBase : MonoBehaviour
 {
 	protected static GameEntryBase mInstance;
-	public FramworkParam mFrameworkParam;
+	public FramworkParam mFrameworkParam = new();
 	protected IFramework mFrameworkAOT;
 	protected IFramework mFrameworkHotFix;
 	public virtual void Awake()
 	{
 		mInstance = this;
+		mFrameworkParam ??= new();
+		FrameSceneBindings.configureNames(mFrameworkParam.mUGUIRootName,
+			mFrameworkParam.mUICameraName, mFrameworkParam.mUIBlurCameraName,
+			mFrameworkParam.mMainCameraName);
 		ServicePointManager.DefaultConnectionLimit = 200;
 		Screen.sleepTimeout = SleepTimeout.NeverSleep;
-		// 每当Transform组件更改时是否自动将变换更改与物理系统同步
-		Physics.simulationMode = SimulationMode.Script;
-		Physics.autoSyncTransforms = true;
+		applyPhysicsMode(mFrameworkParam.mPhysicsMode);
 		AppDomain.CurrentDomain.UnhandledException += unhandledException;
 		BuglyForwarder.init();
 		setMainThreadID(Thread.CurrentThread.ManagedThreadId);
 		dumpSystem();
 
+		applyScreenMode();
+	}
+	protected virtual void applyScreenMode()
+	{
+		if (mFrameworkParam.mScreenMode == FRAME_SCREEN_MODE.PRESERVE_HOST)
+		{
+			return;
+		}
 		WINDOW_MODE fullScreen = mFrameworkParam.mWindowMode;
 		if (isEditor())
 		{
@@ -68,6 +78,16 @@ public class GameEntryBase : MonoBehaviour
 		}
 		bool fullMode = fullScreen == WINDOW_MODE.FULL_SCREEN || fullScreen == WINDOW_MODE.FULL_SCREEN_CUSTOM_RESOLUTION;
 		setScreenSizeBase(new((int)windowSize.x, (int)windowSize.y), fullMode);
+	}
+	public static void applyPhysicsMode(FRAME_PHYSICS_MODE mode)
+	{
+		if (mode == FRAME_PHYSICS_MODE.PRESERVE_HOST)
+		{
+			return;
+		}
+		// 保留旧行为：框架在FixedUpdate中显式驱动需要脚本模拟的3D物理。
+		Physics.simulationMode = SimulationMode.Script;
+		Physics.autoSyncTransforms = true;
 	}
 	public void Update()
 	{

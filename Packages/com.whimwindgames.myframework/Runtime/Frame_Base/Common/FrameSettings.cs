@@ -13,6 +13,12 @@ public class FrameSettings : ScriptableObject
 	public Vector2Int UISizeStandalone = new(1920, 1080);
 	[Tooltip("移动端UI标准分辨率宽高,根据此设置来决定UI的适配")]
 	public Vector2Int UISizeMobile = new(1920, 1080);
+	[Tooltip("是否根据当前横竖屏选择不同的UI标准分辨率。默认关闭以保持旧项目行为")]
+	public bool UseOrientationSpecificUISize;
+	[Tooltip("桌面端竖屏UI标准分辨率")]
+	public Vector2Int UISizeStandalonePortrait = new(1080, 1920);
+	[Tooltip("移动端竖屏UI标准分辨率")]
+	public Vector2Int UISizeMobilePortrait = new(1080, 1920);
 	[Tooltip("允许动态下载的目录列表,GameResources下的相对路径,此列表中的文件不会打包到包体中,也不会在游戏启动时从服务器下载,而是在加载资源时才会进行下载")]
 	public List<string> DynamicDownloadList = new();
 	[Tooltip("安卓插件的包名,也就是自己的安卓工程代码中定义的包名,用于在C#中访问java代码")]
@@ -53,14 +59,13 @@ public class FrameSettings : ScriptableObject
 	}
 	public static Vector2Int getUISize()
 	{
-		if (isMobile())
+		FrameSettings settings = get();
+		bool mobile = isMobile();
+		if (!settings.UseOrientationSpecificUISize || FrameScreenContext.getCurrent().isLandscape())
 		{
-			return get().UISizeMobile;
+			return mobile ? settings.UISizeMobile : settings.UISizeStandalone;
 		}
-		else
-		{
-			return get().UISizeStandalone;
-		}
+		return mobile ? settings.UISizeMobilePortrait : settings.UISizeStandalonePortrait;
 	}
 	public static List<string> getDynamicDownloadList() 
 	{

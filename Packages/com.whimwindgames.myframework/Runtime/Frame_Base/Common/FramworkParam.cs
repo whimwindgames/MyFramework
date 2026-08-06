@@ -18,4 +18,16 @@ public class FramworkParam
 	public LOAD_SOURCE mLoadSource = LOAD_SOURCE.ASSET_DATABASE;    // 加载源,从AssetBundle加载还是从Resources加载
 	[Tooltip("窗口类型")]
 	public WINDOW_MODE mWindowMode = WINDOW_MODE.FULL_SCREEN;       // 窗口类型
+	[Tooltip("3D物理设置策略。成熟宿主项目应选择PRESERVE_HOST")]
+	public FRAME_PHYSICS_MODE mPhysicsMode = FRAME_PHYSICS_MODE.LEGACY_FRAMEWORK;
+	[Tooltip("屏幕与UGUI适配策略。成熟宿主项目应选择PRESERVE_HOST")]
+	public FRAME_SCREEN_MODE mScreenMode = FRAME_SCREEN_MODE.LEGACY_FRAMEWORK;
+	[Tooltip("框架UI根节点名称，也可以在启动前通过FrameSceneBindings直接绑定对象")]
+	public string mUGUIRootName = "UGUIRoot";
+	[Tooltip("框架UI相机名称，也可以在启动前通过FrameSceneBindings直接绑定对象")]
+	public string mUICameraName = "UICamera";
+	[Tooltip("框架UI模糊相机名称，也可以在启动前通过FrameSceneBindings直接绑定对象")]
+	public string mUIBlurCameraName = "BlurCamera";
+	[Tooltip("框架主相机名称，也可以在启动前通过FrameSceneBindings直接绑定对象")]
+	public string mMainCameraName = "MainCamera";
 }

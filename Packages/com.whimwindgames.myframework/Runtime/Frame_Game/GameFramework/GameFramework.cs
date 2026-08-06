@@ -21,20 +21,13 @@ public class GameFramework : IFramework
 	public static Func<string> mOnPackageName;                                          // 项目可覆盖安卓插件包名
 	public virtual void init()
 	{
-		registeFrameSystem<AndroidPluginManager>(null);
-		registeFrameSystem<AndroidAssetLoader>(null);
-		registeFrameSystem<AndroidMainClass>(null);
-		FrameCrossParam.mAndroidPluginPackage = mOnPackageName?.Invoke() ??
-			FrameSettings.getAndroidPluginBundleName();
-		AndroidPluginManager.initAnroidPlugin(FrameCrossParam.mAndroidPluginPackage);
-		AndroidAssetLoader.initJava(AndroidPluginManager.getPackageName() + ".AssetLoader");
-		AndroidMainClass.initJava(AndroidPluginManager.getPackageName() + ".MainClass");
+		initPlatformSystem();
 		logBase("start game!");
 		try
 		{
 			DateTime startTime = DateTime.Now;
 			initFrameSystem();
-			AndroidMainClass.gameStart();
+			onFrameSystemRegistered();
 			logBase("start消耗时间:" + (int)(DateTime.Now - startTime).TotalMilliseconds);
 			mOnRegisteStuff?.Invoke();
 			foreach (FrameSystem frame in mFrameComponentList)
@@ -77,6 +70,18 @@ public class GameFramework : IFramework
 			initSDK();
 		}
 	}
+	protected virtual void initPlatformSystem()
+	{
+		registeFrameSystem<AndroidPluginManager>(null);
+		registeFrameSystem<AndroidAssetLoader>(null);
+		registeFrameSystem<AndroidMainClass>(null);
+		FrameCrossParam.mAndroidPluginPackage = mOnPackageName?.Invoke() ??
+			FrameSettings.getAndroidPluginBundleName();
+		AndroidPluginManager.initAnroidPlugin(FrameCrossParam.mAndroidPluginPackage);
+		AndroidAssetLoader.initJava(AndroidPluginManager.getPackageName() + ".AssetLoader");
+		AndroidMainClass.initJava(AndroidPluginManager.getPackageName() + ".MainClass");
+	}
+	protected virtual void onFrameSystemRegistered() { AndroidMainClass.gameStart(); }
 	public void update(float elapsedTime)
 	{
 		if (mFrameComponentList == null)
@@ -132,7 +137,7 @@ public class GameFramework : IFramework
 	}
 	//------------------------------------------------------------------------------------------------------------------------------
 	protected virtual void initSDK(){}
-	protected void initFrameSystem()
+	protected virtual void initFrameSystem()
 	{
 		registeFrameSystem<GameSceneManager>((com) =>		{ mGameSceneManager = com; });
 		registeFrameSystem<LayoutManager>((com) =>			{ mLayoutManager = com; });

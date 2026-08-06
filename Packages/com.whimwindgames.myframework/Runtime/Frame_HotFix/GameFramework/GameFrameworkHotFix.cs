@@ -54,7 +54,13 @@ public class GameFrameworkHotFix : IFramework
 	}
 	public static void startHotFix(Action<Exception> callback)
 	{
-		GameFrameworkHotFix framework = new();
+		startHotFix(() => new GameFrameworkHotFix(), callback);
+	}
+	// 成熟宿主项目可以传入子类工厂，按需覆写平台系统、内置Manager和跨层参数恢复。
+	public static void startHotFix(Func<GameFrameworkHotFix> factory, Action<Exception> callback)
+	{
+		GameFrameworkHotFix framework = factory?.Invoke() ??
+			throw new ArgumentNullException(nameof(factory), "热更框架工厂返回了null");
 		GameEntryBase entry = GameEntryBase.getInstance() ??
 			throw new InvalidOperationException("GameEntryBase未初始化");
 		entry.setFrameworkHotFix(framework);
@@ -426,8 +432,6 @@ public class GameFrameworkHotFix : IFramework
 	protected void preInitAsync(Action<Exception> callback)
 	{
 		using var a = new ProfilerScope(0);
-		// 通过代码添加接受java日志的节点
-		getOrAddComponent<UnityAndroidLog>(findOrCreateRootGameObject("UnityLog"));
 		mGameFrameworkHotFix = this;
 		mIsDestroy = false;
 		mStartTime = DateTime.Now;
@@ -440,22 +444,15 @@ public class GameFrameworkHotFix : IFramework
 		// 设置默认的日志等级
 		setLogLevel(LOG_LEVEL.FORCE);
 
-		registeFrameSystem<AndroidPluginManager>(null);
-		registeFrameSystem<AndroidAssetLoader>(null);
-		registeFrameSystem<AndroidMainClass>(null);
-		AndroidPluginManager.initAndroidPlugin(mOnPackageName?.Invoke() ??
-			FrameSettings.getAndroidPluginBundleName());
-		AndroidAssetLoader.initJava(AndroidPluginManager.getPackageName() + ".AssetLoader");
-		AndroidMainClass.initJava(AndroidPluginManager.getPackageName() + ".MainClass");
+		initPlatformSystem();
 		log("start game hotfix!");
 		log("当前平台:" + getPlatformName());
 		try
 		{
 			DateTime startTime = DateTime.Now;
 			initFrameSystem();
-			recoverCrossParam();
-			// 上面同步完参数再设置版本号,里面会同步版本号
-			BuglyForwarder.setVersion(AndroidPluginManager.getMainActivity(), mAssetVersionSystem.getPersistentAssetsVersion());
+			recoverFrameworkCrossParam();
+			updateCrashReporterVersion();
 			log("start消耗时间:" + (int)(DateTime.Now - startTime).TotalMilliseconds);
 			// 根据设置的顺序对列表进行排序
 			sortList();
@@ -524,7 +521,32 @@ public class GameFrameworkHotFix : IFramework
 		}
 	}
 	// 注册所有内置框架组件,按依赖顺序排列
-	protected void initFrameSystem()
+	protected virtual void initPlatformSystem()
+	{
+		// 通过代码添加接受java日志的节点
+		getOrAddComponent<UnityAndroidLog>(findOrCreateRootGameObject("UnityLog"));
+		registeFrameSystem<AndroidPluginManager>(null);
+		registeFrameSystem<AndroidAssetLoader>(null);
+		registeFrameSystem<AndroidMainClass>(null);
+		AndroidPluginManager.initAndroidPlugin(mOnPackageName?.Invoke() ??
+			FrameSettings.getAndroidPluginBundleName());
+		AndroidAssetLoader.initJava(AndroidPluginManager.getPackageName() + ".AssetLoader");
+		AndroidMainClass.initJava(AndroidPluginManager.getPackageName() + ".MainClass");
+	}
+	protected virtual void recoverFrameworkCrossParam()
+	{
+		recoverCrossParam();
+	}
+	protected virtual void updateCrashReporterVersion()
+	{
+		if (mAssetVersionSystem != null)
+		{
+			BuglyForwarder.setVersion(AndroidPluginManager.getMainActivity(),
+				mAssetVersionSystem.getPersistentAssetsVersion());
+		}
+	}
+	// 注册所有内置框架组件,按依赖顺序排列。宿主子类可覆写为自己的最小系统集合。
+	protected virtual void initFrameSystem()
 	{
 		registeFrameSystem<ResourceManager>((com) =>		{ mResourceManager = com; },  -1, 3000, 3000);		// 资源管理器的需要最先初始化,并且是最后被销毁,作为最后的资源清理
 		registeFrameSystem<TimeManager>((com) =>			{ mTimeManager = com; });

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using UnityEngine.U2D;
@@ -15,6 +16,12 @@ public class AssetsImport : AssetPostprocessor
 	public static void OnPostprocessAllAssets(string[] importedAsset, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
 	{
 		if (MenuAssetBundle.mIsPackingAssetBundle || BuildPipeline.isBuildingPlayer)
+		{
+			return;
+		}
+		// 框架导入规范只管理 Assets/GameResources。宿主项目其他资源的导入设置
+		// 必须保持原样，避免接入 UPM 包时批量改写成熟项目的贴图、音频和模型。
+		if (!hasGameResourceChange(importedAsset, deletedAssets, movedAssets, movedFromAssetPaths))
 		{
 			return;
 		}
@@ -60,7 +67,8 @@ public class AssetsImport : AssetPostprocessor
 	// 图片的导入
 	public void OnPreprocessTexture()
 	{
-		if (MenuAssetBundle.mIsPackingAssetBundle || BuildPipeline.isBuildingPlayer)
+		if (!isGameResourceAssetPath(assetImporter.assetPath) ||
+			MenuAssetBundle.mIsPackingAssetBundle || BuildPipeline.isBuildingPlayer)
 		{
 			return;
 		}
@@ -107,7 +115,8 @@ public class AssetsImport : AssetPostprocessor
 	// 导入音频,由编辑器自动在导入音频资源时调用
 	public void OnPostprocessAudio(AudioClip clip)
 	{
-		if (MenuAssetBundle.mIsPackingAssetBundle || BuildPipeline.isBuildingPlayer)
+		if (!isGameResourceAssetPath(assetImporter.assetPath) ||
+			MenuAssetBundle.mIsPackingAssetBundle || BuildPipeline.isBuildingPlayer)
 		{
 			return;
 		}
@@ -148,7 +157,8 @@ public class AssetsImport : AssetPostprocessor
 	// 导入模型前调用
 	public void OnPreprocessModel()
 	{
-		if (MenuAssetBundle.mIsPackingAssetBundle || BuildPipeline.isBuildingPlayer)
+		if (!isGameResourceAssetPath(assetImporter.assetPath) ||
+			MenuAssetBundle.mIsPackingAssetBundle || BuildPipeline.isBuildingPlayer)
 		{
 			return;
 		}
@@ -163,5 +173,37 @@ public class AssetsImport : AssetPostprocessor
 		modelImporter.meshCompression = ModelImporterMeshCompression.High;
 		modelImporter.weldVertices = true;
 		modelImporter.importBlendShapeNormals = ModelImporterNormals.None;
+	}
+
+	// 保留既有 AssetsImport 类型和回调名称，只缩小其生效边界。
+	public static bool isGameResourceAssetPath(string path)
+	{
+		if (string.IsNullOrEmpty(path))
+		{
+			return false;
+		}
+		path = path.Replace('\\', '/');
+		string root = P_GAME_RESOURCES_PATH.TrimEnd('/');
+		return path.Equals(root, StringComparison.Ordinal) ||
+			path.StartsWith(P_GAME_RESOURCES_PATH, StringComparison.Ordinal);
+	}
+
+	static bool hasGameResourceChange(params string[][] pathGroups)
+	{
+		foreach (string[] paths in pathGroups)
+		{
+			if (paths == null)
+			{
+				continue;
+			}
+			foreach (string path in paths)
+			{
+				if (isGameResourceAssetPath(path))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 }

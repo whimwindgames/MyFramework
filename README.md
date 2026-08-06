@@ -51,7 +51,7 @@ MyFramework 已支持通过 Unity Package Manager 以 Git 插件形式安装。
     }
   ],
   "dependencies": {
-    "com.whimwindgames.myframework": "1.1.0-preview.7"
+    "com.whimwindgames.myframework": "1.1.0-preview.8"
   }
 }
 ```
@@ -67,7 +67,7 @@ openupm add com.whimwindgames.myframework
 生产项目应固定版本标签：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.7
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.8
 ```
 
 安装方式：
@@ -85,7 +85,15 @@ Window
 
 ### 3. 初始化工程
 
-安装插件后，新建工程中还没有默认启动场景、业务入口脚本和运行时配置文件，需要执行初始化菜单。
+已有启动、场景、输入和 Build Settings 的成熟项目应先执行安全接入：
+
+```text
+MyFramework/初始化/安全接入成熟项目
+```
+
+安全接入只生成框架设置，不复制模板或修改宿主场景、输入和 Build Settings。贴图、音频和模型的框架导入规则也只作用于 `Assets/GameResources`。
+
+安装插件后，全新工程中还没有默认启动场景、业务入口脚本和运行时配置文件，才需要执行完整初始化菜单。
 
 普通初始化：
 
@@ -686,12 +694,18 @@ openupm add com.whimwindgames.myframework
 或者使用固定版本的 Git URL：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.7
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.8
 ```
 
 ### 初始化
 
-安装完成后执行：
+成熟项目执行：
+
+```text
+MyFramework/初始化/安全接入成熟项目
+```
+
+全新项目需要模板时执行：
 
 ```text
 MyFramework/初始化/初始化框架

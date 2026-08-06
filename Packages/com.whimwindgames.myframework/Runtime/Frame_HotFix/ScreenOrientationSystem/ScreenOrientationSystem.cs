@@ -4,9 +4,15 @@ using static FrameBaseUtility;
 public class ScreenOrientationSystem : FrameSystem
 {
 	protected ANDROID_ORIENTATION mAndroidOrientation = ANDROID_ORIENTATION.NONE;
+	public override void init()
+	{
+		base.init();
+		FrameScreenContext.refresh(true);
+	}
 	public override void update(float elapsedTime)
 	{
 		base.update(elapsedTime);
+		FrameScreenContext.refresh();
 		if (isEditor())
 		{
 			return;
@@ -22,4 +28,5 @@ public class ScreenOrientationSystem : FrameSystem
 		}
 	}
 	public void setAndroidOrientation(ANDROID_ORIENTATION orientation) { mAndroidOrientation = orientation; }
+	public FrameScreenSnapshot getScreenContext() { return FrameScreenContext.getCurrent(); }
 }

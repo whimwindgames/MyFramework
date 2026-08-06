@@ -336,13 +336,25 @@ public class FrameBaseUtility
 		Screen.SetResolution(size.x, size.y, fullScreen);
 
 		// UGUI
-		GameObject uguiRootObj = findRootGameObject(UGUI_ROOT);
+		GameObject uguiRootObj = FrameSceneBindings.getUGUIRoot();
+		if (uguiRootObj == null)
+		{
+			return;
+		}
 		uguiRootObj.TryGetComponent<RectTransform>(out var uguiRectTransform);
+		if (uguiRectTransform == null)
+		{
+			return;
+		}
 		uguiRectTransform.offsetMin = -size / 2;
 		uguiRectTransform.offsetMax = size / 2;
 		uguiRectTransform.anchorMax = Vector2.one * 0.5f;
 		uguiRectTransform.anchorMin = Vector2.one * 0.5f;
-		Camera camera = findGameObject("UICamera", uguiRootObj).GetComponent<Camera>();
+		Camera camera = FrameSceneBindings.getUICamera(uguiRootObj)?.GetComponent<Camera>();
+		if (camera == null)
+		{
+			return;
+		}
 		if (camera.orthographic)
 		{
 			camera.orthographicSize = size.y * 0.5f;

@@ -7,6 +7,7 @@
         "Frame_Base",
         "Frame_Game",
         "Frame_HotFix",
+        "Editor_Frame",
         "HotUpd_Editor",
         "UniTask"
     ],
