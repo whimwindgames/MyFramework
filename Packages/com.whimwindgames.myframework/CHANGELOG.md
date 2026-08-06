@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.9] - 2026-08-06
+
+### Added
+
+- `Frame_Base` 增加与具体游戏实现无关的 `FrameRuntimeContext`，统一承载运行时日志、类型事件、配置、服务和可观测生命周期。
+- 增加严格注册与显式替换的 `FrameServiceRegistry`、支持默认/命名配置的 `FrameConfigurationStore`，成熟项目可渐进接入而不必替换现有 Manager。
+- 增加故障隔离的 `FrameEventBus`；单个订阅者异常会记录日志且不会阻断其他订阅者。
+- 增加带顺序号、阶段、UTC 时间和失败原因的 `FrameLifecycleChanged`，支持观察启动、运行、失败与退出过程。
+
+### Compatibility
+
+- 运行上下文位于 AOT 基础程序集，不依赖 `Frame_Game`、HotFix、UI、资源或网络实现；现有公共 API 和旧启动流程保持不变。
+
 ## [1.1.0-preview.8] - 2026-08-06
 
 ### Fixed
