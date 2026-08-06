@@ -22,7 +22,7 @@ MyFramework 的正式分发渠道是 OpenUPM。项目的 `Packages/manifest.json
     }
   ],
   "dependencies": {
-    "com.whimwindgames.myframework": "1.1.0-preview.14"
+    "com.whimwindgames.myframework": "1.1.0-preview.15"
   }
 }
 ```
@@ -40,7 +40,7 @@ MyFramework 会通过 OpenUPM 自动解析 UniTask、HybridCLR 和 Obfuz；UGUI�
 在 Unity Package Manager 中选择 **Install package from git URL**，输入：
 
 ```text
-https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.14
+https://github.com/whimwindgames/MyFramework.git?path=/Packages/com.whimwindgames.myframework#com.whimwindgames.myframework/1.1.0-preview.15
 ```
 
 Git URL 安装同样要求项目已经配置上述 OpenUPM scopes，以便解析框架依赖。开发阶段可以固定提交；生产项目必须固定到已经验证的标签或提交，不能直接跟随远程分支。
