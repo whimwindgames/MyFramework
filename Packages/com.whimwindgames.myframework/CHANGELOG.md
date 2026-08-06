@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.11] - 2026-08-06
+
+### Added
+
+- `FrameRuntimeContext` 增加宿主可注入的 `FrameAssetGateway` 和 `FrameViewRouter`，为大厅、小游戏和独立项目提供统一资源/页面边界。
+- 增加 `IFrameAssetProvider` 与幂等 `FrameAssetLease<T>`，同时覆盖资产加载和实例化，由宿主后端保留原有释放语义。
+- 增加 `IFrameViewAdapter`、四层 `FrameViewLayer` 和可观测视图生命周期，支持通用路由、显示、关闭和返回导航。
+- 增加资源加载/释放与视图开启/关闭/失败的序列事件，便于大厅加载页、诊断和热更健康检查共用。
+
+### Compatibility
+
+- 框架不引用 Addressables，不规定 UGUI/UI Toolkit、Canvas、prefab 命名、视图栈或资源生产方式；原 `LayoutManager` 与 `ResourceManager` 公开 API 保持不变。
+
 ## [1.1.0-preview.10] - 2026-08-06
 
 ### Added
