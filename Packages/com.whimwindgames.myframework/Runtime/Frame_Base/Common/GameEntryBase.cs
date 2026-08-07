@@ -10,12 +10,25 @@ using static FrameBaseDefine;
 public class GameEntryBase : MonoBehaviour
 {
 	protected static GameEntryBase mInstance;
+	private bool mOwnsGlobalLifecycle;
 	public FramworkParam mFrameworkParam = new();
 	protected IFramework mFrameworkAOT;
 	protected IFramework mFrameworkHotFix;
 	public virtual void Awake()
 	{
-		mInstance = this;
+		GameEntryBase current = Interlocked.CompareExchange(ref mInstance, this, null);
+		if (current != null && !ReferenceEquals(current, this))
+		{
+			string message = $"Only one {nameof(GameEntryBase)} may own the process lifecycle. " +
+				$"Existing: {describeEntry(current)}; duplicate: {describeEntry(this)}.";
+			Debug.LogError(message, this);
+			throw new InvalidOperationException(message);
+		}
+		if (mOwnsGlobalLifecycle)
+		{
+			return;
+		}
+		mOwnsGlobalLifecycle = true;
 		mFrameworkParam ??= new();
 		FrameSceneBindings.configureNames(mFrameworkParam.mUGUIRootName,
 			mFrameworkParam.mUICameraName, mFrameworkParam.mUIBlurCameraName,
@@ -152,10 +165,16 @@ public class GameEntryBase : MonoBehaviour
 	}
 	protected void OnDestroy()
 	{
+		if (!mOwnsGlobalLifecycle)
+		{
+			return;
+		}
+		mOwnsGlobalLifecycle = false;
 		AppDomain.CurrentDomain.UnhandledException -= unhandledException;
+		Interlocked.CompareExchange(ref mInstance, null, this);
 	}
 	public static GameEntryBase getInstance() { return mInstance; }
-	public static GameObject getInstanceObject() { return mInstance.gameObject; }
+	public static GameObject getInstanceObject() { return mInstance != null ? mInstance.gameObject : null; }
 	public void setFrameworkAOT(IFramework framework) { mFrameworkAOT = framework; }
 	public void setFrameworkHotFix(IFramework framework) { mFrameworkHotFix = framework; }
 	public IFramework getFrameworkAOT() { return mFrameworkAOT; }
@@ -181,5 +200,13 @@ public class GameEntryBase : MonoBehaviour
 		logBase("PersistentDataPath:" + F_PERSISTENT_DATA_PATH);
 		logBase("StreamingAssetPath:" + F_STREAMING_ASSETS_PATH);
 		logBase("AssetPath:" + F_ASSETS_PATH);
+	}
+	private static string describeEntry(GameEntryBase entry)
+	{
+		if (entry == null)
+		{
+			return "<none>";
+		}
+		return $"{entry.GetType().FullName} on '{entry.gameObject.name}'";
 	}
 }

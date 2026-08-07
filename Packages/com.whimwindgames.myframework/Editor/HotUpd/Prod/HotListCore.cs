@@ -166,7 +166,9 @@ public static class HotList
 	public static void chk(HotSet set)
 	{
 		if (set?.dlls == null || set.dlls.Length < 2 || set.dlls.Length > UpdLim.CodeMax ||
-			set.entry != FrameBaseDefine.HOTFIX_BYTES_FILE || !UpdFmt.isSha(set.id) ||
+			!UpdFmt.isPath(set.entry) ||
+			!set.entry.EndsWith(DLL_TAIL, StringComparison.OrdinalIgnoreCase) ||
+			!UpdFmt.isSha(set.id) ||
 			set.id != UpdRule.hotId(set.dlls, set.entry))
 		{
 			throw new InvalidDataException("热更程序集清单身份错误");
@@ -184,7 +186,7 @@ public static class HotList
 			string name = rawName(dll);
 			if (fixedSet.Contains(name)) throw new InvalidDataException("固定AOT不得进入RelHotSet:" + name);
 			if (name == FrameBaseDefine.HOTFIX_FRAME) frameAt = i;
-			if (name == FrameBaseDefine.HOTFIX) entryAt = i;
+			if (string.Equals(dll, set.entry, StringComparison.OrdinalIgnoreCase)) entryAt = i;
 		}
 		if (frameAt < 0 || entryAt < 0 || frameAt >= entryAt || !dlls.Contains(set.entry))
 			throw new InvalidDataException("固定热更层顺序或唯一入口错误");

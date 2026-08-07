@@ -112,9 +112,15 @@ public partial class HybridCLRSystem
 		}
 	}
 
-#if UNITY_EDITOR
+	#if UNITY_EDITOR
 	public static async UniTask<UpdRet<bool>> launchEdit(CancellationToken ct = default,
 		Func<CancellationToken, UniTask> hand = null)
+	{
+		return await launchEdit(HOTFIX, ct, hand);
+	}
+
+	public static async UniTask<UpdRet<bool>> launchEdit(string entryAssembly,
+		CancellationToken ct = default, Func<CancellationToken, UniTask> hand = null)
 	{
 		if (mHotFixLaunched || Interlocked.CompareExchange(ref sRun, 1, 0) != 0)
 		{
@@ -123,7 +129,11 @@ public partial class HybridCLRSystem
 		bool latched = false;
 		try
 		{
-			Assembly entryAsm = schemaFindAssembly(HOTFIX);
+			if (!UpdFmt.isId(entryAssembly))
+			{
+				return schemaFail(UpdCode.Config, "hotfix_entry_name");
+			}
+			Assembly entryAsm = schemaFindAssembly(entryAssembly);
 			if (entryAsm == null)
 			{
 				return schemaFail(UpdCode.Load, "hotfix_asm");
@@ -378,6 +388,7 @@ public partial class HybridCLRSystem
 			deny.Add(schemaAssemblyName(cfg.aotDlls[i]));
 		}
 		HashSet<string> hot = new(StringComparer.OrdinalIgnoreCase);
+		string entryName = schemaAssemblyName(cfg.entryDll);
 		int frameAt = -1;
 		int entryAt = -1;
 		for (int i = 0; i < cfg.codeDlls.Length; ++i)
@@ -388,10 +399,9 @@ public partial class HybridCLRSystem
 				UpdFail.bad(UpdCode.Compat, "aot_hot_name", UpdPhase.Load);
 			}
 			if (name == HOTFIX_FRAME) frameAt = i;
-			if (name == HOTFIX) entryAt = i;
+			if (name == entryName) entryAt = i;
 		}
-		if (frameAt < 0 || entryAt < 0 || frameAt >= entryAt ||
-			schemaAssemblyName(cfg.entryDll) != HOTFIX)
+		if (!UpdFmt.isId(entryName) || frameAt < 0 || entryAt < 0 || frameAt >= entryAt)
 		{
 			UpdFail.bad(UpdCode.Compat, "hot_order", UpdPhase.Load);
 		}

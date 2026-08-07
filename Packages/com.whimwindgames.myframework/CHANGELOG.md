@@ -2,6 +2,16 @@
 
 本文件记录 `com.whimwindgames.myframework` Unity Package 的可见变化。仓库中的示例游戏或项目专用调整不应记录在这里。
 
+## [1.1.0-preview.20] - 2026-08-07
+
+### Fixed
+
+- `GameEntryBase` 现在原子认领唯一进程宿主；重复入口会明确失败而不会覆盖现有实例，且只有实际所有者能清理全局生命周期状态。
+
+### Added
+
+- Schema 11 与发布流水线现在允许宿主通过 `entryDll` 使用唯一命名的业务热更入口；`HotFix` 仍是旧项目和旧编辑器启动 API 的默认值。
+
 ## [1.1.0-preview.19] - 2026-08-06
 
 ### Fixed

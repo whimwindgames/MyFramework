@@ -36,6 +36,8 @@ public static class UpdRule
         HashSet<string> dlls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         HashSet<string> code = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         HashSet<string> names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		int frameAt = -1;
+		int entryAt = -1;
         for (int i = 0; i < cfg.aotDlls.Length; ++i)
         {
             string dll = cfg.aotDlls[i];
@@ -54,11 +56,12 @@ public static class UpdRule
             {
                 UpdFail.bad(UpdCode.Config, "config");
             }
+			if (samePath(dll, UpdContract.FrameHotDll)) frameAt = i;
+			if (samePath(dll, cfg.entryDll)) entryAt = i;
         }
         if (!code.Contains(cfg.entryDll) ||
             !code.Contains(UpdContract.FrameHotDll) ||
-            !code.Contains(UpdContract.EntryDll) ||
-            !samePath(cfg.entryDll, UpdContract.EntryDll) ||
+			frameAt < 0 || entryAt < 0 || frameAt >= entryAt ||
             cfg.hotId != hotId(cfg.codeDlls, cfg.entryDll))
         {
             UpdFail.bad(UpdCode.Config, "config");
