@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.24] - 2026-08-10
+
+### Fixed
+
+- AssetBundle MonoScript 门禁只统计实际参与 Player 编译的程序集，不再把 URP ShaderGUI 等 Editor-only 脚本依赖误判为 Base AOT 或 Hot DLL 缺失。
+
 ## [1.1.0-preview.23] - 2026-08-10
 
 ### Fixed

@@ -7,6 +7,8 @@ public sealed class RelGateTests
 {
 	const string TEST_SCRIPT =
 		"Packages/com.whimwindgames.myframework/Tests/Editor/HotUpdateClient/RelGateTests.cs";
+	const string PLAYER_SCRIPT =
+		"Packages/com.whimwindgames.myframework/Runtime/Frame_Base/Attribute/EnumLabelAttribute.cs";
 	IDisposable mRegistry;
 
 	sealed class ProbeGate : IRelGate
@@ -48,7 +50,7 @@ public sealed class RelGateTests
 	public void MonoScriptGateAcceptsAssemblyFrozenInBase()
 	{
 		RelGateReport report = RelGateRunner.run(input(
-			new[] { "HotUpd_Client.Tests.dll" }), RelGatePhase.Plan);
+			new[] { "Frame_Base.dll" }), RelGatePhase.Plan);
 
 		Assert.That(report.ok, Is.True);
 		Assert.That(report.diagnostics, Is.Empty);
@@ -64,7 +66,7 @@ public sealed class RelGateTests
 		Assert.That(report.diagnostics, Has.Length.EqualTo(1));
 		Assert.That(report.diagnostics[0].gate, Is.EqualTo("framework.mono-script"));
 		Assert.That(report.diagnostics[0].code, Is.EqualTo("mono.assembly_missing"));
-		Assert.That(report.diagnostics[0].path, Is.EqualTo("HotUpd_Client.Tests"));
+		Assert.That(report.diagnostics[0].path, Is.EqualTo("Frame_Base"));
 	}
 
 	[Test]
@@ -73,10 +75,10 @@ public sealed class RelGateTests
 		RelGateRegistry.register(new RelRequiredAssetGate("sample.required",
 			new[]
 			{
-				new RelRequiredAsset("config/gate.json", TEST_SCRIPT, "test"),
+				new RelRequiredAsset("config/gate.json", PLAYER_SCRIPT, "test"),
 				new RelRequiredAsset("config/prod-only.json", TEST_SCRIPT, "prod"),
 			}));
-		RelGateInput value = input(new[] { "HotUpd_Client.Tests.dll" },
+		RelGateInput value = input(new[] { "Frame_Base.dll" },
 			"config/gate.json");
 
 		RelGateReport report = RelGateRunner.run(value, RelGatePhase.Plan);
@@ -98,7 +100,7 @@ public sealed class RelGateTests
 			RelGatePhase.Project, (_, _) => throw new IOException("broken")));
 
 		RelGateReport report = RelGateRunner.run(
-			input(new[] { "HotUpd_Client.Tests.dll" }), RelGatePhase.Project);
+			input(new[] { "Frame_Base.dll" }), RelGatePhase.Project);
 
 		Assert.That(report.ok, Is.False);
 		Assert.That(report.diagnostics, Has.Length.EqualTo(3));
@@ -115,7 +117,7 @@ public sealed class RelGateTests
 			RelGatePhase.Project, (value, _) => value.assets.astCnt++));
 
 		RelGateReport report = RelGateRunner.run(
-			input(new[] { "HotUpd_Client.Tests.dll" }), RelGatePhase.Project);
+			input(new[] { "Frame_Base.dll" }), RelGatePhase.Project);
 
 		Assert.That(report.ok, Is.False);
 		Assert.That(report.diagnostics, Has.Some.Matches<RelGateDiagnostic>(
@@ -125,7 +127,7 @@ public sealed class RelGateTests
 	[Test]
 	public void UnifiedCliUsesRegisteredInputProviderAndReturnsJsonReport()
 	{
-		RelGateInput value = input(new[] { "HotUpd_Client.Tests.dll" });
+		RelGateInput value = input(new[] { "Frame_Base.dll" });
 		RelGateRegistry.bindInput(request =>
 		{
 			Assert.That(request.env, Is.EqualTo("test"));
@@ -170,7 +172,7 @@ public sealed class RelGateTests
 		AbPkg pkg = new() { name = "gate-tests", key = "gate-tests" };
 		pkg.asts.Add(new AbAst
 		{
-			path = TEST_SCRIPT,
+			path = PLAYER_SCRIPT,
 			key = key,
 			name = "RelGateTests",
 		});

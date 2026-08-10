@@ -170,6 +170,15 @@ public sealed class AbBuildTests
 			BuildTarget.StandaloneOSX, "Library/relative-ab", mCfg, null));
 	}
 
+	[Test]
+	public void MonoAssemblyFilterRejectsEditorOnlyAssemblies()
+	{
+		Assert.That(AbCheck.isPlayerAsm("Frame_Base"), Is.True);
+		Assert.That(AbCheck.isPlayerAsm("UnityEditor"), Is.False);
+		Assert.That(AbCheck.isPlayerAsm("Unity.RenderPipelines.Universal.Editor"),
+			Is.False);
+	}
+
 	UpdCfg makeUpdCfg()
 	{
 		string[] hot =

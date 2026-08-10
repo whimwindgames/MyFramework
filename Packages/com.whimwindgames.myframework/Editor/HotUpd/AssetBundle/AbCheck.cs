@@ -53,6 +53,7 @@ public static class AbCheck
 	{
 		need(plan);
 		HashSet<string> names = new(StringComparer.Ordinal);
+		HashSet<string> player = playerAsms();
 		foreach (AbPkg pkg in plan.pkgs)
 		foreach (AbAst ast in pkg.asts)
 		foreach (string dep in AssetDatabase.GetDependencies(ast.path, true))
@@ -64,11 +65,30 @@ public static class AbCheck
 			string name = CompilationPipeline.GetAssemblyNameFromScriptPath(dep);
 			if (string.IsNullOrWhiteSpace(name)) throw new InvalidDataException(
 				"AB MonoScript未归属Player程序集:" + dep);
-			names.Add(Path.GetFileNameWithoutExtension(name));
+			name = Path.GetFileNameWithoutExtension(name);
+			// AssetDatabase依赖图会包含ShaderGUI等编辑器脚本；这些脚本不会
+			// 序列化进Player AssetBundle，不能作为Base AOT/Hot DLL要求。
+			if (player.Contains(name)) names.Add(name);
 		}
 		List<string> vals = new(names);
 		vals.Sort(StringComparer.Ordinal);
 		return vals.ToArray();
+	}
+
+	internal static bool isPlayerAsm(string name)
+	{
+		return !string.IsNullOrWhiteSpace(name) && playerAsms().Contains(name);
+	}
+
+	static HashSet<string> playerAsms()
+	{
+		HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
+		foreach (UnityEditor.Compilation.Assembly assembly in
+			CompilationPipeline.GetAssemblies(AssembliesType.Player))
+		{
+			if (!string.IsNullOrWhiteSpace(assembly.name)) names.Add(assembly.name);
+		}
+		return names;
 	}
 
 	public static void post(AbPlan plan, AssetBundleManifest man, string outDir)
