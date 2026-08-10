@@ -37,7 +37,7 @@ public class GameEntryBase : MonoBehaviour
 		Screen.sleepTimeout = SleepTimeout.NeverSleep;
 		applyPhysicsMode(mFrameworkParam.mPhysicsMode);
 		AppDomain.CurrentDomain.UnhandledException += unhandledException;
-		BuglyForwarder.init();
+		BuglyForwarder.init(mFrameworkParam.mBuglyAppId);
 		setMainThreadID(Thread.CurrentThread.ManagedThreadId);
 		dumpSystem();
 

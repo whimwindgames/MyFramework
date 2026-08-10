@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.28] - 2026-08-10
+
+### Fixed
+
+- Android 热更新后台线程在调用 `StatFs`/`java.io.File` 前显式附加 JVM，并保留各空间 API 的独立回退与诊断，修复空间充足时仍误报 `drive_space`。
+- Android `persistentDataPath` 文件读写改用 `System.IO`，不再依赖宿主项目未安装的 `AndroidAssetLoader` Java 桥。
+- AssetBundle 已在异步加载时，同步资源请求会明确返回空结果，不再继续解引用尚未完成的 Bundle/AssetInfo 而抛出空引用异常。
+- Bugly 改为通过可选 AppID 显式启用；未配置或宿主未安装 SDK 时不再订阅并递归放大应用错误，后台日志上报统一切回主线程且失败后自动停用。
+
 ## [1.1.0-preview.27] - 2026-08-10
 
 ### Fixed

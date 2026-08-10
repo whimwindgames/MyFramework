@@ -254,7 +254,15 @@ public class AssetBundleInfo : ClassObject
 		{
 			loadAssetBundle();
 		}
+		if (mLoadState != LOAD_STATE.LOADED || mAssetBundle == null)
+		{
+			return null;
+		}
 		AssetInfo info = mAssetList.get(fileNameWithSuffix);
+		if (info == null)
+		{
+			return null;
+		}
 		T asset = info.loadAsset<T>();
 		if (asset != null)
 		{
@@ -274,13 +282,22 @@ public class AssetBundleInfo : ClassObject
 	// 同步加载资源的子集
 	public UObject[] loadSubAssets(string fileNameWithSuffix, out UObject mainAsset)
 	{
+		mainAsset = null;
 		mWillUnloadTime = -1.0f;
 		// 如果AssetBundle还没有加载,则先加载AssetBundle
 		if (mLoadState != LOAD_STATE.LOADED)
 		{
 			loadAssetBundle();
 		}
+		if (mLoadState != LOAD_STATE.LOADED || mAssetBundle == null)
+		{
+			return null;
+		}
 		AssetInfo info = mAssetList.get(fileNameWithSuffix);
+		if (info == null)
+		{
+			return null;
+		}
 		UObject[] objs = info.loadAsset();
 		UObject asset = objs.get(0);
 		mainAsset = asset;

@@ -27,7 +27,8 @@ public class FileUtility
 		byte[] fileBuffer = null;
 		try
 		{
-			if (isEditor() || isIOS() || isWindows())
+			if (isEditor() || isIOS() || isWindows() ||
+				(isAndroid() && fileName.startWith(F_PERSISTENT_DATA_PATH)))
 			{
 				using FileStream fs = new(fileName, FileMode.Open, FileAccess.Read);
 				if (fs == null)
@@ -187,7 +188,8 @@ public class FileUtility
 		}
 		try
 		{
-			if (isEditor() || isIOS() || isWindows())
+			if (isEditor() || isIOS() || isWindows() ||
+				(isAndroid() && path.startWith(F_PERSISTENT_DATA_PATH)))
 			{
 				File.Delete(path);
 			}
@@ -258,7 +260,7 @@ public class FileUtility
 			// 安卓平台如果要读取persistentDataPath的文件,则可以使用File
 			if (dir.startWith(F_PERSISTENT_DATA_PATH))
 			{
-				return AndroidAssetLoader.isDirExist(dir);
+				return Directory.Exists(dir);
 			}
 			logErrorBase("isDirExist invalid path : " + dir);
 			return false;
@@ -307,7 +309,7 @@ public class FileUtility
 			// 安卓平台如果要读取persistentDataPath的文件,则可以使用File
 			if (fileName.startWith(F_PERSISTENT_DATA_PATH))
 			{
-				return AndroidAssetLoader.isFileExist(fileName);
+				return File.Exists(fileName);
 			}
 			logErrorBase("isFileExist invalid path : " + fileName);
 			return false;

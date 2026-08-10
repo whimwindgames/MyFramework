@@ -99,22 +99,7 @@ internal sealed class UpdDisk
         try
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            using (UnityEngine.AndroidJavaObject statFs =
-                new UnityEngine.AndroidJavaObject("android.os.StatFs", mRoot))
-            {
-                long bytes = androidLong(statFs, "getAvailableBytes");
-                bytes = Math.Max(bytes, spaceBytes(
-                    androidLong(statFs, "getAvailableBlocksLong"),
-                    androidLong(statFs, "getBlockSizeLong")));
-                bytes = Math.Max(bytes, spaceBytes(
-                    androidInt(statFs, "getAvailableBlocks"),
-                    androidInt(statFs, "getBlockSize")));
-                if (bytes <= 0)
-                {
-                    throw new IOException("drive_empty");
-                }
-                return bytes;
-            }
+            return androidAvailable();
 #else
             string root = Path.GetPathRoot(mRoot);
             if (string.IsNullOrEmpty(root))
@@ -144,28 +129,109 @@ internal sealed class UpdDisk
     }
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-    private static long androidLong(UnityEngine.AndroidJavaObject value, string method)
+    private long androidAvailable()
+    {
+        List<string> probes = new List<string>();
+        long bytes = 0;
+        try
+        {
+            int attached = UnityEngine.AndroidJNI.AttachCurrentThread();
+            probes.Add("attach=" + attached);
+        }
+        catch (Exception ex)
+        {
+            probes.Add("attach!" + exception(ex));
+        }
+
+        try
+        {
+            using (UnityEngine.AndroidJavaObject statFs =
+                new UnityEngine.AndroidJavaObject("android.os.StatFs", mRoot))
+            {
+                long availableBytes = androidLong(statFs, "getAvailableBytes", probes);
+                long longBlocks = androidLong(statFs, "getAvailableBlocksLong", probes);
+                long longBlockSize = androidLong(statFs, "getBlockSizeLong", probes);
+                long legacyBlocks = androidInt(statFs, "getAvailableBlocks", probes);
+                long legacyBlockSize = androidInt(statFs, "getBlockSize", probes);
+                bytes = Math.Max(bytes, availableBytes);
+                bytes = Math.Max(bytes, spaceBytes(longBlocks, longBlockSize));
+                bytes = Math.Max(bytes, spaceBytes(legacyBlocks, legacyBlockSize));
+            }
+        }
+        catch (Exception ex)
+        {
+            probes.Add("statfs!" + exception(ex));
+        }
+
+        try
+        {
+            using (UnityEngine.AndroidJavaObject file =
+                new UnityEngine.AndroidJavaObject("java.io.File", mRoot))
+            {
+                bytes = Math.Max(bytes, androidLong(file, "getUsableSpace", probes));
+                bytes = Math.Max(bytes, androidLong(file, "getFreeSpace", probes));
+            }
+        }
+        catch (Exception ex)
+        {
+            probes.Add("file!" + exception(ex));
+        }
+
+        string detail = string.Join(",", probes.ToArray());
+        UnityEngine.Debug.Log("[MyFramework] Android disk probe root=" + mRoot +
+            ", available=" + bytes + ", " + detail);
+        if (bytes <= 0)
+        {
+            throw new IOException("android_space:" + detail);
+        }
+        return bytes;
+    }
+
+    private static long androidLong(UnityEngine.AndroidJavaObject value, string method,
+        List<string> probes)
     {
         try
         {
-            return Math.Max(0, value.Call<long>(method));
+            long result = Math.Max(0, value.Call<long>(method));
+            probes.Add(method + "=" + result);
+            return result;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            probes.Add(method + "!" + exception(ex));
             return 0;
         }
     }
 
-    private static long androidInt(UnityEngine.AndroidJavaObject value, string method)
+    private static long androidInt(UnityEngine.AndroidJavaObject value, string method,
+        List<string> probes)
     {
         try
         {
-            return Math.Max(0, value.Call<int>(method));
+            long result = Math.Max(0, value.Call<int>(method));
+            probes.Add(method + "=" + result);
+            return result;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            probes.Add(method + "!" + exception(ex));
             return 0;
         }
+    }
+
+    private static string exception(Exception ex)
+    {
+        Exception value = ex == null ? null : ex.GetBaseException();
+        if (value == null)
+        {
+            return "unknown";
+        }
+        string message = (value.Message ?? string.Empty).Replace('\r', ' ').Replace('\n', ' ');
+        if (message.Length > 160)
+        {
+            message = message.Substring(0, 160);
+        }
+        return value.GetType().Name + ":" + message;
     }
 #endif
 

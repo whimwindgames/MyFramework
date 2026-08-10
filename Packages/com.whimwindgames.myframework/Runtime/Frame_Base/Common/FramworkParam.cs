@@ -16,6 +16,8 @@ public class FramworkParam
 	public bool mEnableScriptDebug;                                 // 是否启用调试脚本,用于显示调试信息的脚本,快捷键F3
 	[Tooltip("加载源,从AssetBundle加载还是从Resources加载")]
 	public LOAD_SOURCE mLoadSource = LOAD_SOURCE.ASSET_DATABASE;    // 加载源,从AssetBundle加载还是从Resources加载
+	[Tooltip("可选。填写后启用 Bugly 崩溃上报；留空时不加载 Bugly。Android 宿主还需自行安装 Bugly AAR")]
+	public string mBuglyAppId = string.Empty;
 	[Tooltip("窗口类型")]
 	public WINDOW_MODE mWindowMode = WINDOW_MODE.FULL_SCREEN;       // 窗口类型
 	[Tooltip("3D物理设置策略。成熟宿主项目应选择PRESERVE_HOST")]
