@@ -9,6 +9,7 @@
 - 新增 `HotUpd/Pub` 发布层：`PubFlow` 实现 hot-store 协议 v2 的完整发布状态机（发布锁、Release 文件→Manifest→回读→Latest 最后曝光、中断幂等续传、未知对象拒绝、远端 `Previous` 完整回读后回退），`SshStore`/`SshCfg` 提供 SSH 传输、协议版本握手、主机密钥指纹信任和管道空闲超时，`PubCli` 支持 `-batchmode` 无头发布并输出含文件数、Manifest 哈希与耗时的 JSON 回执，`PubWin` 提供"资源发布"窗口。默认信任源是 Release 输出自身冻结的 Base 记录，旧记录继续兼容 Schema 11 默认资源索引。
 - 新增仓库级 `Deploy/HotUpdate` 服务端资产：`hot_store.py`、HTTP/HTTPS Nginx 模板、Certbot 重载钩子、隔离配置示例、部署文档及协议单元测试；真实服务器 smoke 被限制为 batchmode/CI，避免阻塞交互式 Unity Editor。
 - 新增项目外、按 test/prod 隔离的 `RelKeyStore` 与“密钥与轮换”窗口：支持普通或 AES-256-CBC 加密 P-256 PEM、旧 EditorPrefs 一次性导出、Active/Pending/过渡 Latest/下一 Base 四阶段轮换，以及旧私钥只读归档禁用。发布窗口只保存各环境路径和内存密码，CI 可从秘密环境变量提供密码；仓库增加私钥预提交检查。
+- 新增分阶段 `IRelGate` 插件协议、确定性 `RelGateRunner` 和统一 `RelGateCli` JSON 回执；框架内置 AB MonoScript 程序集归属门禁与声明式必需资源门禁，项目规则通过显式注册和输入适配器接入，框架不包含业务名称。
 
 ## [1.1.0-preview.21] - 2026-08-10
 

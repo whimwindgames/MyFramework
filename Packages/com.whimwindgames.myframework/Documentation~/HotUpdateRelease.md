@@ -134,6 +134,8 @@ Unity -batchmode -quit -projectPath /abs/project \
 
 test/prod 必须配置不同私钥路径。加密 PEM 的 rollback 额外传 `-pubPrivKeyPasswordEnv <变量名>`，密码从 CI 秘密环境变量读取，不接受明文命令行参数。项目外目录、旧 EditorPrefs 迁移和轮换流程见 [Hot Update Signing Keys](HotUpdateKeys.md)。
 
+项目生产门禁统一实现为 `IRelGate`，并通过 `RelGateCli` 输出结构化 JSON；插件协议、阶段与输入适配见 [Release Gates](HotUpdateGates.md)。发布必须消费门禁通过回执的审计编排在发布章节的下一层完成，项目插件本身不得直接曝光 Latest。
+
 hot-store v2 的服务器模板、协议测试和线上位置说明位于仓库 `Deploy/HotUpdate/`。服务端或客户端协议版本不一致时，`SshStore` 会在任何上传前拒绝会话。
 
 ## 当前分层
