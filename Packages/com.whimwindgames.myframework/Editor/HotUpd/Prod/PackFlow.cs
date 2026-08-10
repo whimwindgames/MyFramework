@@ -108,7 +108,9 @@ public sealed class UnityPackApi : IPackApi
 
 	public string strippedAot(BuildTarget target)
 	{
-		return SettingsUtil.GetAssembliesPostIl2CppStripDir(target);
+		string path = SettingsUtil.GetAssembliesPostIl2CppStripDir(target);
+		return Path.IsPathRooted(path) ? Path.GetFullPath(path) :
+			Path.GetFullPath(Path.Combine(SettingsUtil.ProjectDir, path));
 	}
 }
 
@@ -180,7 +182,8 @@ public sealed class PackFlow
 		RelBuild.RelPending release = null;
 		try
 		{
-			mApi.generateAll(mReq.target);
+			using (PackBuildGuard.use())
+				mApi.generateAll(mReq.target);
 			BuildPlayerOptions options = new()
 			{
 				scenes = (string[])mReq.scenes.Clone(),
@@ -729,10 +732,12 @@ public sealed class PackFlow
 			}
 			else
 			{
-				mRun.mBaseUrl = mUrl; mRun.mEnv = mEnv; mRun.mPlatform = mPlatform;
-				mRun.mBaseId = mBase; mRun.mPubKey = mKey;
-				mRun.mAotDeny = mDeny == null ? null : (string[])mDeny.Clone();
-				EditorUtility.SetDirty(mRun);
+				PlatRunSet run = AssetDatabase.LoadAssetAtPath<PlatRunSet>(mPath);
+				if (run == null) throw new InvalidDataException("原PlatRunSet资产无法重新加载:" + mPath);
+				run.mBaseUrl = mUrl; run.mEnv = mEnv; run.mPlatform = mPlatform;
+				run.mBaseId = mBase; run.mPubKey = mKey;
+				run.mAotDeny = mDeny == null ? null : (string[])mDeny.Clone();
+				EditorUtility.SetDirty(run);
 				AssetDatabase.SaveAssets();
 			}
 			mDone = true;

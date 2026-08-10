@@ -154,15 +154,55 @@ public sealed class PackFlowTests
 	[Test]
 	public void GenerateAllFailureRestoresTemporaryProjectConfiguration()
 	{
+		PlatRunSet initial = AssetDatabase.LoadAssetAtPath<PlatRunSet>(mRunPath);
+		bool createdForTest = initial == null;
+		if (createdForTest)
+		{
+			initial = ScriptableObject.CreateInstance<PlatRunSet>();
+			initial.mBaseUrl = "https://old.example.com/game/";
+			initial.mEnv = "old-env";
+			initial.mPlatform = "old-platform";
+			initial.mBaseId = "old-base";
+			initial.mPubKey = "old-key";
+			initial.mAotDeny = new[] { "OldAot" };
+			AssetDatabase.CreateAsset(initial, mRunPath);
+			AssetDatabase.SaveAssets();
+		}
+		string oldUrl = initial.mBaseUrl;
+		string oldEnv = initial.mEnv;
+		string oldPlatform = initial.mPlatform;
+		string oldBase = initial.mBaseId;
+		string oldKey = initial.mPubKey;
+		string[] oldDeny = initial.mAotDeny == null ? null :
+			(string[])initial.mAotDeny.Clone();
 		UpdCfg cfg = makeCfg();
 		HotPlan plan = HotList.fromCfg(cfg);
-		FakePackApi api = new(mStripped, cfg, mRunPath, true) { throwGenerate = true };
+		FakePackApi api = new(mStripped, cfg, mRunPath, true)
+		{
+			throwGenerate = true,
+			unloadRunOnGenerate = true,
+		};
 		PackFlow flow = makeFlow(cfg, plan, api, true, false);
 
-		Assert.Throws<InvalidOperationException>(() => flow.build());
+		try
+		{
+			Assert.Throws<InvalidOperationException>(() => flow.build());
 
-		Assert.That(api.built, Is.Zero);
-		Assert.That(Directory.Exists(mOutput), Is.False);
+			Assert.That(api.built, Is.Zero);
+			Assert.That(Directory.Exists(mOutput), Is.False);
+			PlatRunSet restored = AssetDatabase.LoadAssetAtPath<PlatRunSet>(mRunPath);
+			Assert.That(restored, Is.Not.Null);
+			Assert.That(restored.mBaseUrl, Is.EqualTo(oldUrl));
+			Assert.That(restored.mEnv, Is.EqualTo(oldEnv));
+			Assert.That(restored.mPlatform, Is.EqualTo(oldPlatform));
+			Assert.That(restored.mBaseId, Is.EqualTo(oldBase));
+			Assert.That(restored.mPubKey, Is.EqualTo(oldKey));
+			Assert.That(restored.mAotDeny, Is.EqualTo(oldDeny));
+		}
+		finally
+		{
+			if (createdForTest) AssetDatabase.DeleteAsset(mRunPath);
+		}
 		assertProjectRestored();
 	}
 
@@ -189,6 +229,15 @@ public sealed class PackFlowTests
 		}
 
 		Assert.That(Directory.Exists(target), Is.False);
+	}
+
+	[Test]
+	public void UnityPackApiReturnsAbsoluteStrippedAotPath()
+	{
+		string path = new UnityPackApi().strippedAot(BuildTarget.Android);
+
+		Assert.That(Path.IsPathRooted(path), Is.True);
+		Assert.That(path, Does.StartWith(mProject + Path.DirectorySeparatorChar));
 	}
 
 	[Test]
@@ -319,6 +368,7 @@ public sealed class PackFlowTests
 		readonly string mRunPath;
 		readonly bool mSuccess;
 		public bool throwGenerate;
+		public bool unloadRunOnGenerate;
 		public int validated;
 		public int generated;
 		public int built;
@@ -345,6 +395,7 @@ public sealed class PackFlowTests
 			Assert.That(run.mBaseUrl, Is.EqualTo(mCfg.baseUrl));
 			Assert.That(run.mBaseId, Is.EqualTo(mCfg.baseId));
 			Assert.That(run.mAotDeny, Does.Contain("Frame_Base"));
+			if (unloadRunOnGenerate) Resources.UnloadAsset(run);
 			if (throwGenerate) throw new InvalidOperationException("generate failed");
 		}
 

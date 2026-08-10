@@ -2,6 +2,16 @@
 
 本文件记录 `com.whimwindgames.myframework` Unity Package 的可见变化。仓库中的示例游戏或项目专用调整不应记录在这里。
 
+## [Unreleased]
+
+## [1.1.0-preview.21] - 2026-08-10
+
+### Fixed
+
+- Android IL2CPP 打包现在把 HybridCLR 裁剪 AOT 程序集目录规范化为绝对路径，避免工作目录差异导致基线采集失败。
+- HybridCLR `GenerateAll` 在临时打包配置事务内执行；生成失败或对象被卸载时仍会恢复构建目标、运行设置和项目配置。
+- Player 与 AOT Base 的发布继续共用同一提交事务，失败构建不会遗留半成品 Player、基线或临时状态。
+
 ## [1.1.0-preview.20] - 2026-08-07
 
 ### Fixed
