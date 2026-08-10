@@ -10,6 +10,7 @@
 - 新增仓库级 `Deploy/HotUpdate` 服务端资产：`hot_store.py`、HTTP/HTTPS Nginx 模板、Certbot 重载钩子、隔离配置示例、部署文档及协议单元测试；真实服务器 smoke 被限制为 batchmode/CI，避免阻塞交互式 Unity Editor。
 - 新增项目外、按 test/prod 隔离的 `RelKeyStore` 与“密钥与轮换”窗口：支持普通或 AES-256-CBC 加密 P-256 PEM、旧 EditorPrefs 一次性导出、Active/Pending/过渡 Latest/下一 Base 四阶段轮换，以及旧私钥只读归档禁用。发布窗口只保存各环境路径和内存密码，CI 可从秘密环境变量提供密码；仓库增加私钥预提交检查。
 - 新增分阶段 `IRelGate` 插件协议、确定性 `RelGateRunner` 和统一 `RelGateCli` JSON 回执；框架内置 AB MonoScript 程序集归属门禁与声明式必需资源门禁，项目规则通过显式注册和输入适配器接入，框架不包含业务名称。
+- 新增 `RelPipelineCli` 生产→全阶段门禁→发布→回读单命令编排；门禁凭证与发布/回退事件使用环境 P-256 密钥签名并存入不可变 `audit` 树。`PubFlow` 取消无凭证发布入口，Latest 只能在当前 Release 门禁证据验签和远端回读通过后曝光；结构化回执记录操作者、Manifest SHA、seq、门禁结果和服务器回读。
 
 ## [1.1.0-preview.21] - 2026-08-10
 

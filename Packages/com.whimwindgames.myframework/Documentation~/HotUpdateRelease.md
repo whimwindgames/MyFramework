@@ -22,6 +22,10 @@
   releases/<releaseId>/
     manifest.json
     files/...
+  audit/<releaseId>/
+    gate.json                    # 全阶段门禁签名凭证
+    events/<platform>/<baseId>/
+      <seq>.json                 # 发布或回退签名审计
   symbols/<releaseId>.xml       # 可选
   .pub.lock
 ```
@@ -122,19 +126,56 @@ string releaseId = flow.makeAll();
 ```bash
 Unity -batchmode -quit -projectPath /abs/project \
   -executeMethod PubCli.runCli -- \
-  -pubAction pub -pubPlatform Android \
-  -pubRoot /abs/release-output -pubRelId test-Android-base-1001-2 \
+  -pubAction pub -pubEnv prod -pubPlatform Android \
+  -pubRoot /abs/release-output -pubRelId prod-Android-base-1001-2 \
+  -pubPrivKey /secure/prod/latest.pem \
+  -pubGateReceipt /abs/release-output/prod/audit/<releaseId>/gate.json \
+  -auditOperator ci-release-bot \
   -sshHost 47.243.79.140 -sshUser hotdeploy \
   -sshKey ~/.myframework-keys/hotdeploy/openssh \
   -sshUrl https://47.243.79.140/ \
   -pubReceipt /abs/receipts/publish.json
 ```
 
-`scan` 只需要 `-pubRoot/-pubPlatform`；`check` 与 `pub` 还需要 `-pubRelId`；`remote` 需要 `-pubEnv/-pubBaseId`；`rollback` 在此基础上还需要 `-pubPrivKey`，并且只使用远端 `Previous`、Manifest 与文件回读签发更高序号的 Latest。JSON 回执包含 `releaseId/fileCount/totalSize/manSha/durationMs/ok/error`。真实服务器 `PubSmokeTests` 只能在隔离 batchmode/CI 中显式运行。
+`scan` 只需要 `-pubRoot/-pubPlatform`；`check` 还需要 `-pubRelId`。`pub` 必须显式指定 `-pubEnv/-pubRelId/-pubPrivKey/-pubGateReceipt/-auditOperator`，而且操作者必须与门禁凭证一致。`remote` 需要 `-pubEnv/-pubBaseId`；`rollback` 在此基础上需要 `-pubPrivKey/-auditOperator`，并且只使用远端 `Previous`、Manifest、文件和目标 Release 的已验签门禁凭证签发更高序号的 Latest。JSON 回执包含操作者、Release 身份、文件数、Manifest 哈希、门禁结果、服务器回读、审计对象和耗时。真实服务器 `PubSmokeTests` 只能在隔离 batchmode/CI 中显式运行。
+
+`PubFlow` 没有无门禁凭证的发布重载。它先验签并回读远端 `gate.json`，随后上传不可覆盖的 Release，最后才曝光 Latest；发布和回退成功后都会写入按 seq 唯一的签名审计事件。审计树与 `releases/<releaseId>` 分离，因此严格的 Release 对象集合不会被审计副文件改变。服务器上的 Release、门禁凭证和审计事件均不可覆盖；窗口没有删除 Release 的操作。
+
+## 生产→门禁→发布单命令
+
+业务项目通过 `RelPipelineRegistry.bindProducer(...)` 注册一次生产适配器。适配器在回调中调用自己的 `PackFlow` 或 `ProdFlow`，返回刚生成的 `releaseId`、`RelGateInput` 和 `PubEnv`；框架随后固定执行全部 Project/Plan/Candidate 门禁、生成签名证据、发布、完整回读并存档审计：
+
+```csharp
+[InitializeOnLoadMethod]
+static void bindReleasePipeline()
+{
+    RelPipelineRegistry.bindProducer(request =>
+    {
+        string releaseId = ProjectReleaseProduction.make(request);
+        return new RelPipelineProduct
+        {
+            publish = ProjectReleaseProduction.publishEnv(request),
+            gate = ProjectReleaseProduction.gateInput(request, releaseId),
+            releaseId = releaseId,
+        };
+    });
+}
+```
+
+```bash
+Unity -batchmode -quit -projectPath /abs/project \
+  -executeMethod RelPipelineCli.runCli -- \
+  -relEnv prod -relPlatform Android -relBaseId base-1001 \
+  -auditOperator ci-release-bot -relReceipt /abs/receipts/release.json \
+  -sshHost 47.243.79.140 -sshUser hotdeploy \
+  -sshKey /secure/hotdeploy -sshUrl https://47.243.79.140/
+```
+
+适配器可从 `RelPipelineRequest.args` 读取自己的生产参数。任一生产、门禁、签名、上传或回读步骤失败都会返回非零退出码；没有全部阶段通过的签名门禁凭证时，远端 Latest 不会被写入。
 
 test/prod 必须配置不同私钥路径。加密 PEM 的 rollback 额外传 `-pubPrivKeyPasswordEnv <变量名>`，密码从 CI 秘密环境变量读取，不接受明文命令行参数。项目外目录、旧 EditorPrefs 迁移和轮换流程见 [Hot Update Signing Keys](HotUpdateKeys.md)。
 
-项目生产门禁统一实现为 `IRelGate`，并通过 `RelGateCli` 输出结构化 JSON；插件协议、阶段与输入适配见 [Release Gates](HotUpdateGates.md)。发布必须消费门禁通过回执的审计编排在发布章节的下一层完成，项目插件本身不得直接曝光 Latest。
+项目生产门禁统一实现为 `IRelGate`，并通过 `RelGateCli` 输出结构化 JSON；插件协议、阶段与输入适配见 [Release Gates](HotUpdateGates.md)。单独的 `RelGateCli` 回执用于诊断，只有 `RelPipeline` 用环境私钥生成的签名门禁凭证才能授权 `PubFlow` 曝光 Latest；项目插件本身不得直接发布。
 
 hot-store v2 的服务器模板、协议测试和线上位置说明位于仓库 `Deploy/HotUpdate/`。服务端或客户端协议版本不一致时，`SshStore` 会在任何上传前拒绝会话。
 

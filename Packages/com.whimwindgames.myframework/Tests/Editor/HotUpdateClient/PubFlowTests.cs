@@ -7,6 +7,8 @@ using UnityEngine;
 
 public sealed class PubFlowTests
 {
+	const string TEST_SCRIPT =
+		"Packages/com.whimwindgames.myframework/Tests/Editor/HotUpdateClient/PubFlowTests.cs";
 	[Serializable]
 	sealed class BaseTrust
 	{
@@ -80,6 +82,7 @@ public sealed class PubFlowTests
 		public bool has(string key) => mObjs.ContainsKey(key);
 		public byte[] raw(string key) => mObjs[key];
 		public void seed(string key, byte[] raw) => mObjs[key] = raw;
+		public void drop(string key) => mObjs.Remove(key);
 
 		public void Dispose() { }
 
@@ -126,12 +129,56 @@ public sealed class PubFlowTests
 			baseId = baseId,
 			pubKey = mPubKey,
 			resList = RES_LIST,
+			aotDlls = Array.Empty<string>(),
+			codeDlls = CODE_DLLS,
+			entryDll = ENTRY_DLL,
+			hotId = UpdRule.hotId(CODE_DLLS, ENTRY_DLL),
 		};
 	}
 
 	PubFlow flow()
 	{
 		return new PubFlow(mStore, mEnv);
+	}
+
+	string gate(string relId, string operatorId = "pub-flow-tests")
+	{
+		PubItem item = PubFlow.find(mEnv, PLATFORM, relId);
+		RelGateReport report = new()
+		{
+			ok = true,
+			env = item.env,
+			platform = item.platform,
+			baseId = item.baseId,
+			releaseId = item.relId,
+			phases = "project,plan,candidate",
+			timeUtc = DateTime.UtcNow.ToString("o"),
+			diagnostics = Array.Empty<RelGateDiagnostic>(),
+		};
+		return RelAudit.makeGate(mEnv, item, report, operatorId).path;
+	}
+
+	PubResult publish(PubFlow pub, string relId)
+	{
+		PubItem item = PubFlow.find(mEnv, PLATFORM, relId);
+		return pub.pubRel(item, gate(relId));
+	}
+
+	RelGateInput gateInput(PubItem item)
+	{
+		UpdCfg cfg = registry(item.env, item.platform, item.baseId);
+		AbPlan assets = new() { astCnt = 1 };
+		AbPkg pkg = new() { name = "pipeline-tests", key = "pipeline-tests" };
+		pkg.asts.Add(new AbAst
+		{
+			path = TEST_SCRIPT,
+			key = RES_LIST,
+			name = "PubFlowTests",
+		});
+		assets.pkgs.Add(pkg);
+		return new RelGateInput(cfg, HotList.fromCfg(cfg), assets,
+			new RelGateBase(cfg, new[] { "HotUpd_Client.Tests.dll" }),
+			Path.Combine(mRoot, ENV, "releases", item.relId, "files"), item.relId);
 	}
 
 	byte[] signLatest(UpdLatest head)
@@ -269,7 +316,7 @@ public sealed class PubFlowTests
 
 		Assert.AreEqual(0, code, receipt.error);
 		Assert.IsTrue(receipt.ok);
-		Assert.AreEqual(2, receipt.schema);
+		Assert.AreEqual(3, receipt.schema);
 		Assert.AreEqual(1, receipt.items.Length);
 		Assert.GreaterOrEqual(receipt.durationMs, 0);
 	}
@@ -280,8 +327,10 @@ public sealed class PubFlowTests
 		makeRelease("rel-b01", 1, 2);
 		using (PubFlow pub = flow())
 		{
-			long seq = pub.pubRel(PLATFORM, "rel-b01");
-			Assert.AreEqual(1, seq);
+			PubResult result = publish(pub, "rel-b01");
+			Assert.AreEqual(1, result.seq);
+			Assert.IsTrue(mStore.has(ENV + "/audit/rel-b01/gate.json"));
+			Assert.IsTrue(mStore.has(result.auditObjectKey));
 		}
 		Assert.IsTrue(mStore.has(ENV + "/releases/rel-b01/manifest.json"));
 		Assert.IsTrue(mStore.has(relFileKey("rel-b01", "bundles/bundle-0.unity3d")));
@@ -295,6 +344,99 @@ public sealed class PubFlowTests
 	}
 
 	[Test]
+	public void PublishRetryAdoptsExistingRemoteAuditWithoutChangingIt()
+	{
+		makeRelease("rel-retry01", 1, 1);
+		PubResult first;
+		using (PubFlow pub = flow()) first = publish(pub, "rel-retry01");
+		byte[] remote = (byte[])mStore.raw(first.auditObjectKey).Clone();
+		File.Delete(first.audit.path);
+
+		PubResult retried;
+		using (PubFlow pub = flow()) retried = publish(pub, "rel-retry01");
+
+		CollectionAssert.AreEqual(remote, mStore.raw(first.auditObjectKey));
+		Assert.AreEqual(first.audit.sha, retried.audit.sha);
+		Assert.IsTrue(File.Exists(retried.audit.path));
+	}
+
+	[Test]
+	public void PubRelWithoutSignedGateEvidenceCannotTouchRemote()
+	{
+		makeRelease("rel-nogate01", 1, 1);
+		PubItem item = PubFlow.find(mEnv, PLATFORM, "rel-nogate01");
+		using PubFlow pub = flow();
+
+		Assert.Throws<InvalidDataException>(() => pub.pubRel(item,
+			Path.Combine(mRoot, "missing-gate.json")));
+
+		Assert.IsFalse(mStore.ops.Exists(value =>
+			value.StartsWith("put:", StringComparison.Ordinal)));
+		Assert.IsFalse(mStore.has(latestKey()));
+	}
+
+	[Test]
+	public void PubRelWithTamperedGateEvidenceCannotTouchRemote()
+	{
+		makeRelease("rel-badgate01", 1, 1);
+		PubItem item = PubFlow.find(mEnv, PLATFORM, "rel-badgate01");
+		string valid = gate(item.relId);
+		UpdBox box = UpdJson.box(File.ReadAllBytes(valid));
+		char replacement = box.sig[0] == 'A' ? 'B' : 'A';
+		box.sig = replacement + box.sig.Substring(1);
+		string tampered = Path.Combine(mRoot, "tampered-gate.json");
+		File.WriteAllText(tampered, JsonUtility.ToJson(box, false), sUtf8);
+		using PubFlow pub = flow();
+
+		Assert.Throws<InvalidDataException>(() => pub.pubRel(item, tampered));
+
+		Assert.IsFalse(mStore.ops.Exists(value =>
+			value.StartsWith("put:", StringComparison.Ordinal)));
+		Assert.IsFalse(mStore.has(latestKey()));
+	}
+
+	[Test]
+	public void UnifiedPipelineProducesGatesPublishesAndAudits()
+	{
+		using IDisposable pipelineRegistry = RelPipelineRegistry.isolateForTests();
+		using IDisposable gateRegistry = RelGateRegistry.isolateForTests();
+		RelPipelineRegistry.bindProducer(request =>
+		{
+			Assert.AreEqual(ENV, request.env);
+			makeRelease("rel-pipeline01", 1, 1);
+			PubItem item = PubFlow.find(mEnv, PLATFORM, "rel-pipeline01");
+			return new RelPipelineProduct
+			{
+				publish = mEnv,
+				gate = gateInput(item),
+				releaseId = item.relId,
+			};
+		});
+
+		int code = RelPipelineCli.run(new[]
+		{
+			"-relEnv", ENV,
+			"-relPlatform", PLATFORM,
+			"-relBaseId", BASE,
+			"-auditOperator", "ci-pipeline",
+		}, () => mStore, out PubReceipt receipt);
+
+		Assert.AreEqual(0, code, receipt.error);
+		Assert.IsTrue(receipt.ok);
+		Assert.AreEqual("produce-gate-publish", receipt.action);
+		Assert.AreEqual("ci-pipeline", receipt.operatorId);
+		Assert.AreEqual("rel-pipeline01", receipt.releaseId);
+		Assert.AreEqual(1, receipt.seq);
+		Assert.IsTrue(receipt.gate.ok);
+		Assert.AreEqual("project,plan,candidate", receipt.gate.phases);
+		Assert.IsTrue(receipt.server.latest);
+		Assert.IsTrue(UpdFmt.isSha(receipt.gateEvidenceSha));
+		Assert.IsTrue(UpdFmt.isSha(receipt.auditSha));
+		Assert.IsTrue(File.Exists(receipt.auditPath));
+		Assert.IsTrue(mStore.has(receipt.auditObjectKey));
+	}
+
+	[Test]
 	public void PubRelPartialResumeKeepsKnownKeys()
 	{
 		makeRelease("rel-c01", 1, 2);
@@ -304,7 +446,7 @@ public sealed class PubFlowTests
 			"rel-c01", "files", "HotFix.dll.bytes")));
 		using (PubFlow pub = flow())
 		{
-			Assert.AreEqual(1, pub.pubRel(PLATFORM, "rel-c01"));
+			Assert.AreEqual(1, publish(pub, "rel-c01").seq);
 		}
 		Assert.IsFalse(mStore.ops.Contains("put:" + seedKey),
 			"已存在且校验通过的文件不应重复上传");
@@ -320,7 +462,7 @@ public sealed class PubFlowTests
 		using (PubFlow pub = flow())
 		{
 			IOException ex = Assert.Throws<IOException>(
-				() => pub.pubRel(PLATFORM, "rel-d01"));
+				() => publish(pub, "rel-d01"));
 			StringAssert.Contains("未知对象", ex.Message);
 		}
 		Assert.IsFalse(mStore.has(latestKey()), "拒绝后不得曝光Latest");
@@ -334,13 +476,13 @@ public sealed class PubFlowTests
 		makeRelease("rel-e02", 9, 1);
 		using (PubFlow first = flow())
 		{
-			Assert.AreEqual(9, first.pubRel(PLATFORM, "rel-e02"));
+			Assert.AreEqual(9, publish(first, "rel-e02").seq);
 		}
 		makeRelease("rel-e03", 2, 1);
 		using (PubFlow pub = flow())
 		{
 			InvalidDataException ex = Assert.Throws<InvalidDataException>(
-				() => pub.pubRel(PLATFORM, "rel-e03"));
+				() => publish(pub, "rel-e03"));
 			StringAssert.Contains("序号不高于远端", ex.Message);
 		}
 		Assert.AreEqual("rel-e02", openRemoteLatest().releaseId);
@@ -352,12 +494,12 @@ public sealed class PubFlowTests
 		makeRelease("rel-f01", 1, 1);
 		using (PubFlow first = flow())
 		{
-			first.pubRel(PLATFORM, "rel-f01");
+			publish(first, "rel-f01");
 		}
 		makeRelease("rel-f02", 2, 1);
 		using (PubFlow second = flow())
 		{
-			second.pubRel(PLATFORM, "rel-f02");
+			publish(second, "rel-f02");
 		}
 		string prevKey = ENV + "/previous/" + PLATFORM + "/" + BASE + ".json";
 		Assert.IsTrue(mStore.has(prevKey), "发布新版前必须保存上一版");
@@ -373,11 +515,41 @@ public sealed class PubFlowTests
 		makeRelease("rel-g01", 1, 1);
 		using (PubFlow pub = flow())
 		{
-			pub.pubRel(PLATFORM, "rel-g01");
+			publish(pub, "rel-g01");
 			InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
-				() => pub.rollback(new PubItem { env = ENV, platform = PLATFORM, baseId = BASE }));
+				() => pub.rollback(new PubItem { env = ENV, platform = PLATFORM, baseId = BASE },
+					"rollback-tests"));
 			StringAssert.Contains("没有上一版", ex.Message);
 		}
+	}
+
+	[Test]
+	public void RollbackWithoutTargetGateEvidenceIsRejectedBeforeLatestChanges()
+	{
+		makeRelease("rel-rg01", 1, 1);
+		using PubFlow pub = flow();
+		publish(pub, "rel-rg01");
+		makeRelease("rel-rg02", 2, 1);
+		publish(pub, "rel-rg02");
+		PubItem first = new()
+		{
+			env = ENV,
+			platform = PLATFORM,
+			baseId = BASE,
+			relId = "rel-rg01",
+		};
+		mStore.drop(RelAudit.gateObjectKey(first));
+
+		InvalidDataException ex = Assert.Throws<InvalidDataException>(() =>
+			pub.rollback(new PubItem
+			{
+				env = ENV,
+				platform = PLATFORM,
+				baseId = BASE,
+			}, "rollback-tests"));
+
+		StringAssert.Contains("没有已验签门禁凭证", ex.Message);
+		Assert.AreEqual("rel-rg02", openRemoteLatest().releaseId);
 	}
 
 	[Test]
@@ -386,12 +558,12 @@ public sealed class PubFlowTests
 		makeRelease("rel-h01", 1, 1);
 		using (PubFlow first = flow())
 		{
-			first.pubRel(PLATFORM, "rel-h01");
+			publish(first, "rel-h01");
 		}
 		makeRelease("rel-h02", 2, 1);
 		using (PubFlow second = flow())
 		{
-			second.pubRel(PLATFORM, "rel-h02");
+			publish(second, "rel-h02");
 			PubItem scope = new()
 			{
 				env = ENV,
@@ -403,8 +575,9 @@ public sealed class PubFlowTests
 			PubHead before = second.remote(scope);
 			Assert.AreEqual("rel-h01", before.previousRelId,
 				"远端诊断不能依赖本地上一版Release");
-			long seq = second.rollback(scope);
-			Assert.AreEqual(3, seq);
+			PubResult rolled = second.rollback(scope, "rollback-tests");
+			Assert.AreEqual(3, rolled.seq);
+			Assert.AreEqual("rollback", rolled.audit.audit.action);
 		}
 		UpdLatest head = openRemoteLatest();
 		Assert.AreEqual("rel-h01", head.releaseId);
@@ -426,7 +599,7 @@ public sealed class PubFlowTests
 		using (PubFlow pub = flow())
 		{
 			InvalidDataException ex = Assert.Throws<InvalidDataException>(
-				() => pub.pubRel(PLATFORM, "rel-i01"));
+				() => publish(pub, "rel-i01"));
 			StringAssert.Contains("校验失败", ex.Message);
 		}
 		Assert.IsFalse(mStore.has(latestKey()));
@@ -438,7 +611,7 @@ public sealed class PubFlowTests
 		makeRelease("rel-j01", 4, 1);
 		using (PubFlow pub = flow())
 		{
-			pub.pubRel(PLATFORM, "rel-j01");
+			publish(pub, "rel-j01");
 			PubItem[] items = PubFlow.scan(mEnv, PLATFORM);
 			PubHead head = pub.check(items[0]);
 			Assert.IsTrue(head.has);

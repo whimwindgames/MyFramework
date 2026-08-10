@@ -94,7 +94,7 @@ public sealed class PubSmokeTests
 			string rel1 = "rel-smoke-" + DateTime.UtcNow.ToString("MMddHHmmss") + "-a1";
 			string rel2 = "rel-smoke-" + DateTime.UtcNow.ToString("MMddHHmmss") + "-b2";
 			makeRelease(rel1, 1);
-			Assert.AreEqual(1, pub.pubRel(PLATFORM, rel1));
+			Assert.AreEqual(1, publish(pub, rel1).seq);
 
 			PubItem scope = new() { env = ENV, platform = PLATFORM, baseId = mBase };
 			PubHead remote = pub.remote(scope);
@@ -102,20 +102,38 @@ public sealed class PubSmokeTests
 			Assert.AreEqual(rel1, remote.relId);
 
 			makeRelease(rel2, 2);
-			Assert.AreEqual(2, pub.pubRel(PLATFORM, rel2));
+			Assert.AreEqual(2, publish(pub, rel2).seq);
 			remote = pub.remote(scope);
 			Assert.AreEqual(rel2, remote.relId);
 			Assert.IsTrue(remote.hasPrevious, "上一版未保存");
 			Assert.AreEqual(rel1, remote.previousRelId);
 
-			long seq = pub.rollback(scope);
-			Assert.AreEqual(3, seq);
+			PubResult rolled = pub.rollback(scope, "batch-smoke");
+			Assert.AreEqual(3, rolled.seq);
 			remote = pub.remote(scope);
 			Assert.AreEqual(rel1, remote.relId, "回退后Latest未指向上一版");
 
 			verifyHttpsLatest(rel1);
 			verifyHttpsRange(rel1);
 		}
+	}
+
+	PubResult publish(PubFlow flow, string relId)
+	{
+		PubItem item = PubFlow.find(mEnv, PLATFORM, relId);
+		RelGateReport report = new()
+		{
+			ok = true,
+			env = item.env,
+			platform = item.platform,
+			baseId = item.baseId,
+			releaseId = item.relId,
+			phases = "project,plan,candidate",
+			timeUtc = DateTime.UtcNow.ToString("o"),
+			diagnostics = Array.Empty<RelGateDiagnostic>(),
+		};
+		string proof = RelAudit.makeGate(mEnv, item, report, "batch-smoke").path;
+		return flow.pubRel(item, proof);
 	}
 
 	// 通过客户端真实路径（nginx只读HTTPS）回读Latest并验签，

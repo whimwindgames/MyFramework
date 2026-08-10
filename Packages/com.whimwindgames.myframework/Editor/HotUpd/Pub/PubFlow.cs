@@ -31,6 +31,15 @@ public sealed class PubHead
 	public long previousSeq;
 }
 
+public sealed class PubResult
+{
+	public long seq;
+	public RelGateProof gate;
+	public RelAuditSaved audit;
+	public RelServerReadback server;
+	public string auditObjectKey;
+}
+
 // 发布环境配置。全部显式注入，不读取全局单例，窗口与无头入口共用。
 public sealed class PubEnv
 {
@@ -205,6 +214,7 @@ public sealed class PubFlow : IDisposable
 	public static PubItem[] scan(PubEnv env, string platform)
 	{
 		if (env == null) throw new ArgumentNullException(nameof(env));
+		env.prep();
 		if (!UpdFmt.isId(platform))
 		{
 			throw new InvalidDataException("当前发布平台不受支持");
@@ -318,23 +328,37 @@ public sealed class PubFlow : IDisposable
 		return state;
 	}
 
-	public long pubRel(string platform, string relId)
+	// Latest曝光没有无凭证重载：调用方必须提交与当前Release绑定且验签通过的
+	// 全阶段门禁证据。证据先写入远端不可变audit树并回读，再开始上传/曝光。
+	public PubResult pubRel(PubItem item, string gateEvidencePath)
 	{
 		ensureOpen();
-		string env = findEnv(mEnv.root(), relId);
+		DateTime started = DateTime.UtcNow;
+		System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+		if (item == null || !UpdFmt.isId(item.env) || !UpdFmt.isId(item.platform) ||
+			!UpdFmt.isId(item.baseId) || !UpdFmt.isId(item.relId) ||
+			Array.IndexOf(mEnv.envIds, item.env) < 0)
+		{
+			throw new InvalidDataException("待发布Release身份错误");
+		}
+		string env = item.env;
 		using FileStream gate = takeLock(env);
-		PubData data = loadData(platform, relId, true, true);
+		PubData data = loadData(item.platform, item.relId, true, true);
+		matchItem(item, data);
+		RelGateProof proof = RelAudit.loadGate(gateEvidencePath, data.cfg, item);
 		using IObjLease lease = mStore.take(lockKey(data.cfg));
 		lease.keep();
-		string manKey = relKey(data.cfg.env, relId, "manifest.json");
-		string[] keys = relKeys(data.cfg.env, relId);
+		putGateEvidence(item, data.cfg, proof);
+		lease.keep();
+		string manKey = relKey(data.cfg.env, item.relId, "manifest.json");
+		string[] keys = relKeys(data.cfg.env, item.relId);
 		bool needsPut = !hasKey(keys, manKey);
 		if (needsPut)
 		{
 			checkPart(data, keys);
 			putRel(data, lease, keys);
 			lease.keep();
-			keys = relKeys(data.cfg.env, relId);
+			keys = relKeys(data.cfg.env, item.relId);
 		}
 		lease.keep();
 		checkRel(data, keys);
@@ -355,7 +379,21 @@ public sealed class PubFlow : IDisposable
 		lease.keep();
 		putHead(data.cfg, data.head, data.headRaw);
 		step("曝光 Latest", 1, 1);
-		return data.head.seq;
+		lease.keep();
+		RelServerReadback server = serverReadback(data, old);
+		watch.Stop();
+		string auditKey = RelAudit.eventObjectKey(item, data.head.seq);
+		RelAuditSaved audit = finishAudit("publish", auditKey, data.cfg, item,
+			data.head.seq, proof, server, proof.evidence.operatorId, started,
+			watch.ElapsedMilliseconds, lease);
+		return new PubResult
+		{
+			seq = data.head.seq,
+			gate = proof,
+			audit = audit,
+			server = server,
+			auditObjectKey = auditKey,
+		};
 	}
 
 	public PubHead remote(PubItem item)
@@ -376,9 +414,11 @@ public sealed class PubFlow : IDisposable
 		return toHead(head, previous, hasRel);
 	}
 
-	public long rollback(PubItem scope)
+	public PubResult rollback(PubItem scope, string operatorId)
 	{
 		ensureOpen();
+		DateTime started = DateTime.UtcNow;
+		System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
 		UpdCfg cfg = scopeCfg(scope);
 		using FileStream gate = takeLock(cfg.env);
 		using IObjLease lease = mStore.take(lockKey(cfg));
@@ -397,6 +437,8 @@ public sealed class PubFlow : IDisposable
 		string[] keys = relKeys(cfg.env, previous.releaseId);
 		checkRel(data, keys);
 		readRel(data, lease);
+		PubItem item = toItem(data, previous.seq);
+		RelGateProof proof = readGateEvidence(item, cfg);
 		lease.keep();
 		long seq = checked(Math.Max(old.seq, previous.seq) + 1);
 		byte[] raw = makeHead(data, seq);
@@ -405,7 +447,20 @@ public sealed class PubFlow : IDisposable
 		putPrevious(cfg, old, oldRaw);
 		lease.keep();
 		putHead(cfg, head, raw);
-		return seq;
+		lease.keep();
+		RelServerReadback server = serverReadback(data, old, head);
+		watch.Stop();
+		string auditKey = RelAudit.eventObjectKey(item, seq);
+		RelAuditSaved audit = finishAudit("rollback", auditKey, cfg, item, seq,
+			proof, server, operatorId, started, watch.ElapsedMilliseconds, lease);
+		return new PubResult
+		{
+			seq = seq,
+			gate = proof,
+			audit = audit,
+			server = server,
+			auditObjectKey = auditKey,
+		};
 	}
 
 	public void Dispose()
@@ -413,6 +468,137 @@ public sealed class PubFlow : IDisposable
 		if (mDone) return;
 		mStore.Dispose();
 		mDone = true;
+	}
+
+	void putGateEvidence(PubItem item, UpdCfg cfg, RelGateProof proof)
+	{
+		step("存档门禁凭证", 0, 1);
+		string key = RelAudit.gateObjectKey(item);
+		putImmutableAudit(key, proof.raw);
+		byte[] saved = getRaw(key, UpdLim.LatestMax);
+		if (!same(saved, proof.raw))
+			throw new InvalidDataException("远端门禁凭证回读不一致");
+		RelAudit.openGate(saved, cfg, item);
+		step("存档门禁凭证", 1, 1);
+	}
+
+	RelGateProof readGateEvidence(PubItem item, UpdCfg cfg)
+	{
+		string key = RelAudit.gateObjectKey(item);
+		if (!hasObj(key))
+			throw new InvalidDataException("回退目标没有已验签门禁凭证，禁止曝光Latest");
+		return RelAudit.openGate(getRaw(key, UpdLim.LatestMax), cfg, item);
+	}
+
+	void putAuditEvent(string key, RelAuditSaved audit, UpdCfg cfg, PubItem item,
+		RelGateProof proof, string action)
+	{
+		step("存档发布审计", 0, 1);
+		putImmutableAudit(key, audit.raw);
+		byte[] saved = getRaw(key, UpdLim.LatestMax);
+		RelAuditSaved remote = RelAudit.openEvent(saved, cfg, item, audit.audit.seq,
+			proof.sha, action);
+		if (!same(saved, audit.raw) || remote.sha != audit.sha)
+			throw new InvalidDataException("远端发布审计回读不一致");
+		step("存档发布审计", 1, 1);
+	}
+
+	RelAuditSaved finishAudit(string action, string key, UpdCfg cfg, PubItem item,
+		long seq, RelGateProof proof, RelServerReadback server, string operatorId,
+		DateTime started, long durationMs, IObjLease lease)
+	{
+		RelAuditSaved audit;
+		if (hasObj(key))
+		{
+			lease?.keep();
+			audit = RelAudit.adoptEvent(mEnv, getRaw(key, UpdLim.LatestMax), cfg,
+				item, seq, proof.sha, action);
+		}
+		else
+		{
+			audit = RelAudit.makeEvent(mEnv, action, item, seq, proof, server,
+				operatorId, started, durationMs);
+		}
+		lease?.keep();
+		putAuditEvent(key, audit, cfg, item, proof, action);
+		return audit;
+	}
+
+	void putImmutableAudit(string key, byte[] raw)
+	{
+		if (hasObj(key))
+		{
+			if (!rawSame(key, raw, UpdLim.LatestMax))
+				throw new IOException("不可变审计对象已存在且内容不同:" + key);
+			return;
+		}
+		try
+		{
+			putRaw(key, raw);
+		}
+		catch (Exception ex)
+		{
+			if (rawSame(key, raw, UpdLim.LatestMax)) return;
+			throw new IOException("不可变审计对象上传失败:" + key, ex);
+		}
+	}
+
+	byte[] getRaw(string key, int max)
+	{
+		string temp = tempFile();
+		try
+		{
+			get(key, temp);
+			return read(temp, max);
+		}
+		finally
+		{
+			dropTemp(temp);
+		}
+	}
+
+	RelServerReadback serverReadback(PubData data, UpdLatest old,
+		UpdLatest expected = null)
+	{
+		UpdLatest actual = readHead(data.cfg, out byte[] raw);
+		UpdLatest target = expected ?? data.head;
+		byte[] targetRaw = expected == null ? data.headRaw : null;
+		if (actual == null || actual.releaseId != data.man.releaseId ||
+			actual.seq != target.seq || actual.manifestSha != data.manSha ||
+			actual.manifestSize != data.manRaw.LongLength ||
+			(targetRaw != null && !same(raw, targetRaw)))
+		{
+			throw new InvalidDataException("Latest曝光后的服务器回读不一致");
+		}
+		UpdLatest previous = readPrevious(data.cfg, out _);
+		return new RelServerReadback
+		{
+			releaseObjects = true,
+			manifest = true,
+			files = true,
+			latest = true,
+			latestReleaseId = actual.releaseId,
+			latestSeq = actual.seq,
+			previousReleaseId = previous?.releaseId ?? old?.releaseId,
+		};
+	}
+
+	static PubItem toItem(PubData data, long seq)
+	{
+		long total = 0;
+		for (int i = 0; i < data.man.files.Length; ++i)
+			total = checked(total + data.man.files[i].size);
+		return new PubItem
+		{
+			env = data.cfg.env,
+			platform = data.cfg.platform,
+			baseId = data.cfg.baseId,
+			relId = data.man.releaseId,
+			seq = seq,
+			fileCnt = data.man.files.Length,
+			totalSize = total,
+			manSha = data.manSha,
+		};
 	}
 
 	void putRel(PubData data, IObjLease lease, string[] keys)
@@ -687,9 +873,13 @@ public sealed class PubFlow : IDisposable
 
 	static void matchItem(PubItem item, PubData data)
 	{
+		long total = 0;
+		for (int i = 0; i < data.man.files.Length; ++i)
+			total = checked(total + data.man.files[i].size);
 		if (item.env != data.cfg.env || item.platform != data.cfg.platform ||
 			item.baseId != data.cfg.baseId || item.relId != data.man.releaseId ||
-			item.manSha != data.manSha || item.fileCnt != data.man.files.Length)
+			item.manSha != data.manSha || item.fileCnt != data.man.files.Length ||
+			item.totalSize != total || item.seq != data.head.seq)
 		{
 			throw new InvalidDataException("界面中的Release信息已经变化，请刷新");
 		}

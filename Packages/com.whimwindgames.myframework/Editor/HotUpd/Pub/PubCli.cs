@@ -6,10 +6,11 @@ using UnityEngine;
 [Serializable]
 public sealed class PubReceipt
 {
-	public int schema = 2;
+	public int schema = 3;
 	public string action;
 	public bool ok;
 	public string error;
+	public string operatorId;
 	public string env;
 	public string platform;
 	public string baseId;
@@ -18,6 +19,12 @@ public sealed class PubReceipt
 	public int fileCount;
 	public long totalSize;
 	public string manSha;
+	public string gateEvidenceSha;
+	public RelGateReport gate;
+	public RelServerReadback server;
+	public string auditPath;
+	public string auditObjectKey;
+	public string auditSha;
 	public PubItem[] items;
 	public string timeUtc;
 	public long durationMs;
@@ -29,11 +36,13 @@ public sealed class PubReceipt
 //   -pubPlatform Android -pubRoot /abs/releases-root [-pubPrivKey /abs/latest.pem] \
 //   [-pubPrivKeyPasswordEnv HOTUPDATE_KEY_PASSWORD] \
 //   [-pubEnv test] [-pubBaseId base-2] [-pubRelId <releaseId>] \
+//   [-pubGateReceipt /abs/<env>/audit/<releaseId>/gate.json] \
+//   [-auditOperator ci-release-bot] \
 //   -sshHost 47.243.79.140 [-sshPort 22] [-sshUser hotdeploy] \
 //   -sshKey /abs/openssh-key -sshUrl https://47.243.79.140/ \
 //   [-pubReceipt /abs/receipt.json]
 // scan只需发布目录与平台；check/pub用本地Release身份，remote/rollback用env+baseId；
-// 只有rollback需要-pubPrivKey签发更高seq的Latest。
+// pub必须提供已签名门禁凭证；rollback必须提供操作者并使用目标Release的远端凭证。
 public static class PubCli
 {
 	public static void runCli()
@@ -47,7 +56,7 @@ public static class PubCli
 		{
 			try
 			{
-				File.WriteAllText(path, json);
+				writeReceipt(path, json);
 			}
 			catch (Exception ex)
 			{
@@ -80,9 +89,13 @@ public static class PubCli
 			string passwordEnv = opt(args, "-pubPrivKeyPasswordEnv", null);
 			PubEnv env = new()
 			{
+				envIds = string.IsNullOrWhiteSpace(scopedEnv) ?
+					new[] { "test", "prod" } : new[] { scopedEnv },
 				pubRoot = need(args, "-pubRoot"),
-				privateKeyPathForEnv = value => value == scopedEnv ? keyPath : null,
-				privateKeyPasswordForEnv = value => value == scopedEnv ?
+				privateKeyPathForEnv = string.IsNullOrWhiteSpace(scopedEnv) ? null :
+					value => value == scopedEnv ? keyPath : null,
+				privateKeyPasswordForEnv = string.IsNullOrWhiteSpace(scopedEnv) ? null :
+					value => value == scopedEnv ?
 					passwordFromEnvironment(passwordEnv) : null,
 			};
 			string platform = need(args, "-pubPlatform");
@@ -108,9 +121,17 @@ public static class PubCli
 			{
 				case "pub":
 				{
+					if (string.IsNullOrWhiteSpace(scopedEnv))
+						throw new InvalidDataException("pub必须显式提供-pubEnv");
 					PubItem item = PubFlow.find(env, platform, need(args, "-pubRelId"));
 					applyItem(receipt, item);
-					receipt.seq = flow.pubRel(platform, item.relId);
+					string gatePath = need(args, "-pubGateReceipt");
+					receipt.operatorId = need(args, "-auditOperator").Trim();
+					RelGateProof proof = RelAudit.loadGate(gatePath,
+						env.cfg(item.env, item.platform, item.baseId), item);
+					if (proof.evidence.operatorId != receipt.operatorId)
+						throw new InvalidDataException("-auditOperator与门禁凭证操作者不一致");
+					applyResult(receipt, flow.pubRel(item, gatePath));
 					break;
 				}
 				case "check":
@@ -135,7 +156,8 @@ public static class PubCli
 					}
 					else
 					{
-						receipt.seq = flow.rollback(item);
+						receipt.operatorId = need(args, "-auditOperator").Trim();
+						applyResult(receipt, flow.rollback(item, receipt.operatorId));
 						PubHead head = flow.remote(item);
 						receipt.releaseId = head.relId;
 					}
@@ -161,7 +183,7 @@ public static class PubCli
 		}
 	}
 
-	static void applyItem(PubReceipt receipt, PubItem item)
+	internal static void applyItem(PubReceipt receipt, PubItem item)
 	{
 		receipt.env = item.env;
 		receipt.platform = item.platform;
@@ -170,6 +192,26 @@ public static class PubCli
 		receipt.fileCount = item.fileCnt;
 		receipt.totalSize = item.totalSize;
 		receipt.manSha = item.manSha;
+	}
+
+	internal static void applyResult(PubReceipt receipt, PubResult result)
+	{
+		RelAuditEvent audit = result.audit.audit;
+		receipt.seq = result.seq;
+		receipt.operatorId = audit.operatorId;
+		receipt.env = audit.env;
+		receipt.platform = audit.platform;
+		receipt.baseId = audit.baseId;
+		receipt.releaseId = audit.releaseId;
+		receipt.fileCount = audit.fileCount;
+		receipt.totalSize = audit.totalSize;
+		receipt.manSha = audit.manifestSha;
+		receipt.gateEvidenceSha = result.gate.sha;
+		receipt.gate = result.gate.evidence.gate;
+		receipt.server = result.server;
+		receipt.auditPath = result.audit.path;
+		receipt.auditObjectKey = result.auditObjectKey;
+		receipt.auditSha = result.audit.sha;
 	}
 
 	static PubItem makeScope(string[] args)
@@ -236,5 +278,25 @@ public static class PubCli
 			}
 		}
 		return true;
+	}
+
+	static void writeReceipt(string path, string json)
+	{
+		if (!Path.IsPathRooted(path))
+			throw new InvalidDataException("-pubReceipt必须是绝对路径");
+		string full = Path.GetFullPath(path);
+		string dir = Path.GetDirectoryName(full);
+		Directory.CreateDirectory(dir);
+		string temp = full + ".tmp-" + Guid.NewGuid().ToString("N");
+		try
+		{
+			File.WriteAllText(temp, json, new System.Text.UTF8Encoding(false));
+			if (File.Exists(full)) File.Replace(temp, full, null);
+			else File.Move(temp, full);
+		}
+		finally
+		{
+			if (File.Exists(temp)) File.Delete(temp);
+		}
 	}
 }

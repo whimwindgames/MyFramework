@@ -69,3 +69,5 @@ Unity -batchmode -quit -projectPath /abs/project \
 ```
 
 `-gatePhase` 接受 `project/plan/candidate/all`。进程输出 `GATE_RECEIPT=<json>`；回执包含环境身份、阶段、耗时，以及按 gate/order/code/path 稳定组织的 info、warning、error 诊断。任何 error 或插件异常都返回非零退出码。
+
+普通 `RelGateCli` JSON 是诊断回执，本身不能授权发布。生产发布应使用 `RelPipelineCli`：框架在生产完成后强制执行 `all`，把门禁报告与 Release 身份、Manifest SHA、文件数和操作者绑定，并使用目标 Base 对应环境的 P-256 私钥生成 `audit/<releaseId>/gate.json`。`PubFlow` 只接受该签名凭证；凭证缺失、验签失败、身份不一致、阶段不全或包含 error 时，在任何远端 Release/Latest 写入前失败。

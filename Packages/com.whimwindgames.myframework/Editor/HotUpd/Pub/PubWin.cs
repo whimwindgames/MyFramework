@@ -15,6 +15,8 @@ public sealed class PubWin : EditorWindow
 	string mProdPrivKey;
 	string mTestPassword;
 	string mProdPassword;
+	string mGateReceipt;
+	string mOperator;
 	string mStatus = "就绪";
 	string mKnownFp;
 	SshHostKey mScanned;
@@ -35,6 +37,8 @@ public sealed class PubWin : EditorWindow
 		mPubRoot = EditorPrefs.GetString(PRE + "pubRoot", string.Empty);
 		mTestPrivKey = EditorPrefs.GetString(PRE + "privKey.test", string.Empty);
 		mProdPrivKey = EditorPrefs.GetString(PRE + "privKey.prod", string.Empty);
+		mGateReceipt = EditorPrefs.GetString(PRE + "gateReceipt", string.Empty);
+		mOperator = EditorPrefs.GetString(PRE + "operator", string.Empty);
 		refreshKnown();
 	}
 
@@ -115,17 +119,24 @@ public sealed class PubWin : EditorWindow
 		string nextProdKey = pathField("prod签名私钥", mProdPrivKey);
 		mTestPassword = EditorGUILayout.PasswordField("test私钥密码", mTestPassword ?? string.Empty);
 		mProdPassword = EditorGUILayout.PasswordField("prod私钥密码", mProdPassword ?? string.Empty);
+		string nextGate = pathField("签名门禁凭证", mGateReceipt);
+		string nextOperator = EditorGUILayout.TextField("审计操作者", mOperator);
 		EditorGUILayout.LabelField("密码仅保留在当前窗口内存，不写入EditorPrefs。",
 			EditorStyles.miniLabel);
 		if (nextRoot != mPubRoot || nextTestKey != mTestPrivKey ||
-			nextProdKey != mProdPrivKey)
+			nextProdKey != mProdPrivKey || nextGate != mGateReceipt ||
+			nextOperator != mOperator)
 		{
 			mPubRoot = nextRoot;
 			mTestPrivKey = nextTestKey;
 			mProdPrivKey = nextProdKey;
+			mGateReceipt = nextGate;
+			mOperator = nextOperator;
 			EditorPrefs.SetString(PRE + "pubRoot", mPubRoot);
 			EditorPrefs.SetString(PRE + "privKey.test", mTestPrivKey);
 			EditorPrefs.SetString(PRE + "privKey.prod", mProdPrivKey);
+			EditorPrefs.SetString(PRE + "gateReceipt", mGateReceipt);
+			EditorPrefs.SetString(PRE + "operator", mOperator);
 		}
 		using (new EditorGUILayout.HorizontalScope())
 		{
@@ -172,7 +183,7 @@ public sealed class PubWin : EditorWindow
 							"确定发布 " + item.relId + " 到 " + item.env + " ?",
 							"发布", "取消"))
 						{
-							runFlow("发布", flow => flow.pubRel(item.platform, item.relId));
+							runFlow("发布", flow => flow.pubRel(item, mGateReceipt));
 						}
 					}
 					if (GUILayout.Button("远端诊断"))
@@ -191,7 +202,7 @@ public sealed class PubWin : EditorWindow
 							"确定把 " + item.env + " / " + item.baseId +
 							" 回退到远端上一版吗?", "回退", "取消"))
 						{
-							runFlow("回退", flow => flow.rollback(item));
+							runFlow("回退", flow => flow.rollback(item, mOperator));
 						}
 					}
 				}
@@ -253,7 +264,8 @@ public sealed class PubWin : EditorWindow
 			try
 			{
 				T result = action(flow);
-				return name + "完成" + (result is long seq ? " seq " + seq : "");
+				return name + "完成" + (result is PubResult published ?
+					" seq " + published.seq + "\n审计:" + published.audit.path : "");
 			}
 			finally
 			{
