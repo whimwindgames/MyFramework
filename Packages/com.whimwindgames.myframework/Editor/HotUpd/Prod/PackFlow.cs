@@ -396,6 +396,7 @@ public sealed class PackFlow
 			src = req.src,
 			root = req.root,
 			privateKey = req.privateKey,
+			privateKeyPassword = req.privateKeyPassword,
 			releaseId = req.releaseId,
 			mapSrc = req.mapSrc,
 			cfg = cloneCfg(req.cfg),

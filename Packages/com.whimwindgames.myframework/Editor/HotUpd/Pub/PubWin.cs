@@ -11,7 +11,10 @@ public sealed class PubWin : EditorWindow
 
 	SshCfg mSsh;
 	string mPubRoot;
-	string mPrivKey;
+	string mTestPrivKey;
+	string mProdPrivKey;
+	string mTestPassword;
+	string mProdPassword;
 	string mStatus = "就绪";
 	string mKnownFp;
 	SshHostKey mScanned;
@@ -30,8 +33,15 @@ public sealed class PubWin : EditorWindow
 	{
 		mSsh = SshCfgStore.load();
 		mPubRoot = EditorPrefs.GetString(PRE + "pubRoot", string.Empty);
-		mPrivKey = EditorPrefs.GetString(PRE + "privKey", string.Empty);
+		mTestPrivKey = EditorPrefs.GetString(PRE + "privKey.test", string.Empty);
+		mProdPrivKey = EditorPrefs.GetString(PRE + "privKey.prod", string.Empty);
 		refreshKnown();
+	}
+
+	void OnDisable()
+	{
+		mTestPassword = null;
+		mProdPassword = null;
 	}
 
 	void OnGUI()
@@ -101,13 +111,32 @@ public sealed class PubWin : EditorWindow
 	{
 		EditorGUILayout.LabelField("发布配置", EditorStyles.boldLabel);
 		string nextRoot = pathField("发布输出目录", mPubRoot);
-		string nextKey = pathField("Latest签名私钥", mPrivKey);
-		if (nextRoot != mPubRoot || nextKey != mPrivKey)
+		string nextTestKey = pathField("test签名私钥", mTestPrivKey);
+		string nextProdKey = pathField("prod签名私钥", mProdPrivKey);
+		mTestPassword = EditorGUILayout.PasswordField("test私钥密码", mTestPassword ?? string.Empty);
+		mProdPassword = EditorGUILayout.PasswordField("prod私钥密码", mProdPassword ?? string.Empty);
+		EditorGUILayout.LabelField("密码仅保留在当前窗口内存，不写入EditorPrefs。",
+			EditorStyles.miniLabel);
+		if (nextRoot != mPubRoot || nextTestKey != mTestPrivKey ||
+			nextProdKey != mProdPrivKey)
 		{
 			mPubRoot = nextRoot;
-			mPrivKey = nextKey;
+			mTestPrivKey = nextTestKey;
+			mProdPrivKey = nextProdKey;
 			EditorPrefs.SetString(PRE + "pubRoot", mPubRoot);
-			EditorPrefs.SetString(PRE + "privKey", mPrivKey);
+			EditorPrefs.SetString(PRE + "privKey.test", mTestPrivKey);
+			EditorPrefs.SetString(PRE + "privKey.prod", mProdPrivKey);
+		}
+		using (new EditorGUILayout.HorizontalScope())
+		{
+			if (GUILayout.Button("采用约定密钥路径"))
+			{
+				useManagedKeys();
+			}
+			if (GUILayout.Button("密钥与轮换"))
+			{
+				RelKeyWin.open();
+			}
 		}
 		EditorGUILayout.LabelField("发布平台",
 			EditorUserBuildSettings.activeBuildTarget.ToString(), EditorStyles.miniLabel);
@@ -176,8 +205,36 @@ public sealed class PubWin : EditorWindow
 		return new PubEnv
 		{
 			pubRoot = mPubRoot,
-			privateKeyPath = mPrivKey,
+			privateKeyPathForEnv = env => env == "test" ? mTestPrivKey :
+				env == "prod" ? mProdPrivKey : null,
+			privateKeyPasswordForEnv = env => password(env),
 		};
+	}
+
+	char[] password(string env)
+	{
+		string value = env == "test" ? mTestPassword : env == "prod" ?
+			mProdPassword : null;
+		return string.IsNullOrEmpty(value) ? null : value.ToCharArray();
+	}
+
+	void useManagedKeys()
+	{
+		try
+		{
+			string project = RelKeyStore.defaultProject();
+			RelKeyStore test = RelKeyStore.open(project, "test");
+			RelKeyStore prod = RelKeyStore.open(project, "prod");
+			mTestPrivKey = test.activePrivateKeyPath;
+			mProdPrivKey = prod.activePrivateKeyPath;
+			EditorPrefs.SetString(PRE + "privKey.test", mTestPrivKey);
+			EditorPrefs.SetString(PRE + "privKey.prod", mProdPrivKey);
+			mStatus = "已按 " + project + " 读取test/prod约定密钥路径";
+		}
+		catch (Exception ex)
+		{
+			mStatus = "读取约定密钥失败: " + ex.Message;
+		}
 	}
 
 	static string platform()

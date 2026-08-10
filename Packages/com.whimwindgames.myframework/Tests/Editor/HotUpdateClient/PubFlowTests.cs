@@ -103,6 +103,7 @@ public sealed class PubFlowTests
 		mStore = new MemStore("https://hot.test/");
 		mEnv = new PubEnv
 		{
+			envIds = new[] { ENV },
 			pubRoot = mRoot,
 			privateKeyPath = mPrivPem,
 			baseRegistry = registry,

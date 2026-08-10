@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -u
+
+repo_root="$(git rev-parse --show-toplevel)" || exit 1
+exec "$repo_root/Tools/check-private-key.sh" --staged

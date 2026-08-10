@@ -27,6 +27,7 @@ public sealed class PubReceipt
 // 用法：Unity -batchmode -executeMethod PubCli.runCli -- \
 //   -pubAction scan|check|pub|rollback|remote \
 //   -pubPlatform Android -pubRoot /abs/releases-root [-pubPrivKey /abs/latest.pem] \
+//   [-pubPrivKeyPasswordEnv HOTUPDATE_KEY_PASSWORD] \
 //   [-pubEnv test] [-pubBaseId base-2] [-pubRelId <releaseId>] \
 //   -sshHost 47.243.79.140 [-sshPort 22] [-sshUser hotdeploy] \
 //   -sshKey /abs/openssh-key -sshUrl https://47.243.79.140/ \
@@ -74,10 +75,15 @@ public static class PubCli
 			{
 				throw new InvalidDataException("缺少-pubAction参数");
 			}
+			string scopedEnv = opt(args, "-pubEnv", null);
+			string keyPath = opt(args, "-pubPrivKey", null);
+			string passwordEnv = opt(args, "-pubPrivKeyPasswordEnv", null);
 			PubEnv env = new()
 			{
 				pubRoot = need(args, "-pubRoot"),
-				privateKeyPath = opt(args, "-pubPrivKey", null),
+				privateKeyPathForEnv = value => value == scopedEnv ? keyPath : null,
+				privateKeyPasswordForEnv = value => value == scopedEnv ?
+					passwordFromEnvironment(passwordEnv) : null,
 			};
 			string platform = need(args, "-pubPlatform");
 			receipt.platform = platform;
@@ -197,5 +203,38 @@ public static class PubCli
 			throw new InvalidDataException("缺少参数:" + name);
 		}
 		return value;
+	}
+
+	static char[] passwordFromEnvironment(string name)
+	{
+		if (string.IsNullOrWhiteSpace(name)) return null;
+		if (!validEnvironmentName(name))
+		{
+			throw new InvalidDataException("私钥密码环境变量名非法");
+		}
+		string value = Environment.GetEnvironmentVariable(name);
+		if (string.IsNullOrEmpty(value))
+		{
+			throw new InvalidDataException("私钥密码环境变量不存在或为空:" + name);
+		}
+		return value.ToCharArray();
+	}
+
+	static bool validEnvironmentName(string value)
+	{
+		if (string.IsNullOrEmpty(value) || value.Length > 128 ||
+			!((value[0] >= 'A' && value[0] <= 'Z') || value[0] == '_'))
+		{
+			return false;
+		}
+		for (int i = 1; i < value.Length; ++i)
+		{
+			char ch = value[i];
+			if (!((ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'))
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 }

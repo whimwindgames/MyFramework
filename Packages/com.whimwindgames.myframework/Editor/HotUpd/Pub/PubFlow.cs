@@ -39,7 +39,12 @@ public sealed class PubEnv
 	// 发布输出根目录，包含{env}/releases、{env}/latest等子目录。
 	public string pubRoot;
 	// Latest签名私钥（P-256 PEM）的绝对路径，必须位于项目与Git工作区外。
+	// 仅为单环境旧调用保留；test/prod并存时必须使用privateKeyPathForEnv。
 	public string privateKeyPath;
+	// 按环境解析签名路径，防止test/prod复用同一把私钥。
+	public Func<string, string> privateKeyPathForEnv;
+	// 加密PEM密码按需取得，返回值由RelSign读取后清零。
+	public Func<string, char[]> privateKeyPasswordForEnv;
 	// 受信Base记录查询：(env, platform, baseId) -> 冻结时的UpdCfg。
 	// 测试或宿主可显式覆盖；默认读取发布输出自身的base/<platform>/<baseId>.json。
 	public Func<string, string, string, UpdCfg> baseRegistry;
@@ -56,6 +61,13 @@ public sealed class PubEnv
 			{
 				throw new InvalidDataException("发布环境标识非法:" + envIds[i]);
 			}
+			for (int j = 0; j < i; ++j)
+			{
+				if (envIds[j] == envIds[i])
+				{
+					throw new InvalidDataException("发布环境重复:" + envIds[i]);
+				}
+			}
 		}
 	}
 
@@ -66,14 +78,38 @@ public sealed class PubEnv
 		return value ?? throw new InvalidDataException("受信Base记录查询返回空值");
 	}
 
-	internal string signingKey()
+	internal string signingKey(string env)
 	{
-		if (string.IsNullOrWhiteSpace(privateKeyPath) ||
-			!Path.IsPathRooted(privateKeyPath) || !File.Exists(privateKeyPath))
+		if (Array.IndexOf(envIds, env) < 0)
 		{
-			throw new FileNotFoundException("Latest签名私钥不存在", privateKeyPath);
+			throw new InvalidDataException("签名环境不在允许列表:" + env);
 		}
-		string full = Path.GetFullPath(privateKeyPath);
+		if (privateKeyPathForEnv == null && envIds.Length > 1)
+		{
+			throw new InvalidDataException("test/prod并存时必须分别配置签名私钥路径");
+		}
+		string selected = privateKeyPathForEnv != null ?
+			privateKeyPathForEnv(env) : privateKeyPath;
+		if (string.IsNullOrWhiteSpace(selected) ||
+			!Path.IsPathRooted(selected) || !File.Exists(selected))
+		{
+			throw new FileNotFoundException(env + " Latest签名私钥不存在", selected);
+		}
+		string full = Path.GetFullPath(selected);
+		if (privateKeyPathForEnv != null)
+		{
+			for (int i = 0; i < envIds.Length; ++i)
+			{
+				if (envIds[i] == env) continue;
+				string other = privateKeyPathForEnv(envIds[i]);
+				if (!string.IsNullOrWhiteSpace(other) && Path.IsPathRooted(other) &&
+					string.Equals(full, Path.GetFullPath(other),
+						StringComparison.OrdinalIgnoreCase))
+				{
+					throw new InvalidDataException("test/prod不能复用同一签名私钥");
+				}
+			}
+		}
 		string proj = Path.GetFullPath(Path.Combine(Application.dataPath, ".."))
 			.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) +
 			Path.DirectorySeparatorChar;
@@ -83,6 +119,12 @@ public sealed class PubEnv
 			throw new InvalidDataException("Latest签名私钥不能位于项目或Git工作区内");
 		}
 		return full;
+	}
+
+	internal RelSign signer(string env)
+	{
+		return new RelSign(signingKey(env), privateKeyPasswordForEnv == null ? null :
+			() => privateKeyPasswordForEnv(env));
 	}
 
 	internal string root()
@@ -697,7 +739,7 @@ public sealed class PubFlow : IDisposable
 			manifestSize = data.manRaw.Length,
 		};
 		byte[] body = json(head);
-		RelSign signer = new(mEnv.signingKey());
+		RelSign signer = mEnv.signer(data.cfg.env);
 		UpdBox box = new()
 		{
 			schema = UpdLim.Schema,

@@ -45,6 +45,7 @@ public sealed class PubSmokeTests
 		};
 		mEnv = new PubEnv
 		{
+			envIds = new[] { ENV },
 			pubRoot = mRoot,
 			privateKeyPath = mPrivPem,
 			baseRegistry = (env, platform, baseId) => new UpdCfg

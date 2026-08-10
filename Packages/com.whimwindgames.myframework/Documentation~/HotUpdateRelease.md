@@ -132,6 +132,8 @@ Unity -batchmode -quit -projectPath /abs/project \
 
 `scan` 只需要 `-pubRoot/-pubPlatform`；`check` 与 `pub` 还需要 `-pubRelId`；`remote` 需要 `-pubEnv/-pubBaseId`；`rollback` 在此基础上还需要 `-pubPrivKey`，并且只使用远端 `Previous`、Manifest 与文件回读签发更高序号的 Latest。JSON 回执包含 `releaseId/fileCount/totalSize/manSha/durationMs/ok/error`。真实服务器 `PubSmokeTests` 只能在隔离 batchmode/CI 中显式运行。
 
+test/prod 必须配置不同私钥路径。加密 PEM 的 rollback 额外传 `-pubPrivKeyPasswordEnv <变量名>`，密码从 CI 秘密环境变量读取，不接受明文命令行参数。项目外目录、旧 EditorPrefs 迁移和轮换流程见 [Hot Update Signing Keys](HotUpdateKeys.md)。
+
 hot-store v2 的服务器模板、协议测试和线上位置说明位于仓库 `Deploy/HotUpdate/`。服务端或客户端协议版本不一致时，`SshStore` 会在任何上传前拒绝会话。
 
 ## 当前分层

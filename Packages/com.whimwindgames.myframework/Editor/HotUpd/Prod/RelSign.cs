@@ -1,11 +1,8 @@
 using System;
 using System.IO;
-using Org.BouncyCastle.Asn1.X9;
-using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
-using Org.BouncyCastle.OpenSsl;
 using Org.BouncyCastle.Security;
 using UnityEngine;
 
@@ -14,14 +11,23 @@ public sealed class RelSign
 	readonly ECPrivateKeyParameters mKey;
 
 	public RelSign(string path)
+		: this(path, null)
+	{
+	}
+
+	// 密码通过回调按需取得并在读取后清零，调用方不得把密码持久化到项目配置。
+	public RelSign(string path, Func<char[]> password)
 	{
 		string full = checkPath(path);
-		using StreamReader input = new(full);
-		object value = new PemReader(input).ReadObject();
-		mKey = value as ECPrivateKeyParameters;
-		if (value is AsymmetricCipherKeyPair pair) mKey = pair.Private as ECPrivateKeyParameters;
-		if (mKey == null || !X9ObjectIdentifiers.Prime256v1.Equals(mKey.PublicKeyParamSet))
-			throw new InvalidDataException("Latest私钥必须是P-256 PEM");
+		char[] secret = password?.Invoke();
+		try
+		{
+			mKey = RelKey.read(File.ReadAllText(full), secret);
+		}
+		finally
+		{
+			if (secret != null) Array.Clear(secret, 0, secret.Length);
+		}
 	}
 
 	public byte[] sign(byte[] data)

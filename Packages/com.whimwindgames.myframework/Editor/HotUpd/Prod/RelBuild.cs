@@ -10,6 +10,8 @@ public sealed class RelReq
 	public string src;
 	public string root;
 	public string privateKey;
+	// 加密PEM的密码按需取得；不得由实现保存到项目配置或EditorPrefs。
+	public Func<char[]> privateKeyPassword;
 	public string releaseId;
 	public string mapSrc;
 	public UpdCfg cfg;
@@ -261,7 +263,7 @@ public static class RelBuild
 			byte[] manRaw = json(man);
 			checkMan(value.cfg, man, manRaw);
 			RelData planned = new() { man = man, raw = manRaw, sha = UpdHash.data(manRaw) };
-			byte[] latestRaw = makeLatest(value, planned, seq, new RelSign(value.privateKey));
+			byte[] latestRaw = makeLatest(value, planned, seq, signer(value));
 			string relDir = Path.Combine(root, "releases", value.releaseId);
 			if (Directory.Exists(relDir)) throw new IOException("Release已存在且不可覆盖:" + value.releaseId);
 			string stageRoot = Path.Combine(root, ".staging");
@@ -316,7 +318,7 @@ public static class RelBuild
 		UpdLatest head = readHead(root, value.cfg) ?? throw new FileNotFoundException("本地Latest不存在");
 		long seq = Math.Max(nextSeq(head), nextRelSeq(root, value.cfg));
 		RelData rel = readRel(Path.Combine(root, "releases", value.releaseId), value.cfg, value.releaseId);
-		byte[] raw = makeLatest(value, rel, seq, new RelSign(value.privateKey));
+		byte[] raw = makeLatest(value, rel, seq, signer(value));
 		setLatest(root, value.cfg, rel, raw, "Latest回退");
 		return seq;
 	}
@@ -371,6 +373,7 @@ public static class RelBuild
 			src = req.src,
 			root = req.root,
 			privateKey = req.privateKey,
+			privateKeyPassword = req.privateKeyPassword,
 			releaseId = req.releaseId,
 			mapSrc = req.mapSrc,
 			cfg = cfg,
@@ -420,7 +423,7 @@ public static class RelBuild
 	static void checkKey(RelReq req)
 	{
 		if (string.IsNullOrWhiteSpace(req.privateKey)) throw new InvalidDataException("发布签名私钥未配置");
-		RelSign signer = new(req.privateKey);
+		RelSign signer = RelBuild.signer(req);
 		byte[] probe = sUtf8.GetBytes("MyFramework.Release.KeyCheck.v1");
 		UpdBox box = new()
 		{
@@ -432,6 +435,11 @@ public static class RelBuild
 		UpdRet<byte[]> opened = new UpdSign(req.cfg.pubKey).open(box);
 		if (!opened.ok || !same(probe, opened.value))
 			throw new InvalidDataException("Latest私钥与项目公钥不匹配:" + opened.err);
+	}
+
+	static RelSign signer(RelReq req)
+	{
+		return new RelSign(req.privateKey, req.privateKeyPassword);
 	}
 
 	static void checkBase(string root, UpdCfg cfg, bool newBase)

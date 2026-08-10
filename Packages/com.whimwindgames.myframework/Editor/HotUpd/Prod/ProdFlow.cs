@@ -241,6 +241,7 @@ public sealed class ProdFlow
 			src = req.src,
 			root = req.root,
 			privateKey = req.privateKey,
+			privateKeyPassword = req.privateKeyPassword,
 			releaseId = req.releaseId,
 			mapSrc = req.mapSrc,
 			cfg = clone(req.cfg),
