@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.23] - 2026-08-10
+
+### Fixed
+
+- 自定义业务热更入口的 Base 能力只包含 `codeDlls` 实际声明的程序集，不再额外要求旧模板 `HotFix.dll`；仍声明 `HotFix.dll.bytes` 的旧项目行为不变。
+
 ## [1.1.0-preview.22] - 2026-08-10
 
 ### Added

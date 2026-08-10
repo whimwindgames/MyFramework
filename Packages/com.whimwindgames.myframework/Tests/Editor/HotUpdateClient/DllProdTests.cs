@@ -64,6 +64,28 @@ public sealed class DllProdTests
 	}
 
 	[Test]
+	public void CustomEntryCapabilityDoesNotInventLegacyHotFixAssembly()
+	{
+		UpdCfg cfg = makeCfg();
+		cfg.codeDlls = new[]
+		{
+			FrameBaseDefine.HOTFIX_FRAME_BYTES_FILE,
+			"FishGame.Framework.HotFix.dll.bytes",
+		};
+		cfg.entryDll = "FishGame.Framework.HotFix.dll.bytes";
+		cfg.hotId = UpdRule.hotId(cfg.codeDlls, cfg.entryDll);
+
+		HotPlan plan = HotList.fromCfg(cfg);
+
+		Assert.That(plan.cap.allow, Is.EqualTo(new[]
+		{
+			FrameBaseDefine.HOTFIX_FRAME,
+			"FishGame.Framework.HotFix",
+		}));
+		Assert.That(plan.cap.allow, Does.Not.Contain(FrameBaseDefine.HOTFIX));
+	}
+
+	[Test]
 	public void HybridClrCompileEntryProducesConfiguredHotDlls()
 	{
 		UpdCfg cfg = makeCfg();

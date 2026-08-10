@@ -61,16 +61,12 @@ public static class HotList
 		if (cfg == null) throw new ArgumentNullException(nameof(cfg));
 		UpdRule.prod(cfg);
 		HotSet hot = new(cfg.codeDlls, cfg.entryDll);
-		List<string> allow = new()
-		{
-			FrameBaseDefine.HOTFIX_FRAME,
-			FrameBaseDefine.HOTFIX,
-		};
+		List<string> allow = new() { FrameBaseDefine.HOTFIX_FRAME };
 		List<string> rest = new();
 		for (int i = 0; i < cfg.codeDlls.Length; ++i)
 		{
 			string name = rawName(cfg.codeDlls[i]);
-			if (name != FrameBaseDefine.HOTFIX_FRAME && name != FrameBaseDefine.HOTFIX)
+			if (name != FrameBaseDefine.HOTFIX_FRAME)
 				rest.Add(name);
 		}
 		rest.Sort(StringComparer.Ordinal);
@@ -241,11 +237,11 @@ public static class HotList
 	{
 		if (cap?.optAot == null || cap.allow == null || cap.allow.Length < 2 ||
 			cap.allow.Length > UpdLim.CodeMax || cap.optAot.Length > UpdLim.AotMax ||
-			cap.allow[0] != FrameBaseDefine.HOTFIX_FRAME || cap.allow[1] != FrameBaseDefine.HOTFIX)
+			cap.allow[0] != FrameBaseDefine.HOTFIX_FRAME)
 			throw new InvalidDataException("Base程序集能力清单数量或固定顺序错误");
 		HashSet<string> allow = checkNames(cap.allow, "Base已知Hot");
 		HashSet<string> aot = checkNames(cap.optAot, "AOT程序集");
-		checkOrder(cap.allow, 2, "Base已知Hot");
+		checkOrder(cap.allow, 1, "Base已知Hot");
 		checkOrder(cap.optAot, 0, "AOT程序集");
 		HashSet<string> fixedSet = new(sFixedAot, StringComparer.OrdinalIgnoreCase);
 		foreach (string name in allow)
