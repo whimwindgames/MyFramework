@@ -98,12 +98,25 @@ internal sealed class UpdDisk
     {
         try
         {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            using (UnityEngine.AndroidJavaObject statFs =
+                new UnityEngine.AndroidJavaObject("android.os.StatFs", mRoot))
+            {
+                long bytes = statFs.Call<long>("getAvailableBytes");
+                if (bytes < 0)
+                {
+                    throw new IOException("drive_negative");
+                }
+                return bytes;
+            }
+#else
             string root = Path.GetPathRoot(mRoot);
             if (string.IsNullOrEmpty(root))
             {
                 throw new IOException("drive_root");
             }
             return new DriveInfo(root).AvailableFreeSpace;
+#endif
         }
         catch (Exception ex)
         {

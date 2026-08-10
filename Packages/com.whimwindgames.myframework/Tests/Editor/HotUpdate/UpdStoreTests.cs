@@ -84,6 +84,14 @@ public sealed class UpdStoreTests
     }
 
     [Test]
+    public void DiskAvailable_ReturnsPositiveSpaceForStoreRoot()
+    {
+        UpdDisk disk = new UpdDisk(mRoot);
+
+        Assert.That(disk.available(), Is.GreaterThan(0));
+    }
+
+    [Test]
     public void StageAndCommit_VerifiesContentBeforePublishingBlob()
     {
         UpdStore store = makeStore();

@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.25] - 2026-08-10
+
+### Fixed
+
+- Android Player 使用原生 `StatFs` 检查热更新目录可用空间，避免 IL2CPP 不支持 `System.IO.DriveInfo` 时把空间充足的设备误判为 `Disk:update:drive_space`。
+
 ## [1.1.0-preview.24] - 2026-08-10
 
 ### Fixed
