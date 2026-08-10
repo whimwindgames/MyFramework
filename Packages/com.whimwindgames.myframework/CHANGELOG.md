@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.26] - 2026-08-10
+
+### Fixed
+
+- Android 热更新空间检查同时使用 `StatFs` 的可用字节值和“可用块数 × 块大小”，兼容部分设备把 `getAvailableBytes()` 错误返回为裸块数的情况，并对乘法做饱和保护。
+
 ## [1.1.0-preview.25] - 2026-08-10
 
 ### Fixed

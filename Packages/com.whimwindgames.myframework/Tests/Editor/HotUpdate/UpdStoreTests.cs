@@ -92,6 +92,19 @@ public sealed class UpdStoreTests
     }
 
     [Test]
+    public void DiskSpaceBytes_MultipliesAvailableBlocksByBlockSize()
+    {
+        Assert.That(UpdDisk.spaceBytes(71794683, 4096),
+            Is.EqualTo(294071021568L));
+    }
+
+    [Test]
+    public void DiskSpaceBytes_SaturatesInsteadOfOverflowing()
+    {
+        Assert.That(UpdDisk.spaceBytes(long.MaxValue, 4096), Is.EqualTo(long.MaxValue));
+    }
+
+    [Test]
     public void StageAndCommit_VerifiesContentBeforePublishingBlob()
     {
         UpdStore store = makeStore();
