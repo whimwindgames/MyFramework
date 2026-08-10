@@ -1,0 +1,201 @@
+using System;
+using System.IO;
+using UnityEditor;
+using UnityEngine;
+
+[Serializable]
+public sealed class PubReceipt
+{
+	public int schema = 2;
+	public string action;
+	public bool ok;
+	public string error;
+	public string env;
+	public string platform;
+	public string baseId;
+	public string releaseId;
+	public long seq;
+	public int fileCount;
+	public long totalSize;
+	public string manSha;
+	public PubItem[] items;
+	public string timeUtc;
+	public long durationMs;
+}
+
+// 无头发布入口。与PubWin共用PubFlow，全部参数显式传入，输出结构化JSON回执。
+// 用法：Unity -batchmode -executeMethod PubCli.runCli -- \
+//   -pubAction scan|check|pub|rollback|remote \
+//   -pubPlatform Android -pubRoot /abs/releases-root [-pubPrivKey /abs/latest.pem] \
+//   [-pubEnv test] [-pubBaseId base-2] [-pubRelId <releaseId>] \
+//   -sshHost 47.243.79.140 [-sshPort 22] [-sshUser hotdeploy] \
+//   -sshKey /abs/openssh-key -sshUrl https://47.243.79.140/ \
+//   [-pubReceipt /abs/receipt.json]
+// scan只需发布目录与平台；check/pub用本地Release身份，remote/rollback用env+baseId；
+// 只有rollback需要-pubPrivKey签发更高seq的Latest。
+public static class PubCli
+{
+	public static void runCli()
+	{
+		string[] args = Environment.GetCommandLineArgs();
+		int code = run(args, out PubReceipt receipt);
+		string json = JsonUtility.ToJson(receipt, false);
+		Console.WriteLine("PUB_RECEIPT=" + json);
+		string path = opt(args, "-pubReceipt", null);
+		if (!string.IsNullOrWhiteSpace(path))
+		{
+			try
+			{
+				File.WriteAllText(path, json);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine("PUB_RECEIPT_WRITE_FAILED=" + ex.Message);
+				code = code == 0 ? 3 : code;
+			}
+		}
+		if (Application.isBatchMode)
+		{
+			EditorApplication.Exit(code);
+		}
+	}
+
+	public static int run(string[] args, out PubReceipt receipt)
+	{
+		System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+		receipt = new PubReceipt
+		{
+			action = opt(args, "-pubAction", string.Empty),
+			timeUtc = DateTime.UtcNow.ToString("o"),
+		};
+		try
+		{
+			if (string.IsNullOrWhiteSpace(receipt.action))
+			{
+				throw new InvalidDataException("缺少-pubAction参数");
+			}
+			PubEnv env = new()
+			{
+				pubRoot = need(args, "-pubRoot"),
+				privateKeyPath = opt(args, "-pubPrivKey", null),
+			};
+			string platform = need(args, "-pubPlatform");
+			receipt.platform = platform;
+			if (receipt.action == "scan")
+			{
+				receipt.items = PubFlow.scan(env, platform);
+				receipt.ok = true;
+				return 0;
+			}
+			SshCfg ssh = new()
+			{
+				host = need(args, "-sshHost"),
+				port = int.TryParse(opt(args, "-sshPort", "22"), out int port) ? port : 22,
+				user = opt(args, "-sshUser", "hotdeploy"),
+				key = need(args, "-sshKey"),
+				url = need(args, "-sshUrl"),
+			};
+			using PubFlow flow = new(new SshStore(ssh), env,
+				(text, done, total) => Console.WriteLine(
+					"PUB_STEP=" + text + " " + done + "/" + total));
+			switch (receipt.action)
+			{
+				case "pub":
+				{
+					PubItem item = PubFlow.find(env, platform, need(args, "-pubRelId"));
+					applyItem(receipt, item);
+					receipt.seq = flow.pubRel(platform, item.relId);
+					break;
+				}
+				case "check":
+				{
+					PubItem item = PubFlow.find(env, platform, need(args, "-pubRelId"));
+					applyItem(receipt, item);
+					PubHead head = flow.check(item);
+					receipt.seq = head.seq;
+					break;
+				}
+				case "remote":
+				case "rollback":
+				{
+					PubItem item = makeScope(args);
+					receipt.env = item.env;
+					receipt.baseId = item.baseId;
+					if (receipt.action == "remote")
+					{
+						PubHead head = flow.remote(item);
+						receipt.releaseId = head.relId;
+						receipt.seq = head.seq;
+					}
+					else
+					{
+						receipt.seq = flow.rollback(item);
+						PubHead head = flow.remote(item);
+						receipt.releaseId = head.relId;
+					}
+					break;
+				}
+				default:
+					throw new InvalidDataException("未知-pubAction:" + receipt.action);
+			}
+			receipt.ok = true;
+			return 0;
+		}
+		catch (Exception ex)
+		{
+			receipt.ok = false;
+			receipt.error = ex.GetType().Name + ": " + ex.Message;
+			Debug.LogError("PubCli失败:" + ex);
+			return 2;
+		}
+		finally
+		{
+			watch.Stop();
+			receipt.durationMs = watch.ElapsedMilliseconds;
+		}
+	}
+
+	static void applyItem(PubReceipt receipt, PubItem item)
+	{
+		receipt.env = item.env;
+		receipt.platform = item.platform;
+		receipt.baseId = item.baseId;
+		receipt.releaseId = item.relId;
+		receipt.fileCount = item.fileCnt;
+		receipt.totalSize = item.totalSize;
+		receipt.manSha = item.manSha;
+	}
+
+	static PubItem makeScope(string[] args)
+	{
+		return new PubItem
+		{
+			env = need(args, "-pubEnv"),
+			platform = need(args, "-pubPlatform"),
+			baseId = need(args, "-pubBaseId"),
+			relId = opt(args, "-pubRelId", null),
+		};
+	}
+
+	static string opt(string[] args, string name, string fallback)
+	{
+		for (int i = 0; i < args.Length - 1; ++i)
+		{
+			if (string.Equals(args[i], name, StringComparison.Ordinal))
+			{
+				return args[i + 1];
+			}
+		}
+		return fallback;
+	}
+
+	static string need(string[] args, string name)
+	{
+		string value = opt(args, name, null);
+		if (string.IsNullOrWhiteSpace(value))
+		{
+			throw new InvalidDataException("缺少参数:" + name);
+		}
+		return value;
+	}
+}

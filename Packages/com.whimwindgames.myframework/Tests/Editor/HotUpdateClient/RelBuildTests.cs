@@ -1,9 +1,21 @@
 using System;
 using System.IO;
 using NUnit.Framework;
+using UnityEngine;
 
 public sealed class RelBuildTests
 {
+	[Serializable]
+	sealed class LegacyBase
+	{
+		public int schema;
+		public string env;
+		public string platform;
+		public string baseId;
+		public string baseUrl;
+		public string pubKey;
+	}
+
 	string mRoot;
 	string mSource;
 	string mOutput;
@@ -42,6 +54,8 @@ public sealed class RelBuildTests
 		Assert.That(firstView.bundles, Is.EqualTo(new[] { "ui/main.unity3d" }));
 
 		string release1 = RelBuild.make(first);
+		UpdCfg trust = RelBuild.loadBase(mOutput, cfg.env, cfg.platform, cfg.baseId);
+		Assert.That(trust.resList, Is.EqualTo(cfg.resList));
 		RelCheck check1 = RelBuild.verify(request(cfg, false));
 		Assert.That(release1, Is.EqualTo(firstView.releaseId));
 		Assert.That(check1.releaseId, Is.EqualTo(release1));
@@ -92,6 +106,29 @@ public sealed class RelBuildTests
 		changed.baseUrl = "https://other.example.com/";
 
 		Assert.Throws<InvalidDataException>(() => RelBuild.verify(request(changed, false)));
+	}
+
+	[Test]
+	public void LegacyBaseDefaultsToSchema11ResourceIndex()
+	{
+		UpdCfg cfg = makeCfg();
+		string dir = Path.Combine(mOutput, cfg.env, "base", cfg.platform);
+		Directory.CreateDirectory(dir);
+		LegacyBase legacy = new()
+		{
+			schema = UpdLim.Schema,
+			env = cfg.env,
+			platform = cfg.platform,
+			baseId = cfg.baseId,
+			baseUrl = cfg.baseUrl,
+			pubKey = cfg.pubKey,
+		};
+		File.WriteAllText(Path.Combine(dir, cfg.baseId + ".json"),
+			JsonUtility.ToJson(legacy, false));
+
+		UpdCfg trust = RelBuild.loadBase(mOutput, cfg.env, cfg.platform, cfg.baseId);
+
+		Assert.That(trust.resList, Is.EqualTo(FrameBaseDefine.AB_INDEX_FILE));
 	}
 
 	RelReq request(UpdCfg cfg, bool newBase)

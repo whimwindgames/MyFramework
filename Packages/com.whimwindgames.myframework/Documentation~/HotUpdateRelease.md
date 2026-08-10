@@ -113,6 +113,27 @@ string releaseId = flow.makeAll();
 
 `UpdCfg.aotDlls` 应先通过 `DllBuild.analyzeAot` 从冻结 Base 与最终 Hot DLL 自动生成，再使用 `DllBuild.withAot` 得到新的配置副本。`DllProdStep` 提交前还会复算并做精确一致性校验，同时运行 HybridCLR `MissingMetadataChecker`；补丁若引用了主包已裁剪的程序集、类型或成员，将不会进入 Release。完整流程见 [HybridCLR Production](HybridCLRProduction.md)。
 
+## SSH 远端发布
+
+`PubFlow` 会从 `<root>/<env>/base/<platform>/<baseId>.json` 读取 `RelBuild` 冻结的 Base 信任记录，因此同一份 Release 输出可在新 checkout 或 CI 节点发布，不依赖当前 Unity 项目的 AOT 缓存。窗口入口为 `MyFramework/HotUpdate/资源发布`；首次连接必须在服务器控制台核对窗口显示的 SHA-256 主机指纹后手动信任，后续指纹变化会直接中止。
+
+无头入口与窗口共用同一状态机：
+
+```bash
+Unity -batchmode -quit -projectPath /abs/project \
+  -executeMethod PubCli.runCli -- \
+  -pubAction pub -pubPlatform Android \
+  -pubRoot /abs/release-output -pubRelId test-Android-base-1001-2 \
+  -sshHost 47.243.79.140 -sshUser hotdeploy \
+  -sshKey ~/.myframework-keys/hotdeploy/openssh \
+  -sshUrl https://47.243.79.140/ \
+  -pubReceipt /abs/receipts/publish.json
+```
+
+`scan` 只需要 `-pubRoot/-pubPlatform`；`check` 与 `pub` 还需要 `-pubRelId`；`remote` 需要 `-pubEnv/-pubBaseId`；`rollback` 在此基础上还需要 `-pubPrivKey`，并且只使用远端 `Previous`、Manifest 与文件回读签发更高序号的 Latest。JSON 回执包含 `releaseId/fileCount/totalSize/manSha/durationMs/ok/error`。真实服务器 `PubSmokeTests` 只能在隔离 batchmode/CI 中显式运行。
+
+hot-store v2 的服务器模板、协议测试和线上位置说明位于仓库 `Deploy/HotUpdate/`。服务端或客户端协议版本不一致时，`SshStore` 会在任何上传前拒绝会话。
+
 ## 当前分层
 
 框架现已负责 AssetBundle、HybridCLR DLL/AOT、Stage 步骤事务和“Stage 到签名 Release”的确定性生产。Obfuz 通过 `IObfApi` 项目适配器接入。完整 Player 构建由更外层的 `PackFlow` 负责：它调用 HybridCLR GenerateAll、产生 stripped AOT，并且只在 Player 和可选首个 Release 都验证成功后提交新 Base。具体规则见 [HybridCLR Production](HybridCLRProduction.md)。

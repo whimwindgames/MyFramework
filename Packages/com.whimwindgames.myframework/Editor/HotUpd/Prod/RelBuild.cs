@@ -49,6 +49,19 @@ public static class RelBuild
 		public string baseId;
 		public string baseUrl;
 		public string pubKey;
+		public string resList;
+	}
+
+	// preview.20及更早版本的Base记录没有resList；仅为默认Schema 11索引保留读取兼容。
+	[Serializable]
+	sealed class RelBaseLegacy
+	{
+		public int schema;
+		public string env;
+		public string platform;
+		public string baseId;
+		public string baseUrl;
+		public string pubKey;
 	}
 
 	internal sealed class RelData
@@ -430,12 +443,69 @@ public static class RelBuild
 			return;
 		}
 		if (newBase) throw new InvalidDataException("Base已经构建并冻结，请提升客户端构建号");
-		byte[] raw = read(path, UpdLim.StateMax);
-		RelBase value = JsonUtility.FromJson<RelBase>(UpdFmt.text(raw));
+		RelBase value = readBase(path);
 		if (value == null || value.schema != UpdLim.Schema || value.env != cfg.env ||
 			value.platform != cfg.platform || value.baseId != cfg.baseId ||
-			value.baseUrl != cfg.baseUrl || value.pubKey != cfg.pubKey || !same(raw, json(value)))
+			value.baseUrl != cfg.baseUrl || value.pubKey != cfg.pubKey ||
+			value.resList != cfg.resList)
 			throw new InvalidDataException("Base信任身份已冻结且与当前配置不一致");
+	}
+
+	// 发布层只信任Release输出目录内冻结的Base记录，不依赖当前Unity项目的AOT缓存。
+	internal static UpdCfg loadBase(string pubRoot, string env, string platform,
+		string baseId)
+	{
+		if ((env != "test" && env != "prod") || !UpdFmt.isId(platform) ||
+			!UpdFmt.isId(baseId))
+		{
+			throw new InvalidDataException("Base信任范围错误");
+		}
+		string root = checkRoot(pubRoot);
+		string path = Path.Combine(root, env, "base", platform, baseId + ".json");
+		RelBase value = readBase(path);
+		if (value.schema != UpdLim.Schema || value.env != env ||
+			value.platform != platform || value.baseId != baseId)
+		{
+			throw new InvalidDataException("Base信任记录身份错误");
+		}
+		UpdCfg cfg = new()
+		{
+			baseUrl = value.baseUrl,
+			env = value.env,
+			platform = value.platform,
+			baseId = value.baseId,
+			pubKey = value.pubKey,
+			resList = value.resList,
+		};
+		UpdRule.cfg(cfg);
+		return cfg;
+	}
+
+	static RelBase readBase(string path)
+	{
+		byte[] raw = read(path, UpdLim.StateMax);
+		string text = UpdFmt.text(raw);
+		RelBase value = JsonUtility.FromJson<RelBase>(text);
+		if (value != null && !string.IsNullOrEmpty(value.resList) &&
+			same(raw, json(value)))
+		{
+			return value;
+		}
+		RelBaseLegacy legacy = JsonUtility.FromJson<RelBaseLegacy>(text);
+		if (legacy == null || !same(raw, json(legacy)))
+		{
+			throw new InvalidDataException("Base信任记录格式错误");
+		}
+		return new RelBase
+		{
+			schema = legacy.schema,
+			env = legacy.env,
+			platform = legacy.platform,
+			baseId = legacy.baseId,
+			baseUrl = legacy.baseUrl,
+			pubKey = legacy.pubKey,
+			resList = FrameBaseDefine.AB_INDEX_FILE,
+		};
 	}
 
 	static void writeBase(string root, UpdCfg cfg)
@@ -450,6 +520,7 @@ public static class RelBuild
 			baseId = cfg.baseId,
 			baseUrl = cfg.baseUrl,
 			pubKey = cfg.pubKey,
+			resList = cfg.resList,
 		};
 		writeNew(path, json(value));
 		checkBase(root, cfg, false);

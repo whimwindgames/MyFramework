@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Added
+
+- 新增 `HotUpd/Pub` 发布层：`PubFlow` 实现 hot-store 协议 v2 的完整发布状态机（发布锁、Release 文件→Manifest→回读→Latest 最后曝光、中断幂等续传、未知对象拒绝、远端 `Previous` 完整回读后回退），`SshStore`/`SshCfg` 提供 SSH 传输、协议版本握手、主机密钥指纹信任和管道空闲超时，`PubCli` 支持 `-batchmode` 无头发布并输出含文件数、Manifest 哈希与耗时的 JSON 回执，`PubWin` 提供"资源发布"窗口。默认信任源是 Release 输出自身冻结的 Base 记录，旧记录继续兼容 Schema 11 默认资源索引。
+- 新增仓库级 `Deploy/HotUpdate` 服务端资产：`hot_store.py`、HTTP/HTTPS Nginx 模板、Certbot 重载钩子、隔离配置示例、部署文档及协议单元测试；真实服务器 smoke 被限制为 batchmode/CI，避免阻塞交互式 Unity Editor。
+
 ## [1.1.0-preview.21] - 2026-08-10
 
 ### Fixed

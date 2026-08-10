@@ -1,0 +1,5 @@
+{
+  "root": "/srv/arcade-hub/hot",
+  "state": "/var/lib/arcade-hub/hot-store",
+  "leaseSeconds": 21600
+}
