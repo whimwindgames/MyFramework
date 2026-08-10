@@ -102,10 +102,13 @@ internal sealed class UpdDisk
             using (UnityEngine.AndroidJavaObject statFs =
                 new UnityEngine.AndroidJavaObject("android.os.StatFs", mRoot))
             {
-                long bytes = statFs.Call<long>("getAvailableBytes");
-                long blocks = statFs.Call<long>("getAvailableBlocksLong");
-                long blockSize = statFs.Call<long>("getBlockSizeLong");
-                bytes = Math.Max(bytes, spaceBytes(blocks, blockSize));
+                long bytes = androidLong(statFs, "getAvailableBytes");
+                bytes = Math.Max(bytes, spaceBytes(
+                    androidLong(statFs, "getAvailableBlocksLong"),
+                    androidLong(statFs, "getBlockSizeLong")));
+                bytes = Math.Max(bytes, spaceBytes(
+                    androidInt(statFs, "getAvailableBlocks"),
+                    androidInt(statFs, "getBlockSize")));
                 if (bytes <= 0)
                 {
                     throw new IOException("drive_empty");
@@ -139,6 +142,32 @@ internal sealed class UpdDisk
         }
         return blocks * blockSize;
     }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    private static long androidLong(UnityEngine.AndroidJavaObject value, string method)
+    {
+        try
+        {
+            return Math.Max(0, value.Call<long>(method));
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    private static long androidInt(UnityEngine.AndroidJavaObject value, string method)
+    {
+        try
+        {
+            return Math.Max(0, value.Call<int>(method));
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+#endif
 
     public void write(string path, byte[] data)
     {

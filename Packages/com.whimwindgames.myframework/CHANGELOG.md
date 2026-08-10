@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.27] - 2026-08-10
+
+### Fixed
+
+- Android 空间探测把各个 `StatFs` JNI 调用隔离为独立容错源，并增加旧版 `getAvailableBlocks()/getBlockSize()` 回退；单个厂商 ROM 缺失或拒绝 Long API 时不再把整个热更新误报为 `drive_space`。
+
 ## [1.1.0-preview.26] - 2026-08-10
 
 ### Fixed

@@ -102,6 +102,8 @@ public sealed class UpdStoreTests
     public void DiskSpaceBytes_SaturatesInsteadOfOverflowing()
     {
         Assert.That(UpdDisk.spaceBytes(long.MaxValue, 4096), Is.EqualTo(long.MaxValue));
+        Assert.That(UpdDisk.spaceBytes(0, 4096), Is.Zero);
+        Assert.That(UpdDisk.spaceBytes(1024, 0), Is.Zero);
     }
 
     [Test]
