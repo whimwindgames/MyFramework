@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.30] - 2026-08-13
+
+### Fixed
+
+- macOS HotFix 文件工具补齐原生文件系统分支，修复本地更新 Blob 已存在却被误判为不存在、导致 AssetBundle 索引初始化失败的问题。
+
 ## [1.1.0-preview.29] - 2026-08-13
 
 ### Fixed

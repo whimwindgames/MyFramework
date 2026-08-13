@@ -16,6 +16,14 @@ public class FileUtility
 	private static List<string> mTempFileList = new();      // 用于避免GC
 	private static List<string> mTempFileList1 = new();     // 用于避免GC
 	private static byte[] BOM = new byte[] { 0xEF, 0xBB, 0xBF };    // UTF8的BOM头
+	internal static bool usesSystemFileIO(bool editor, bool ios, bool windows, bool macOS)
+	{
+		return editor || ios || windows || macOS;
+	}
+	private static bool usesSystemFileIO()
+	{
+		return usesSystemFileIO(isEditor(), isIOS(), isWindows(), isMacOS());
+	}
 	public static void validPath(ref string path)
 	{
 		// 不以/结尾,则加上/
@@ -115,7 +123,7 @@ public class FileUtility
 		byte[] fileBuffer = null;
 		try
 		{
-			if (isEditor() || isIOS() || isWindows() ||
+			if (usesSystemFileIO() ||
 				(isAndroid() && fileName.startWith(F_PERSISTENT_DATA_PATH)))
 			{
 				using FileStream fs = new(fileName, FileMode.Open, FileAccess.Read);
@@ -231,7 +239,7 @@ public class FileUtility
 		}
 		// 检测路径是否存在,如果不存在就创建一个
 		createDir(getFilePath(fileName));
-		if (isEditor() || isIOS() || isWindows())
+		if (usesSystemFileIO())
 		{
 			using FileStream file = new(fileName, FileMode.Create, FileAccess.Write);
 			if (!buffer.isEmpty() && size > 0)
@@ -274,7 +282,7 @@ public class FileUtility
 	// 写一个文本文件,fileName为绝对路径,content是写入的字符串
 	public static void writeTxtFile(string fileName, string content, bool addBOM = false)
 	{
-		if (isEditor() || isIOS() || isWindows())
+		if (usesSystemFileIO())
 		{
 			byte[] bytes = content.toBytes();
 			if (bytes != null)
@@ -334,7 +342,7 @@ public class FileUtility
 		{
 			return;
 		}
-		if (isEditor() || isIOS() || isWindows())
+		if (usesSystemFileIO())
 		{
 			// 先删除所有文件夹
 			foreach (string dir in Directory.GetDirectories(path))
@@ -448,7 +456,7 @@ public class FileUtility
 		}
 		try
 		{
-			if (isEditor() || isIOS() || isWindows() ||
+			if (usesSystemFileIO() ||
 				(isAndroid() && path.startWith(F_PERSISTENT_DATA_PATH)))
 			{
 				File.Delete(path);
@@ -486,7 +494,7 @@ public class FileUtility
 		file = file.rightToLeft();
 		try
 		{
-			if (isEditor() || isIOS() || isWindows() ||
+			if (usesSystemFileIO() ||
 				(isAndroid() && file.startWith(F_PERSISTENT_DATA_PATH)))
 			{
 				return (int)new FileInfo(file).Length;
@@ -515,7 +523,7 @@ public class FileUtility
 			return true;
 		}
 		validPath(ref dir);
-		if (isEditor() || isIOS() || isWindows())
+		if (usesSystemFileIO())
 		{
 			return Directory.Exists(dir);
 		}
@@ -564,7 +572,7 @@ public class FileUtility
 		{
 			return false;
 		}
-		if (isEditor() || isIOS() || isWindows())
+		if (usesSystemFileIO())
 		{
 			return File.Exists(fileName);
 		}
@@ -619,7 +627,7 @@ public class FileUtility
 		{
 			createDir(parentDir);
 		}
-		if (isEditor() || isIOS() || isWindows())
+		if (usesSystemFileIO())
 		{
 			Directory.CreateDirectory(dir);
 		}
@@ -717,7 +725,7 @@ public class FileUtility
 	// 查找指定目录下的所有文件,path为StreamingAssets下的相对路径,返回的路径列表为绝对路径
 	public static void findStreamingAssetsFiles(string path, List<string> fileList, List<string> patterns = null, bool recursive = true, bool keepAbsolutePath = false)
 	{
-		if (isEditor() || isIOS() || isWindows())
+		if (usesSystemFileIO())
 		{
 			path = path.ensurePrefix(F_STREAMING_ASSETS_PATH);
 			findFilesInternal(path, fileList, patterns, null, recursive);
@@ -752,7 +760,7 @@ public class FileUtility
 	// 查找指定目录下的所有目录,path为StreamingAssets下的相对路径,返回的路径列表为绝对路径
 	public static void findStreamingAssetsFolders(string path, List<string> folderList, bool recursive = true, bool keepAbsolutePath = false)
 	{
-		if (isEditor() || isIOS() || isWindows())
+		if (usesSystemFileIO())
 		{
 			// 非安卓平台则查找普通的文件夹
 			path = path.ensurePrefix(F_STREAMING_ASSETS_PATH);
@@ -833,7 +841,7 @@ public class FileUtility
 	{
 		try
 		{
-			if (isEditor() || isIOS() || isWindows())
+			if (usesSystemFileIO())
 			{
 				validPath(ref path);
 				if (!isDirExist(path))
@@ -906,7 +914,7 @@ public class FileUtility
 			{
 				return false;
 			}
-			if (isEditor() || isIOS() || isWindows())
+			if (usesSystemFileIO())
 			{
 				foreach (string dir in Directory.GetDirectories(path))
 				{
@@ -947,7 +955,7 @@ public class FileUtility
 		{
 			return;
 		}
-		if (isEditor() || isIOS() || isWindows() || isWebGL())
+		if (usesSystemFileIO() || isWebGL())
 		{
 			openFileAsync(fileName, true, (byte[] fileContent) =>
 			{
@@ -971,7 +979,7 @@ public class FileUtility
 		{
 			return;
 		}
-		if (isEditor() || isWindows() || isWebGL())
+		if (usesSystemFileIO() || isWebGL())
 		{
 			GameEntryBase.startCoroutine(generateMD5ListAsyncInternal(fileNameList, callback));
 		}
