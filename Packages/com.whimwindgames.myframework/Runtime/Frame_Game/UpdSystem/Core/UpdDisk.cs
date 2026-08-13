@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using Newtonsoft.Json;
 
@@ -98,7 +99,9 @@ internal sealed class UpdDisk
     {
         try
         {
-#if UNITY_ANDROID && !UNITY_EDITOR
+#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+            return macAvailable();
+#elif UNITY_ANDROID && !UNITY_EDITOR
             return androidAvailable();
 #else
             string root = Path.GetPathRoot(mRoot);
@@ -127,6 +130,61 @@ internal sealed class UpdDisk
         }
         return blocks * blockSize;
     }
+
+#if UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MacStatVfs
+    {
+        public ulong blockSize;
+        public ulong fragmentSize;
+        public uint blocks;
+        public uint blocksFree;
+        public uint blocksAvailable;
+        public uint files;
+        public uint filesFree;
+        public uint filesAvailable;
+        public ulong fileSystemId;
+        public ulong flags;
+        public ulong nameMax;
+    }
+
+    [DllImport("libSystem.B.dylib", EntryPoint = "statvfs", SetLastError = true)]
+    private static extern int macStatVfs(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        out MacStatVfs value);
+
+    private long macAvailable()
+    {
+        if (macStatVfs(mRoot, out MacStatVfs value) != 0)
+        {
+            throw new IOException("macos_statvfs:" + Marshal.GetLastWin32Error());
+        }
+
+        ulong blockSize = value.fragmentSize > 0 ? value.fragmentSize : value.blockSize;
+        long bytes = unsignedSpaceBytes(value.blocksAvailable, blockSize);
+        UnityEngine.Debug.Log("[MyFramework] macOS disk probe root=" + mRoot +
+            ", available=" + bytes + ", blocks=" + value.blocksAvailable +
+            ", blockSize=" + blockSize);
+        if (bytes <= 0)
+        {
+            throw new IOException("macos_space");
+        }
+        return bytes;
+    }
+
+    internal static long unsignedSpaceBytes(ulong blocks, ulong blockSize)
+    {
+        if (blocks == 0 || blockSize == 0)
+        {
+            return 0;
+        }
+        if (blocks > (ulong)long.MaxValue / blockSize)
+        {
+            return long.MaxValue;
+        }
+        return (long)(blocks * blockSize);
+    }
+#endif
 
 #if UNITY_ANDROID && !UNITY_EDITOR
     private long androidAvailable()

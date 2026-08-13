@@ -91,6 +91,30 @@ public sealed class UpdStoreTests
         Assert.That(disk.available(), Is.GreaterThan(0));
     }
 
+#if UNITY_EDITOR_OSX
+    [Test]
+    public void DiskAvailable_OnMacOSMatchesManagedProbe()
+    {
+        UpdDisk disk = new UpdDisk(mRoot);
+        long nativeAvailable = disk.available();
+        string root = Path.GetPathRoot(mRoot);
+        long managedAvailable = new DriveInfo(root).AvailableFreeSpace;
+
+        Assert.That(Math.Abs(nativeAvailable - managedAvailable),
+            Is.LessThan(2L * 1024 * 1024 * 1024));
+    }
+
+    [Test]
+    public void DiskUnsignedSpaceBytes_SaturatesInsteadOfOverflowing()
+    {
+        Assert.That(UpdDisk.unsignedSpaceBytes(71794683, 4096),
+            Is.EqualTo(294071021568L));
+        Assert.That(UpdDisk.unsignedSpaceBytes(ulong.MaxValue, 4096),
+            Is.EqualTo(long.MaxValue));
+        Assert.That(UpdDisk.unsignedSpaceBytes(0, 4096), Is.Zero);
+    }
+#endif
+
     [Test]
     public void DiskSpaceBytes_MultipliesAvailableBlocksByBlockSize()
     {

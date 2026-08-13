@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.29] - 2026-08-13
+
+### Fixed
+
+- macOS 更新磁盘空间探测改用原生 `statvfs`，绕过 IL2CPP 下 `DriveInfo.AvailableFreeSpace` 抛出异常导致客户端启动停在蓝屏的问题。
+
 ## [1.1.0-preview.28] - 2026-08-10
 
 ### Fixed
