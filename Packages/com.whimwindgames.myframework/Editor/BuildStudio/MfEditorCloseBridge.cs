@@ -56,10 +56,11 @@ namespace MyFramework.BuildStudio.Editor
 					if (scene.isDirty && string.IsNullOrWhiteSpace(scene.path))
 						throw new OperationCanceledException(
 							"An untitled scene has unsaved changes. Save or discard it before building.");
+					if (scene.isDirty && !EditorSceneManager.SaveScene(scene))
+						throw new OperationCanceledException("Scene saving was canceled: " +
+							scene.path);
 				}
 				AssetDatabase.SaveAssets();
-				if (!EditorSceneManager.SaveOpenScenes())
-					throw new OperationCanceledException("Scene saving was canceled.");
 				writeAck(token, "ok", string.Empty);
 				File.Delete(requestPath);
 				sExiting = true;
