@@ -1,0 +1,21 @@
+{
+    "name": "MyFramework.BuildStudio.Editor",
+    "rootNamespace": "MyFramework.BuildStudio.Editor",
+    "references": [
+        "MyFramework.BuildStudio.Contracts",
+        "Frame_Base",
+        "HotUpd_Editor",
+        "HybridCLR.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

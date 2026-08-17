@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>MyFramework.BuildStudio.Core</AssemblyName>
+    <RootNamespace>MyFramework.BuildStudio.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../MyFramework.BuildStudio.Contracts/MyFramework.BuildStudio.Contracts.csproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.20" />
+  </ItemGroup>
+</Project>

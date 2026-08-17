@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://whimwindgames.com/schemas/myframework-project-v1.schema.json",
+  "title": "MyFramework Project Structure",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "structureHash",
+    "project",
+    "unity",
+    "framework",
+    "packages",
+    "scenes",
+    "managedCode",
+    "content",
+    "profiles",
+    "modules",
+    "contributors",
+    "properties"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "structureHash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName", "kind"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "kind": { "type": "string", "minLength": 1, "maxLength": 32 }
+      }
+    },
+    "unity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "colorSpace", "defaultRenderPipeline"],
+      "properties": {
+        "version": { "type": "string", "minLength": 1 },
+        "colorSpace": { "type": "string" },
+        "defaultRenderPipeline": { "type": ["string", "null"] }
+      }
+    },
+    "framework": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package", "version", "assetBundleSchema", "releaseSchema"],
+      "properties": {
+        "package": { "type": "string" },
+        "version": { "type": "string", "minLength": 1 },
+        "assetBundleSchema": { "type": "integer", "minimum": 1 },
+        "releaseSchema": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "packages": { "type": "array", "items": { "$ref": "#/$defs/package" } },
+    "scenes": { "type": "array", "items": { "$ref": "#/$defs/scene" } },
+    "managedCode": { "$ref": "#/$defs/managedCode" },
+    "content": { "$ref": "#/$defs/content" },
+    "profiles": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/profile" } },
+    "modules": { "type": "array", "items": { "$ref": "#/$defs/module" } },
+    "contributors": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+    "properties": { "$ref": "#/$defs/stringMap" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": { "pattern": "(^/|^[A-Za-z]:|(^|/)\\.\\.?(/|$))" }
+    },
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "null"] },
+      "propertyNames": {
+        "not": { "pattern": "([Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]|[Ss][Ee][Cc][Rr][Ee][Tt]|[Tt][Oo][Kk][Ee][Nn]|[Pp][Rr][Ii][Vv][Aa][Tt][Ee][Kk][Ee][Yy])" }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "source", "direct"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z0-9.-]+$" },
+        "version": { "type": "string", "minLength": 1 },
+        "source": { "type": "string" },
+        "direct": { "type": "boolean" }
+      }
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "guid", "enabled", "role"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "guid": { "type": "string" },
+        "enabled": { "type": "boolean" },
+        "role": { "type": "string" }
+      }
+    },
+    "managedCode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hybridClrEnabled", "obfuzEnabled", "entryAssembly", "hotAssemblies", "preservedHotAssemblies", "aotAssemblies"],
+      "properties": {
+        "hybridClrEnabled": { "type": "boolean" },
+        "obfuzEnabled": { "type": "boolean" },
+        "entryAssembly": { "type": ["string", "null"] },
+        "hotAssemblies": { "type": "array", "items": { "type": "string" } },
+        "preservedHotAssemblies": { "type": "array", "items": { "type": "string" } },
+        "aotAssemblies": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["assetBundleConfig", "compression", "renderPipelineAddress", "bundleRoots", "requiredAddresses"],
+      "properties": {
+        "assetBundleConfig": { "type": ["string", "null"] },
+        "compression": { "type": ["string", "null"] },
+        "renderPipelineAddress": { "type": ["string", "null"] },
+        "bundleRoots": { "type": "array", "items": { "type": "string" } },
+        "requiredAddresses": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName", "action", "target", "description", "environmentPolicy", "allowedEnvironments", "outputKinds", "requiresCleanGit", "requiresSigning", "supportsDevelopment", "supportsCleanBuild", "properties"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "displayName": { "type": "string" },
+        "action": { "enum": ["validate", "assets", "base", "release", "code", "integrated", "hosted-runtime"] },
+        "target": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "environmentPolicy": { "enum": ["select", "fixed"] },
+        "allowedEnvironments": { "type": "array", "items": { "enum": ["test", "prod"] } },
+        "outputKinds": { "type": "array", "items": { "type": "string" } },
+        "requiresCleanGit": { "type": "boolean" },
+        "requiresSigning": { "type": "boolean" },
+        "supportsDevelopment": { "type": "boolean" },
+        "supportsCleanBuild": { "type": "boolean" },
+        "properties": { "$ref": "#/$defs/stringMap" }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "displayName", "kind", "manifest", "optional", "properties"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "displayName": { "type": "string" },
+        "kind": { "type": "string" },
+        "manifest": { "$ref": "#/$defs/relativePath" },
+        "optional": { "type": "boolean" },
+        "properties": { "$ref": "#/$defs/stringMap" }
+      }
+    }
+  }
+}

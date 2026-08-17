@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>mf-build</AssemblyName>
+    <RootNamespace>MyFramework.BuildStudio.Cli</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../MyFramework.BuildStudio.Core/MyFramework.BuildStudio.Core.csproj" />
+  </ItemGroup>
+</Project>

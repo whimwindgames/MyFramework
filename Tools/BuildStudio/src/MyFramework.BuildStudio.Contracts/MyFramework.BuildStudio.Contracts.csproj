@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>MyFramework.BuildStudio.Contracts</AssemblyName>
+    <RootNamespace>MyFramework.BuildStudio</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../../Packages/com.whimwindgames.myframework/Runtime/BuildStudio/MfBuildContracts.cs" Link="MfBuildContracts.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,25 @@
+{
+    "name": "MyFramework.BuildStudio.Tests",
+    "rootNamespace": "MyFramework.BuildStudio.Tests",
+    "references": [
+        "MyFramework.BuildStudio.Contracts",
+        "MyFramework.BuildStudio.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

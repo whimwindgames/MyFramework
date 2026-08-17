@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.32] - 2026-08-17
+
+### Added
+
+- 新增 Build Studio Schema 1 项目结构契约、严格生成/读取/哈希校验、项目贡献器与构建 Provider 注册协议。
+- 新增 Unity MenuItem 与 BatchMode 结构生成入口，以及统一 `BuildJob`、事件流和 `BuildReceipt` Worker；支持项目适配器复用现有 `AbBuild`、`ProdFlow` 与 `PackFlow`。
+- 新增跨平台 Build Studio Core/CLI/Avalonia 桌面工具，提供 Unity 精确版本发现、预检、任务执行、安全取消、日志和本地构建历史。
+
 ## [1.1.0-preview.31] - 2026-08-17
 
 ### Fixed

@@ -1,0 +1,148 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="MyFramework.BuildStudio.App.MainWindow"
+        Title="MyFramework Build Studio"
+        Width="1180" Height="800" MinWidth="900" MinHeight="640">
+  <Grid ColumnDefinitions="210,*" RowDefinitions="*">
+    <Border Grid.Column="0" Background="#111824" BorderBrush="#273143" BorderThickness="0,0,1,0" Padding="14">
+      <Grid RowDefinitions="Auto,Auto,*,Auto">
+        <StackPanel Margin="6,5,6,22">
+          <TextBlock Text="Build Studio" FontSize="17" FontWeight="SemiBold" />
+          <TextBlock Text="MyFramework production" Classes="muted" />
+        </StackPanel>
+        <StackPanel Grid.Row="1" Spacing="4">
+          <Button x:Name="BuildNavButton" Content="构建" Classes="nav" Click="ShowBuild" />
+          <Button x:Name="HistoryNavButton" Content="历史" Classes="nav" Click="ShowHistory" />
+          <Button x:Name="SettingsNavButton" Content="设置" Classes="nav" Click="ShowSettings" />
+        </StackPanel>
+        <StackPanel Grid.Row="2" Margin="6,28,6,0">
+          <TextBlock Text="当前项目" Classes="muted" Margin="0,0,0,8" />
+          <TextBlock x:Name="SideProjectName" Text="未选择" FontWeight="SemiBold" />
+          <TextBlock x:Name="SideProjectMeta" Text="请选择 Unity 项目" Classes="muted" TextWrapping="Wrap" />
+        </StackPanel>
+        <TextBlock Grid.Row="3" Text="Schema 1 · Local only" Classes="muted" Margin="6" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Column="1" RowDefinitions="72,*">
+      <Border Grid.Row="0" Background="#141B28" BorderBrush="#2B3445" BorderThickness="0,0,0,1" Padding="20,12">
+        <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+          <StackPanel>
+            <TextBlock x:Name="HeaderProjectName" Text="选择项目开始" FontSize="17" FontWeight="SemiBold" />
+            <TextBlock x:Name="HeaderProjectMeta" Text="读取 MyFrameworkProject.json" Classes="muted" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="GenerateStructureButton" Content="生成结构" Click="GenerateStructure" IsEnabled="False" />
+            <Button Content="选择项目" Click="OpenProject" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <ScrollViewer Grid.Row="1">
+        <Grid Margin="20">
+          <Grid x:Name="BuildPage" ColumnDefinitions="*,340" ColumnSpacing="16">
+            <StackPanel Grid.Column="0" Spacing="14">
+              <Border Classes="panel">
+                <StackPanel Spacing="12">
+                  <TextBlock Text="构建配置" Classes="section" />
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel>
+                      <TextBlock Text="Profile" Classes="muted" />
+                      <ComboBox x:Name="ProfileCombo" SelectionChanged="ProfileChanged" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="环境" Classes="muted" />
+                      <ComboBox x:Name="EnvironmentCombo" SelectedIndex="0">
+                        <ComboBoxItem Content="test" />
+                        <ComboBoxItem Content="prod" />
+                      </ComboBox>
+                    </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel>
+                      <TextBlock Text="版本" Classes="muted" />
+                      <TextBox x:Name="VersionBox" Watermark="1.0.0" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="构建号" Classes="muted" />
+                      <NumericUpDown x:Name="BuildNumberBox" Minimum="0" Maximum="999999999" Value="0" />
+                    </StackPanel>
+                  </Grid>
+                  <StackPanel>
+                    <TextBlock Text="输出目录（可留空使用项目默认）" Classes="muted" />
+                    <TextBox x:Name="OutputBox" Watermark="/absolute/output/path" />
+                  </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="18">
+                    <CheckBox x:Name="CleanCheck" Content="Clean Build" />
+                    <CheckBox x:Name="DevelopmentCheck" Content="Development" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+
+              <Border Classes="panel">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="执行进度" Classes="section" />
+                    <TextBlock x:Name="StageText" Grid.Column="1" Text="尚未开始" Classes="muted" />
+                  </Grid>
+                  <ProgressBar x:Name="BuildProgressBar" Minimum="0" Maximum="100" Value="0" />
+                  <TextBox x:Name="LogBox" Height="285" IsReadOnly="True" AcceptsReturn="True"
+                           TextWrapping="NoWrap" FontFamily="Cascadia Mono, Menlo, monospace"
+                           ScrollViewer.VerticalScrollBarVisibility="Auto"
+                           ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <Button x:Name="CancelButton" Content="取消" Click="CancelBuild" IsEnabled="False" />
+                    <Button x:Name="StartButton" Content="开始构建" Click="StartBuild" IsEnabled="False" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Spacing="14">
+              <Border Classes="panel">
+                <StackPanel Spacing="10">
+                  <TextBlock Text="项目摘要" Classes="section" />
+                  <TextBlock x:Name="SummaryText" Text="尚未加载项目" TextWrapping="Wrap" />
+                  <Button Content="重新预检" Click="RunPreflight" />
+                </StackPanel>
+              </Border>
+              <Border Classes="panel">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="预检" Classes="section" />
+                  <ListBox x:Name="PreflightList" MinHeight="230" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Grid>
+
+          <StackPanel x:Name="HistoryPage" IsVisible="False" Spacing="14">
+            <Border Classes="panel">
+              <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="构建历史" Classes="section" />
+                  <Button Grid.Column="1" Content="刷新" Click="RefreshHistory" />
+                </Grid>
+                <ListBox Grid.Row="1" x:Name="HistoryList" MinHeight="520" />
+              </Grid>
+            </Border>
+          </StackPanel>
+
+          <StackPanel x:Name="SettingsPage" IsVisible="False" Spacing="14">
+            <Border Classes="panel">
+              <StackPanel Spacing="12">
+                <TextBlock Text="本机设置" Classes="section" />
+                <TextBlock Text="Unity Hub Editor 根目录" Classes="muted" />
+                <TextBox x:Name="UnityRootBox" Watermark="自动发现" />
+                <TextBlock Text="默认输出目录" Classes="muted" />
+                <TextBox x:Name="DefaultOutputBox" Watermark="项目默认" />
+                <TextBlock Text="历史记录保留数量" Classes="muted" />
+                <NumericUpDown x:Name="RetainBuildsBox" Minimum="10" Maximum="1000" Value="100" />
+                <Button Content="保存设置" HorizontalAlignment="Left" Click="SaveSettings" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+</Window>

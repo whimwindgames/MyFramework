@@ -1,0 +1,14 @@
+{
+    "name": "MyFramework.BuildStudio.Contracts",
+    "rootNamespace": "MyFramework.BuildStudio",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

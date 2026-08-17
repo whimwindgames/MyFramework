@@ -2,6 +2,7 @@
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
+[Bb]in/
 [Bb]uild/
 [Bb]uilds/
 [Ll]ogs/
@@ -25,6 +26,10 @@
 .idea/
 .vscode/
 
+# Build Studio is a maintained standalone .NET solution.
+!Tools/BuildStudio/**/*.csproj
+!Tools/BuildStudio/*.sln
+
 # OS generated files
 .DS_Store
 Thumbs.db
@@ -41,5 +46,6 @@ Assets/3rdParty/codeandweb.com/Editor/SettingsTexturePackerImporter.txt.meta
 # Local production outputs
 HybridCLRData/
 tmp/
+.tools/
 Releases/
 BuildOutput/

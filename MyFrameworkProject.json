@@ -1,0 +1,395 @@
+{
+  "schema": 1,
+  "structureHash": "a0d72b5b9d6c1f6b00fd5b0bbe94de7f31fb4daa4bdf5368a1021c27935e6ae4",
+  "project": {
+    "id": "myframework",
+    "displayName": "MyFramework",
+    "kind": "application"
+  },
+  "unity": {
+    "version": "6000.3.11f1",
+    "colorSpace": "Gamma",
+    "defaultRenderPipeline": "Assets/Settings/URP-HighFidelity.asset"
+  },
+  "framework": {
+    "package": "com.whimwindgames.myframework",
+    "version": "1.1.0-preview.32",
+    "assetBundleSchema": 3,
+    "releaseSchema": 11
+  },
+  "packages": [
+    {
+      "name": "com.code-philosophy.hybridclr",
+      "version": "8.11.0",
+      "source": "Git",
+      "direct": true
+    },
+    {
+      "name": "com.code-philosophy.obfuz",
+      "version": "3.1.0",
+      "source": "Git",
+      "direct": true
+    },
+    {
+      "name": "com.coplaydev.unity-mcp",
+      "version": "10.1.2",
+      "source": "Git",
+      "direct": true
+    },
+    {
+      "name": "com.cysharp.unitask",
+      "version": "2.5.10",
+      "source": "Git",
+      "direct": true
+    },
+    {
+      "name": "com.unity.2d.sprite",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.2d.tilemap",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.burst",
+      "version": "1.8.28",
+      "source": "Registry",
+      "direct": false
+    },
+    {
+      "name": "com.unity.collections",
+      "version": "2.6.2",
+      "source": "Registry",
+      "direct": false
+    },
+    {
+      "name": "com.unity.ext.nunit",
+      "version": "2.0.5",
+      "source": "BuiltIn",
+      "direct": false
+    },
+    {
+      "name": "com.unity.ide.visualstudio",
+      "version": "2.0.27",
+      "source": "Registry",
+      "direct": true
+    },
+    {
+      "name": "com.unity.mathematics",
+      "version": "1.3.3",
+      "source": "Registry",
+      "direct": false
+    },
+    {
+      "name": "com.unity.modules.ai",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.androidjni",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.animation",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.assetbundle",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.audio",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.cloth",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.director",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.hierarchycore",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": false
+    },
+    {
+      "name": "com.unity.modules.imageconversion",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.imgui",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.jsonserialize",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.particlesystem",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.physics",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.physics2d",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.screencapture",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.subsystems",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": false
+    },
+    {
+      "name": "com.unity.modules.terrain",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.terrainphysics",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.tilemap",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.ui",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.uielements",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.umbra",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.unityanalytics",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.unitywebrequest",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.unitywebrequestassetbundle",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.unitywebrequestaudio",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.unitywebrequesttexture",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.unitywebrequestwww",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.vehicles",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.video",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.wind",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.modules.xr",
+      "version": "1.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.nuget.mono-cecil",
+      "version": "1.11.6",
+      "source": "Registry",
+      "direct": false
+    },
+    {
+      "name": "com.unity.nuget.newtonsoft-json",
+      "version": "3.2.2",
+      "source": "Registry",
+      "direct": true
+    },
+    {
+      "name": "com.unity.render-pipelines.core",
+      "version": "17.3.0",
+      "source": "BuiltIn",
+      "direct": false
+    },
+    {
+      "name": "com.unity.render-pipelines.universal",
+      "version": "17.3.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.unity.render-pipelines.universal-config",
+      "version": "17.0.3",
+      "source": "BuiltIn",
+      "direct": false
+    },
+    {
+      "name": "com.unity.searcher",
+      "version": "4.9.4",
+      "source": "Registry",
+      "direct": false
+    },
+    {
+      "name": "com.unity.shadergraph",
+      "version": "17.3.0",
+      "source": "BuiltIn",
+      "direct": false
+    },
+    {
+      "name": "com.unity.test-framework",
+      "version": "1.6.0",
+      "source": "BuiltIn",
+      "direct": false
+    },
+    {
+      "name": "com.unity.test-framework.performance",
+      "version": "3.2.0",
+      "source": "Registry",
+      "direct": false
+    },
+    {
+      "name": "com.unity.textmeshpro",
+      "version": "5.0.0",
+      "source": "BuiltIn",
+      "direct": false
+    },
+    {
+      "name": "com.unity.ugui",
+      "version": "2.0.0",
+      "source": "BuiltIn",
+      "direct": true
+    },
+    {
+      "name": "com.whimwindgames.myframework",
+      "version": "1.1.0-preview.32",
+      "source": "Embedded",
+      "direct": false
+    }
+  ],
+  "scenes": [],
+  "managedCode": {
+    "hybridClrEnabled": true,
+    "obfuzEnabled": false,
+    "entryAssembly": "",
+    "hotAssemblies": [
+      "Frame_HotFix"
+    ],
+    "preservedHotAssemblies": [],
+    "aotAssemblies": []
+  },
+  "content": {
+    "assetBundleConfig": "",
+    "compression": "",
+    "renderPipelineAddress": "",
+    "bundleRoots": [],
+    "requiredAddresses": []
+  },
+  "profiles": [
+    {
+      "id": "validate",
+      "displayName": "Validate",
+      "action": "validate",
+      "target": "Current",
+      "description": "Validate the generated project structure and project adapter.",
+      "environmentPolicy": "select",
+      "allowedEnvironments": [
+        "prod",
+        "test"
+      ],
+      "outputKinds": [
+        "receipt"
+      ],
+      "requiresCleanGit": false,
+      "requiresSigning": false,
+      "supportsDevelopment": false,
+      "supportsCleanBuild": true,
+      "properties": {}
+    }
+  ],
+  "modules": [],
+  "contributors": [],
+  "properties": {}
+}
