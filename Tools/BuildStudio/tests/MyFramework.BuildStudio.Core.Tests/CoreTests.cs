@@ -44,6 +44,29 @@ public sealed class CoreTests
     }
 
     [Fact]
+    public void JobFactoryDefaultsAndEnforcesRequiredModules()
+    {
+        ProjectDocument source = ProjectStructureStore.LoadProject(repositoryRoot());
+        MfProjectStructure structure = source.Structure;
+        structure.modules =
+        [
+            new MfModuleInfo { id = "required-game", optional = false },
+            new MfModuleInfo { id = "optional-game", optional = true },
+        ];
+        ProjectDocument project = new(source.ProjectRoot, source.StructurePath, structure);
+        MfBuildProfile profile = Assert.Single(structure.profiles,
+            value => value.id == "validate");
+
+        MfBuildJob defaults = BuildJobFactory.Create(project, profile, "test");
+
+        Assert.Equal(["required-game"], defaults.modules);
+        Assert.Throws<InvalidDataException>(() => BuildJobFactory.Create(project, profile,
+            "test", modules: []));
+        Assert.Throws<InvalidDataException>(() => BuildJobFactory.Create(project, profile,
+            "test", modules: ["required-game", "unknown-game"]));
+    }
+
+    [Fact]
     public void UnityLocatorFindsExactFakeInstallationAndModules()
     {
         string root = temporary("unity-hub");

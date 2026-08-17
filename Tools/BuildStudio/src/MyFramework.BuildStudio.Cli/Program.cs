@@ -68,10 +68,11 @@ public static class Program
         if (!preflight.CanBuild) throw new InvalidOperationException(
             "Preflight failed: " + string.Join("; ", preflight.Items.Where(item =>
                 !item.Ok && item.Severity == PreflightSeverity.Error).Select(item => item.Detail)));
+        IReadOnlyList<string> selectedModules = args.Many("module");
         MfBuildJob job = BuildJobFactory.Create(project, profile,
             args.Optional("env") ?? "test", args.Optional("output"), args.Optional("version"),
             args.Long("build-number"), args.Flag("clean"), args.Flag("development"),
-            args.Many("module"));
+            selectedModules.Count == 0 ? null : selectedModules);
         Progress<BuildProgress> progress = new(value =>
             Console.WriteLine($"[{value.Stage}] {value.State}: {value.Message}"));
         MfBuildReceipt receipt = await new UnityBuildRunner().RunAsync(new BuildRunRequest

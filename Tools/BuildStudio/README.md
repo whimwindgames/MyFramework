@@ -32,6 +32,8 @@ mf-build build --project /absolute/unity/project --profile base-windows \
   --env test --version 1.0.0 --build-number 100
 ```
 
+Required project modules are selected automatically. Repeat `--module <id>` to opt into optional modules; an explicit selection cannot omit a required module or name an undeclared module.
+
 The worker starts the exact Unity version declared by the structure, passes arguments without a shell, writes all transient files under the user's application-data directory and stores final receipts in SQLite history. Full Unity output remains in each job's `UnityEditor.log`; the GUI displays stage events and diagnostic log lines only.
 
 ## Distributions

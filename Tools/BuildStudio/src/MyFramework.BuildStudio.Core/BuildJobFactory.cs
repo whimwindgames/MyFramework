@@ -14,6 +14,18 @@ public static class BuildJobFactory
         if (profile.allowedEnvironments.Count > 0 &&
             !profile.allowedEnvironments.Contains(environment, StringComparer.Ordinal))
             throw new InvalidDataException("Profile does not support environment: " + environment);
+        List<string> requiredModules = project.Structure.modules.Where(value => !value.optional)
+            .Select(value => value.id).ToList();
+        List<string> selectedModules = (modules ?? requiredModules).Distinct(
+            StringComparer.Ordinal).OrderBy(value => value, StringComparer.Ordinal).ToList();
+        HashSet<string> declaredModules = new(project.Structure.modules.Select(value => value.id),
+            StringComparer.Ordinal);
+        string? unknown = selectedModules.FirstOrDefault(value => !declaredModules.Contains(value));
+        if (unknown is not null) throw new InvalidDataException("Unknown module: " + unknown);
+        string? missing = requiredModules.FirstOrDefault(value => !selectedModules.Contains(value,
+            StringComparer.Ordinal));
+        if (missing is not null) throw new InvalidDataException(
+            "Required module was not selected: " + missing);
         return new MfBuildJob
         {
             jobId = "mf-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" +
@@ -32,8 +44,7 @@ public static class BuildJobFactory
             buildNumber = buildNumber,
             clean = clean,
             development = development,
-            modules = modules?.Distinct(StringComparer.Ordinal).OrderBy(value => value,
-                StringComparer.Ordinal).ToList() ?? [],
+            modules = selectedModules,
         };
     }
 }
