@@ -630,6 +630,7 @@ public sealed class PackFlow
 	sealed class HybridSettingsTx : IDisposable
 	{
 		readonly bool mHadFile;
+		readonly byte[] mFileBytes;
 		readonly AssemblyDefinitionAsset[] mDefs;
 		readonly string[] mHot;
 		readonly string[] mKeep;
@@ -638,6 +639,8 @@ public sealed class PackFlow
 		public HybridSettingsTx(HotCap cap)
 		{
 			mHadFile = File.Exists("ProjectSettings/HybridCLRSettings.asset");
+			mFileBytes = mHadFile ? File.ReadAllBytes(
+				"ProjectSettings/HybridCLRSettings.asset") : null;
 			HybridSettings cfg = HybridSettings.Instance;
 			mDefs = cfg.hotUpdateAssemblyDefinitions == null ? null :
 				(AssemblyDefinitionAsset[])cfg.hotUpdateAssemblyDefinitions.Clone();
@@ -668,7 +671,9 @@ public sealed class PackFlow
 			cfg.hotUpdateAssemblies = mHot;
 			cfg.preserveHotUpdateAssemblies = mKeep;
 			HybridSettings.Save();
-			if (!mHadFile && File.Exists("ProjectSettings/HybridCLRSettings.asset"))
+			if (mHadFile)
+				File.WriteAllBytes("ProjectSettings/HybridCLRSettings.asset", mFileBytes);
+			else if (File.Exists("ProjectSettings/HybridCLRSettings.asset"))
 				File.Delete("ProjectSettings/HybridCLRSettings.asset");
 			mDone = true;
 		}

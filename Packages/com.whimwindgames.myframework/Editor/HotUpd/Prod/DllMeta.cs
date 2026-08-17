@@ -328,6 +328,7 @@ public static class DllMeta
 	sealed class HotSettingsTx : IDisposable
 	{
 		readonly bool mHadFile;
+		readonly byte[] mFileBytes;
 		readonly AssemblyDefinitionAsset[] mDefs;
 		readonly string[] mHot;
 		readonly string[] mKeep;
@@ -337,6 +338,8 @@ public static class DllMeta
 		public HotSettingsTx(HotSet hot)
 		{
 			mHadFile = File.Exists("ProjectSettings/HybridCLRSettings.asset");
+			mFileBytes = mHadFile ? File.ReadAllBytes(
+				"ProjectSettings/HybridCLRSettings.asset") : null;
 			cfg = HybridSettings.Instance;
 			mDefs = cfg.hotUpdateAssemblyDefinitions == null ? null :
 				(AssemblyDefinitionAsset[])cfg.hotUpdateAssemblyDefinitions.Clone();
@@ -368,7 +371,9 @@ public static class DllMeta
 			cfg.hotUpdateAssemblies = mHot;
 			cfg.preserveHotUpdateAssemblies = mKeep;
 			HybridSettings.Save();
-			if (!mHadFile && File.Exists("ProjectSettings/HybridCLRSettings.asset"))
+			if (mHadFile)
+				File.WriteAllBytes("ProjectSettings/HybridCLRSettings.asset", mFileBytes);
+			else if (File.Exists("ProjectSettings/HybridCLRSettings.asset"))
 				File.Delete("ProjectSettings/HybridCLRSettings.asset");
 			mDone = true;
 		}

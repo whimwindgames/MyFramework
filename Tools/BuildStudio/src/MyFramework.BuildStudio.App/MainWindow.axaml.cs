@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -16,6 +17,7 @@ public sealed partial class MainWindow : Window
     PreflightReport? _preflight;
     CancellationTokenSource? _buildCancellation;
     string? _selectedProjectRoot;
+    IReadOnlyList<BuildHistoryItem> _historyItems = [];
 
     public MainWindow()
     {
@@ -98,7 +100,8 @@ public sealed partial class MainWindow : Window
             SummaryText.Text = $"类型：{_profile.displayName}\n动作：{_profile.action}\n" +
                                $"平台：{_profile.target}\nBundle：" +
                                $"{_project.Structure.content.bundleRoots.Count} 个根\n" +
-                               $"Hot：{_project.Structure.managedCode.hotAssemblies.Count} 个程序集";
+                               $"Hot：{_project.Structure.managedCode.hotAssemblies.Count} 个程序集\n" +
+                               $"模块：{_project.Structure.modules.Count} 个";
             DevelopmentCheck.IsEnabled = _profile.supportsDevelopment;
             CleanCheck.IsEnabled = _profile.supportsCleanBuild;
             await preflight();
@@ -144,7 +147,9 @@ public sealed partial class MainWindow : Window
             MfBuildJob job = BuildJobFactory.Create(_project, _profile,
                 (EnvironmentCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "test",
                 output, empty(VersionBox.Text), (long)(BuildNumberBox.Value ?? 0),
-                CleanCheck.IsChecked == true, DevelopmentCheck.IsChecked == true);
+                CleanCheck.IsChecked == true, DevelopmentCheck.IsChecked == true,
+                _project.Structure.modules.Where(value => !value.optional)
+                    .Select(value => value.id));
             Progress<BuildProgress> progress = new(value =>
             {
                 StageText.Text = value.Stage + " · " + value.State;
@@ -189,10 +194,53 @@ public sealed partial class MainWindow : Window
 
     void refreshHistory()
     {
-        HistoryList.ItemsSource = _history.List(_settings.retainBuilds).Select(item =>
+        _historyItems = _history.List(_settings.retainBuilds);
+        HistoryList.ItemsSource = _historyItems.Select(item =>
             $"{item.StartedAtUtc}   {item.Status.ToUpperInvariant(),-9}   " +
             $"{item.ProjectId} / {item.ProfileId} / {item.Target}   " +
             $"{TimeSpan.FromMilliseconds(item.DurationMs):g}\n{item.JobId}   {item.OutputRoot}").ToArray();
+    }
+
+    void OpenHistoryOutput(object? sender, RoutedEventArgs e)
+    {
+        BuildHistoryItem? item = selectedHistory();
+        if (item is null) return;
+        MfBuildReceipt receipt = BuildStudioJson.Deserialize<MfBuildReceipt>(item.ReceiptJson);
+        string? path = Directory.Exists(item.OutputRoot) ? item.OutputRoot :
+            receipt.values.GetValueOrDefault("jobDirectory");
+        openPath(path, "产物目录不存在");
+    }
+
+    void OpenHistoryLog(object? sender, RoutedEventArgs e)
+    {
+        BuildHistoryItem? item = selectedHistory();
+        if (item is null) return;
+        MfBuildReceipt receipt = BuildStudioJson.Deserialize<MfBuildReceipt>(item.ReceiptJson);
+        receipt.values.TryGetValue("unityLog", out string? path);
+        openPath(path, "Unity 日志不存在");
+    }
+
+    BuildHistoryItem? selectedHistory()
+    {
+        int index = HistoryList.SelectedIndex;
+        if (index >= 0 && index < _historyItems.Count) return _historyItems[index];
+        appendLog("[history] 请先选择一条构建记录");
+        return null;
+    }
+
+    void openPath(string? path, string missingMessage)
+    {
+        if (string.IsNullOrWhiteSpace(path) ||
+            !File.Exists(path) && !Directory.Exists(path))
+        {
+            appendLog("[history] " + missingMessage);
+            return;
+        }
+        try
+        {
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception exception) { appendLog("[history] " + exception.Message); }
     }
 
     void SaveSettings(object? sender, RoutedEventArgs e)

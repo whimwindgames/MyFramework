@@ -118,9 +118,11 @@
           <StackPanel x:Name="HistoryPage" IsVisible="False" Spacing="14">
             <Border Classes="panel">
               <Grid RowDefinitions="Auto,*" RowSpacing="12">
-                <Grid ColumnDefinitions="*,Auto">
+                <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
                   <TextBlock Text="构建历史" Classes="section" />
-                  <Button Grid.Column="1" Content="刷新" Click="RefreshHistory" />
+                  <Button Grid.Column="1" Content="打开产物" Click="OpenHistoryOutput" />
+                  <Button Grid.Column="2" Content="打开日志" Click="OpenHistoryLog" />
+                  <Button Grid.Column="3" Content="刷新" Click="RefreshHistory" />
                 </Grid>
                 <ListBox Grid.Row="1" x:Name="HistoryList" MinHeight="520" />
               </Grid>

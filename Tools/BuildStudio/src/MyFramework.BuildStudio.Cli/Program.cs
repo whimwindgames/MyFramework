@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using MyFramework.BuildStudio;
 using MyFramework.BuildStudio.Core;
 
@@ -43,25 +42,8 @@ public static class Program
     static async Task<int> generate(Arguments args)
     {
         string root = Path.GetFullPath(args.Required("project"));
-        string version = projectVersion(root);
-        UnityInstallation unity = UnityInstallationLocator.FindExact(version,
-            args.Optional("unity-root"));
-        string log = Path.Combine(root, "Temp", "BuildStudio", "structure.log");
-        Directory.CreateDirectory(Path.GetDirectoryName(log)!);
-        ProcessStartInfo start = new(unity.EditorPath) { UseShellExecute = false };
-        foreach (string value in new[]
-                 {
-                     "-batchmode", "-quit", "-accept-apiupdate", "-projectPath", root,
-                     "-executeMethod",
-                     "MyFramework.BuildStudio.Editor.MfProjectStructureCli.runCli",
-                     "-logFile", log,
-                 }) start.ArgumentList.Add(value);
-        using Process process = Process.Start(start) ?? throw new InvalidOperationException(
-            "Unable to start Unity.");
-        await process.WaitForExitAsync();
-        if (process.ExitCode != 0) throw new InvalidOperationException(
-            "Structure generation failed. Log: " + log);
-        Console.WriteLine(Path.Combine(root, MfBuildSchema.ProjectFileName));
+        Console.WriteLine(await StructureGeneratorRunner.GenerateAsync(root,
+            args.Optional("unity-root")));
         return 0;
     }
 
@@ -115,17 +97,6 @@ public static class Program
     static MfBuildProfile findProfile(ProjectDocument project, string id) =>
         project.Structure.profiles.SingleOrDefault(value => value.id == id) ??
         throw new InvalidDataException("Unknown profile: " + id);
-
-    static string projectVersion(string root)
-    {
-        string path = Path.Combine(root, "ProjectSettings", "ProjectVersion.txt");
-        if (!File.Exists(path)) throw new FileNotFoundException("ProjectVersion.txt is missing.", path);
-        const string prefix = "m_EditorVersion:";
-        string? line = File.ReadLines(path).FirstOrDefault(value =>
-            value.StartsWith(prefix, StringComparison.Ordinal));
-        return line?[prefix.Length..].Trim() ?? throw new InvalidDataException(
-            "Unity version is missing from ProjectVersion.txt.");
-    }
 
     static void usage()
     {

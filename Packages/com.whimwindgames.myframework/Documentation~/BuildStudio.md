@@ -35,6 +35,10 @@ Unity -batchmode -quit -projectPath /absolute/project \
 
 Events are JSON Lines. The final receipt records stage durations, result identity, artifacts, sizes and SHA-256 values. Candidate/transaction behavior continues to be owned by `AbBuild`, `ProdFlow`, `PackFlow` and the project production adapter.
 
+## Interactive Editor coordination
+
+The GUI and `mf-build` may be used while the project is already open. Before structure generation or a build, the tool writes a one-time close request under `Temp/MyFrameworkBuildStudio`. The package bridge stops Play Mode if necessary, waits for compilation/import to finish, saves assets and open scenes, acknowledges the same token, and exits the interactive Editor. The worker starts only after the Unity lock disappears. A canceled save, concurrent request or two-minute timeout fails safely without force-quitting the Editor.
+
 ## Security
 
 - Structure files and jobs reject unknown fields and secret-shaped property names.

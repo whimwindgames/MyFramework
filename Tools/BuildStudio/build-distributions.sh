@@ -61,6 +61,6 @@ publish_macos osx-arm64 macos-arm64
 publish_macos osx-x64 macos-x64
 publish_windows
 
-find "$output_root" -type f -maxdepth 3 -print0 | sort -z | xargs -0 shasum -a 256 \
-  > "$output_root/SHA256SUMS"
+find "$output_root" -maxdepth 1 -type f -name '*.zip' -print0 | sort -z | \
+  xargs -0 shasum -a 256 > "$output_root/SHA256SUMS"
 echo "$output_root"

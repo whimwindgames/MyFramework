@@ -48,8 +48,9 @@ public static class BuildPreflight
                 error("module", "平台模块", "Missing module for " + profile.target));
         }
         bool open = File.Exists(Path.Combine(project.ProjectRoot, "Temp", "UnityLockfile"));
-        report.Items.Add(open ? error("project-open", "Unity 项目占用",
-            "Project is currently open in Unity.") : ok("project-open", "Unity 项目占用", "未占用"));
+        report.Items.Add(open ? new PreflightItem("project-open", "Unity 项目占用", false,
+            PreflightSeverity.Warning, "构建时将请求保存并关闭当前 Unity Editor。") :
+            ok("project-open", "Unity 项目占用", "未占用"));
         string git = await gitStatus(project.ProjectRoot, cancellationToken);
         bool clean = string.IsNullOrWhiteSpace(git);
         report.Items.Add(clean ? ok("git", "Git 工作区", "干净") : new PreflightItem(

@@ -97,6 +97,38 @@ public sealed class CoreTests
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public async Task EditorCloseCoordinatorUsesTokenBoundHandshake()
+    {
+        string root = temporary("editor-close");
+        try
+        {
+            string temp = Path.Combine(root, "Temp");
+            string control = Path.Combine(temp, EditorCloseCoordinator.ControlDirectoryName);
+            string request = Path.Combine(control, EditorCloseCoordinator.RequestFileName);
+            string ack = Path.Combine(control, EditorCloseCoordinator.AckFileName);
+            string unityLock = Path.Combine(temp, "UnityLockfile");
+            Directory.CreateDirectory(temp);
+            File.WriteAllText(unityLock, string.Empty);
+            Task editor = Task.Run(async () =>
+            {
+                while (!File.Exists(request)) await Task.Delay(10);
+                string token = (await File.ReadAllTextAsync(request)).Trim();
+                Directory.CreateDirectory(control);
+                await File.WriteAllTextAsync(ack, token + "\nok\n");
+                File.Delete(unityLock);
+            });
+
+            await EditorCloseCoordinator.EnsureClosedAsync(root,
+                timeout: TimeSpan.FromSeconds(5));
+            await editor;
+
+            Assert.False(File.Exists(request));
+            Assert.False(File.Exists(ack));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
     static string repositoryRoot()
     {
         DirectoryInfo? directory = new(AppContext.BaseDirectory);

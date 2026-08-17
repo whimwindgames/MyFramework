@@ -21,6 +21,8 @@ public sealed class UnityBuildRunner
         IProgress<BuildProgress>? progress = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        await EditorCloseCoordinator.EnsureClosedAsync(request.Project.ProjectRoot, progress,
+            cancellationToken: cancellationToken);
         string workRoot = request.WorkingRoot ?? BuildStudioPaths.JobsRoot;
         string jobDirectory = Path.Combine(workRoot, request.Job.jobId);
         if (Directory.Exists(jobDirectory)) throw new IOException(

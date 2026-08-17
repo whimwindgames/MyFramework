@@ -10,6 +10,8 @@ public static class StructureGeneratorRunner
         string root = Path.GetFullPath(projectRoot);
         string version = ReadProjectVersion(root);
         UnityInstallation unity = UnityInstallationLocator.FindExact(version, customHubRoot);
+        await EditorCloseCoordinator.EnsureClosedAsync(root,
+            cancellationToken: cancellationToken);
         string work = Path.Combine(root, "Temp", "BuildStudio");
         Directory.CreateDirectory(work);
         string log = Path.Combine(work, "structure.log");
