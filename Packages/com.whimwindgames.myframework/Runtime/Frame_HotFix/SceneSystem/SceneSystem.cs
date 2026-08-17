@@ -93,8 +93,7 @@ public class SceneSystem : FrameSystem
 			return op;
 		}
 #endif
-		string bundle = generateFileAssetBundleName(key);
-		mResourceManager.preloadAssetBundleAsync(bundle, info =>
+		mResourceManager.preloadAssetBundleByKeyAsync(key, info =>
 		{
 			if (info == null)
 			{
@@ -248,20 +247,23 @@ public class SceneSystem : FrameSystem
 		CustomAsyncOperation op)
 	{
 		string sceneName = getFileNameNoSuffixNoDir(key);
+		string scenePath;
 		AsyncOperation request;
 		try
 		{
 #if UNITY_EDITOR
 			if (GameEntryBase.getInstance().mFrameworkParam.mLoadSource == LOAD_SOURCE.ASSET_DATABASE)
 			{
+				scenePath = P_GAME_RESOURCES_PATH + key;
 				request = EditorSceneManager.LoadSceneAsyncInPlayMode(
-					P_GAME_RESOURCES_PATH + key,
+					scenePath,
 					new LoadSceneParameters(LoadSceneMode.Additive));
 			}
 			else
 #endif
 			{
-				request = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
+				if (!AbIndex.tryRuntimeScene(key, out scenePath)) scenePath = sceneName;
+				request = SceneManager.LoadSceneAsync(scenePath, LoadSceneMode.Additive);
 			}
 			if (request == null) throw new InvalidOperationException("场景加载未启动:" + key);
 			request.allowSceneActivation = true;
@@ -276,7 +278,8 @@ public class SceneSystem : FrameSystem
 		while (!request.isDone) yield return null;
 		try
 		{
-			Scene scene = SceneManager.GetSceneByName(sceneName);
+			Scene scene = scenePath.EndsWith(".unity", StringComparison.OrdinalIgnoreCase) ?
+				SceneManager.GetSceneByPath(scenePath) : SceneManager.GetSceneByName(sceneName);
 			if (!scene.IsValid() || !scene.isLoaded)
 			{
 				throw new InvalidOperationException("场景加载结果无效:" + key);

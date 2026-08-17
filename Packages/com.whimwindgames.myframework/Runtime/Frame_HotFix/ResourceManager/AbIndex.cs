@@ -27,6 +27,7 @@ public static class AbIndex
 	public static Func<string, string> keySrc;
 	public static Func<AbItem[]> atlasMap;
 	static AbItem[] sRuntimeAtlas;
+	static Dictionary<string, string> sRuntimeScenes;
 #if UNITY_EDITOR
 	public static Func<AbItem[]> itemMap;
 #endif
@@ -74,14 +75,18 @@ public static class AbIndex
 		if (items == null)
 		{
 			sRuntimeAtlas = null;
+			sRuntimeScenes = null;
 			return;
 		}
 		List<AbItem> atlases = new();
+		Dictionary<string, string> scenes = new(StringComparer.OrdinalIgnoreCase);
 		foreach (AbItem item in items)
 		{
 			if (!string.IsNullOrEmpty(item.atlas)) atlases.Add(item);
+			if (!string.IsNullOrEmpty(item.scene)) scenes.Add(item.key, item.scene);
 		}
 		sRuntimeAtlas = atlases.ToArray();
+		sRuntimeScenes = scenes;
 	}
 
 	public static bool tryRuntimeAtlas(out AbItem[] items)
@@ -93,6 +98,17 @@ public static class AbIndex
 		}
 		items = (AbItem[])sRuntimeAtlas.Clone();
 		return true;
+	}
+
+	public static bool tryRuntimeScene(string key, out string scene)
+	{
+		Dictionary<string, string> scenes = sRuntimeScenes;
+		if (scenes == null || string.IsNullOrEmpty(key))
+		{
+			scene = null;
+			return false;
+		}
+		return scenes.TryGetValue(key, out scene);
 	}
 
 #if UNITY_EDITOR

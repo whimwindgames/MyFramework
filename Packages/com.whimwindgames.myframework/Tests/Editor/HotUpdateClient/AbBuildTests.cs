@@ -179,6 +179,15 @@ public sealed class AbBuildTests
 			Is.False);
 	}
 
+	[TestCase("Packages/com.unity.render-pipelines.universal/Runtime/Data/PostProcessData.asset", true)]
+	[TestCase("Packages/com.whimwindgames.fishing.runtime/Runtime/GameManager.cs", false)]
+	[TestCase("Assets/GameResources/UI/Lobby.prefab", false)]
+	public void PlanOnlyTreatsUnityPackageAssetsAsImplicitDependencies(
+		string path, bool expected)
+	{
+		Assert.That(AbPlan.implicitDependency(path), Is.EqualTo(expected));
+	}
+
 	UpdCfg makeUpdCfg()
 	{
 		string[] hot =

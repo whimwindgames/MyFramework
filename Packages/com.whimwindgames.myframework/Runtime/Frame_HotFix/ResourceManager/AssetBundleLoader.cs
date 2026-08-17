@@ -113,6 +113,12 @@ public class AssetBundleLoader
 	public string getDownloadURL() { return mDownloadURL; }
 	// 因为在初始化过程中需要调用该函数,所以此处不检测是否初始化完成
 	public AssetBundleInfo getAssetBundleInfo(string name) { return mAssetBundleInfoList.get(name); }
+	// 根据逻辑资源地址查找所属AssetBundle,用于包布局与资源目录布局不一致的场景
+	public AssetBundleInfo getAssetBundleInfoByKey(string key)
+	{
+		if (!mInited || string.IsNullOrEmpty(key)) return null;
+		return mAssetToBundleInfo.get(key.ToLowerInvariant())?.getAssetBundle();
+	}
 	public void unloadAssetBundle(string bundleName)
 	{
         bundleName = bundleName.removeEnd(ASSET_BUNDLE_SUFFIX);
@@ -220,6 +226,24 @@ public class AssetBundleLoader
 		if (!mAssetBundleInfoList.TryGetValue(bundleName.ToLower(), out AssetBundleInfo info))
 		{
 			logError("can not find AssetBundle : " + bundleName);
+			return;
+		}
+		info.loadAssetBundleAsync(callback);
+	}
+	// 按逻辑资源地址异步加载其所属AssetBundle,避免从资源路径猜测包名
+	public void loadAssetBundleByKeyAsync(string key, AssetBundleCallback callback)
+	{
+		if (!mInited)
+		{
+			logError("AssetBundleLoader is not inited!");
+			callback?.Invoke(null);
+			return;
+		}
+		AssetBundleInfo info = getAssetBundleInfoByKey(key);
+		if (info == null)
+		{
+			logError("can not find AssetBundle for resource key : " + key);
+			callback?.Invoke(null);
 			return;
 		}
 		info.loadAssetBundleAsync(callback);

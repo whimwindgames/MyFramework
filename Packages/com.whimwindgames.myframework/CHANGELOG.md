@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.31] - 2026-08-17
+
+### Fixed
+
+- 场景加载按 Schema 11 逻辑地址查询实际 AssetBundle，并使用索引记录的真实场景路径，支持宿主合并外部游戏内容后正常进入场景。
+- AssetBundle 计划允许 Unity 官方包资源作为隐式依赖，避免 URP Renderer 与后处理配置被误判为未显式登记资源。
+
 ## [1.1.0-preview.30] - 2026-08-13
 
 ### Fixed

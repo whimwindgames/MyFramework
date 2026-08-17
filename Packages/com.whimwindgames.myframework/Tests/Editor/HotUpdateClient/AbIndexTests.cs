@@ -46,10 +46,12 @@ public sealed class AbIndexTests
 	[Test]
 	public void RuntimeLoaderReadsSchemaIndexAndNormalizesLogicalAddress()
 	{
+		AbItem scene = item("Games/Fishing/Scenes/Fishing.unity", "fishing/scene.unity3d");
+		scene.scene = "Assets/_Project/Scenes/0.unity";
 		AbItem value = item("UI/Main.prefab", "ui/main.unity3d");
 		value.name = "ui/main.prefab";
 		value.atlas = "MainAtlas";
-		byte[] raw = AbIndex.encode(new[] { value });
+		byte[] raw = AbIndex.encode(new[] { scene, value });
 		TestLoader loader = new();
 
 		loader.Load(raw);
@@ -58,6 +60,8 @@ public sealed class AbIndexTests
 		Assert.That(loader.isInited(), Is.True);
 		AssetBundleInfo bundle = loader.getAssetBundleInfo("ui/main");
 		Assert.That(bundle, Is.Not.Null);
+		Assert.That(loader.getAssetBundleInfoByKey("UI/Main.prefab"), Is.SameAs(bundle));
+		Assert.That(loader.getAssetBundleInfoByKey("missing.prefab"), Is.Null);
 		Assert.That(bundle.getAssetInfo("ui/main.prefab"), Is.Not.Null);
 		Assert.That(bundle.getAssetInfo("ui/main.prefab").getAssetName(),
 			Is.EqualTo("ui/main.prefab"));
@@ -66,8 +70,12 @@ public sealed class AbIndexTests
 		Assert.That(AbIndex.tryRuntimeAtlas(out AbItem[] atlases), Is.True);
 		Assert.That(atlases.Length, Is.EqualTo(1));
 		Assert.That(atlases[0].key, Is.EqualTo("UI/Main.prefab"));
+		Assert.That(AbIndex.tryRuntimeScene("games/fishing/scenes/fishing.unity",
+			out string scenePath), Is.True);
+		Assert.That(scenePath, Is.EqualTo("Assets/_Project/Scenes/0.unity"));
 		loader.ClearRuntimeIndex();
 		Assert.That(AbIndex.tryRuntimeAtlas(out _), Is.False);
+		Assert.That(AbIndex.tryRuntimeScene("Games/Fishing/Scenes/Fishing.unity", out _), Is.False);
 	}
 
 	[Test]

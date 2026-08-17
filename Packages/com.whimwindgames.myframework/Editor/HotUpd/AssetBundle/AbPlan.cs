@@ -461,7 +461,7 @@ public sealed class AbPlan
 				if (pkg != src) deps.Add(pkg.name);
 				continue;
 			}
-			if (isAsset(dep) && canPack(dep, atlas))
+			if (isAsset(dep) && canPack(dep, atlas) && !implicitDependency(dep))
 				errs.Add("资源依赖未显式配置:" + ast.path + " -> " + dep);
 		}
 		ast.deps.Sort(StringComparer.Ordinal);
@@ -485,6 +485,12 @@ public sealed class AbPlan
 	{
 		return !string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(path)) &&
 			AssetImporter.GetAtPath(path) != null && !isCode(path);
+	}
+
+	internal static bool implicitDependency(string path)
+	{
+		return !string.IsNullOrEmpty(path) &&
+			path.StartsWith("Packages/com.unity.", StringComparison.Ordinal);
 	}
 
 	static bool canPack(string ast, HashSet<string> atlas)

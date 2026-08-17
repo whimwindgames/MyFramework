@@ -117,6 +117,13 @@ public class ResourceManager : FrameSystem
 	public bool isDontUnloadAssetBundle(string bundleFileName) { return mAssetBundleLoader.isDontUnloadAssetBundle(bundleFileName); }
 	// 根据名称获取AssetBundle信息
 	public AssetBundleInfo getAssetBundleInfo(string name) { return mAssetBundleLoader.getAssetBundleInfo(name); }
+	// 根据逻辑资源地址获取所属AssetBundle信息
+	public AssetBundleInfo getAssetBundleInfoByKey(string key)
+	{
+		checkRelativePath(key);
+		return mLoadSource == LOAD_SOURCE.ASSET_BUNDLE ?
+			mAssetBundleLoader.getAssetBundleInfoByKey(key) : null;
+	}
 	// 获取下载超时时间(秒)
 	public int getDownloadTimeout() { return mDownloadTimeout; }
 	// 设置下载超时时间(秒)
@@ -225,6 +232,19 @@ public class ResourceManager : FrameSystem
 		else if (mLoadSource == LOAD_SOURCE.ASSET_BUNDLE)
 		{
 			mAssetBundleLoader.loadAssetBundleAsync(bundleName, callback);
+		}
+	}
+	// 根据逻辑资源地址异步预加载其所属AssetBundle,包名由运行时索引解析
+	public void preloadAssetBundleByKeyAsync(string key, AssetBundleCallback callback)
+	{
+		checkRelativePath(key);
+		if (mLoadSource == LOAD_SOURCE.ASSET_DATABASE)
+		{
+			callback?.Invoke(null);
+		}
+		else if (mLoadSource == LOAD_SOURCE.ASSET_BUNDLE)
+		{
+			mAssetBundleLoader.loadAssetBundleByKeyAsync(key, callback);
 		}
 	}
 	// 同步加载资源,name是GameResources下的相对路径,带后缀名,errorIfNull表示当找不到资源时是否报错提示
