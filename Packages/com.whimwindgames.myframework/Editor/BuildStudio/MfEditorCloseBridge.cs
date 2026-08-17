@@ -26,7 +26,12 @@ namespace MyFramework.BuildStudio.Editor
 
 		static void poll()
 		{
-			if (Application.isBatchMode || sExiting) return;
+			if (Application.isBatchMode) return;
+			if (sExiting)
+			{
+				EditorApplication.Exit(0);
+				return;
+			}
 			string requestPath = path(RequestFile);
 			if (!File.Exists(requestPath)) return;
 			if (EditorApplication.isCompiling || EditorApplication.isUpdating) return;
@@ -49,7 +54,7 @@ namespace MyFramework.BuildStudio.Editor
 				File.Delete(requestPath);
 				sExiting = true;
 				Debug.Log("MyFramework Build Studio: project saved; closing Editor for worker.");
-				EditorApplication.delayCall += () => EditorApplication.Exit(0);
+				EditorApplication.Exit(0);
 			}
 			catch (Exception exception)
 			{

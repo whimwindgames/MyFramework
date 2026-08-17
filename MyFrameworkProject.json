@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "structureHash": "6991927daf712686f60fbbb6cd34ad3d3e51fe54e7f6720e5ba035bf14cbad08",
+  "structureHash": "0fd67e54db1b2808f06365fa9b76fa62357f25eefdebcf18e899af9932170d2a",
   "project": {
     "id": "myframework",
     "displayName": "MyFramework",
@@ -13,7 +13,7 @@
   },
   "framework": {
     "package": "com.whimwindgames.myframework",
-    "version": "1.1.0-preview.33",
+    "version": "1.1.0-preview.34",
     "assetBundleSchema": 3,
     "releaseSchema": 11
   },
@@ -344,7 +344,7 @@
     },
     {
       "name": "com.whimwindgames.myframework",
-      "version": "1.1.0-preview.33",
+      "version": "1.1.0-preview.34",
       "source": "Embedded",
       "direct": false
     }
