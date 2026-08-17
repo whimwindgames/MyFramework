@@ -39,8 +39,7 @@ Assets/3rdParty/codeandweb.com/Editor/SettingsTexturePackerImporter.txt
 Assets/3rdParty/codeandweb.com/Editor/SettingsTexturePackerImporter.txt.meta
 
 # Local production outputs
-HybridCLRData/AOTBaselines/
-HybridCLRData/HotUpdateDlls/
-HybridCLRData/StrippedAOTDlls/
+HybridCLRData/
+tmp/
 Releases/
 BuildOutput/
