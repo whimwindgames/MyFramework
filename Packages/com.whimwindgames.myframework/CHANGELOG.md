@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.35] - 2026-08-17
+
+### Fixed
+
+- 编辑器关闭桥改用显式 `InitializeOnLoadMethod` 绑定轮询，并在未命名脏场景存在时立即返回可操作错误，避免 Unity 原生保存对话框阻塞无人值守任务。
+
 ## [1.1.0-preview.34] - 2026-08-17
 
 ### Fixed
