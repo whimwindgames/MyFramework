@@ -84,11 +84,40 @@ namespace MyFramework.BuildStudio.Editor
 				contributor.contribute(context, result);
 				result.contributors.Add(contributor.id);
 			}
+			addFrameworkProfiles(result);
 			normalize(result);
 			validate(result, false);
 			result.structureHash = computeHash(result);
 			validate(result, true);
 			return result;
+		}
+
+		static void addFrameworkProfiles(MfProjectStructure structure)
+		{
+			if (string.IsNullOrWhiteSpace(structure.content.assetBundleConfig) ||
+				structure.profiles.Any(value => value != null && value.action == "assets"))
+				return;
+
+			foreach ((string id, BuildTarget target) in new[]
+			{
+				("windows", BuildTarget.StandaloneWindows64),
+				("macos", BuildTarget.StandaloneOSX),
+				("android", BuildTarget.Android),
+				("ios", BuildTarget.iOS),
+			})
+			{
+				structure.profiles.Add(new MfBuildProfile
+				{
+					id = "assets-" + id,
+					displayName = id + " AssetBundle",
+					action = "assets",
+					target = target.ToString(),
+					description = "Build only the MyFramework AssetBundle content for " +
+						target + "; no Player, HybridCLR baseline, release or signing.",
+					allowedEnvironments = new List<string> { "test", "prod" },
+					outputKinds = new List<string> { "asset-bundles", "receipt" },
+				});
+			}
 		}
 
 		public static MfProjectStructure read(string path, bool verifyHash)

@@ -75,7 +75,8 @@ namespace MyFramework.BuildStudio.Editor
 					StringComparer.Ordinal);
 				if (job.modules.Any(value => !declaredModules.Contains(value)))
 					throw new InvalidDataException("Build job selected an unknown module.");
-				IMfBuildProvider provider = MfBuildStudioRegistry.provider(saved.project.id);
+				IMfBuildProvider provider = MfBuildStudioRegistry.provider(saved.project.id) ??
+					MfDefaultBuildProvider.forJob(job);
 				if (provider == null && job.action != "validate")
 					throw new InvalidOperationException("Project has no Build Studio provider: " +
 						saved.project.id);

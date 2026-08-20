@@ -98,7 +98,8 @@ public sealed partial class MainWindow : Window
         if (_profile is not null && _project is not null)
         {
             SummaryText.Text = $"类型：{_profile.displayName}\n动作：{_profile.action}\n" +
-                               $"平台：{_profile.target}\nBundle：" +
+                               $"平台：{_profile.target}\n说明：{_profile.description}\n" +
+                               $"产物：{string.Join("、", _profile.outputKinds)}\nBundle：" +
                                $"{_project.Structure.content.bundleRoots.Count} 个根\n" +
                                $"Hot：{_project.Structure.managedCode.hotAssemblies.Count} 个程序集\n" +
                                $"模块：{_project.Structure.modules.Count} 个";

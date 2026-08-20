@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.37] - 2026-08-20
+
+### Added
+
+- 使用 `MyFramework` 且存在 `ProjectSettings/AbCfg.asset` 的普通项目现在会自动获得 Windows、macOS、Android 与 iOS 的 AssetBundle-only Profile，并可由框架内置 Provider 直接构建，不再要求项目先实现专用构建适配器。
+
+### Fixed
+
+- Build Studio 在未填写输出目录时会为所有产物型任务创建项目内唯一默认目录，避免项目 Provider 因空路径在执行前失败。
+- Build Studio 项目摘要显示 Profile 说明和声明产物，使 AssetBundle、Base、Code Release 与 Full Release 的边界可直接确认。
+
 ## [1.1.0-preview.36] - 2026-08-17
 
 ### Fixed

@@ -60,10 +60,30 @@ public sealed class CoreTests
         MfBuildJob defaults = BuildJobFactory.Create(project, profile, "test");
 
         Assert.Equal(["required-game"], defaults.modules);
+        Assert.Equal(string.Empty, defaults.outputRoot);
         Assert.Throws<InvalidDataException>(() => BuildJobFactory.Create(project, profile,
             "test", modules: []));
         Assert.Throws<InvalidDataException>(() => BuildJobFactory.Create(project, profile,
             "test", modules: ["required-game", "unknown-game"]));
+    }
+
+    [Fact]
+    public void JobFactoryCreatesUniqueProjectLocalOutputForProducingProfiles()
+    {
+        ProjectDocument source = ProjectStructureStore.LoadProject(repositoryRoot());
+        MfBuildProfile profile = new()
+        {
+            id = "assets-android",
+            action = "assets",
+            target = "Android",
+            allowedEnvironments = ["test", "prod"],
+        };
+
+        MfBuildJob job = BuildJobFactory.Create(source, profile, "test");
+
+        Assert.Equal(Path.Combine(source.ProjectRoot, "BuildOutput", "BuildStudio",
+            profile.id, job.jobId), job.outputRoot);
+        Assert.False(Directory.Exists(job.outputRoot));
     }
 
     [Fact]

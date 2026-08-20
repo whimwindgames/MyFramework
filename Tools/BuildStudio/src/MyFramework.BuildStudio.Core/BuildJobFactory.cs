@@ -26,10 +26,14 @@ public static class BuildJobFactory
             StringComparer.Ordinal));
         if (missing is not null) throw new InvalidDataException(
             "Required module was not selected: " + missing);
+        string jobId = "mf-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" +
+                       Guid.NewGuid().ToString("N")[..8];
+        string resolvedOutput = string.IsNullOrWhiteSpace(outputRoot)
+            ? defaultOutputRoot(project, profile, jobId)
+            : Path.GetFullPath(outputRoot);
         return new MfBuildJob
         {
-            jobId = "mf-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" +
-                    Guid.NewGuid().ToString("N")[..8],
+            jobId = jobId,
             projectRoot = project.ProjectRoot,
             structurePath = Path.GetRelativePath(project.ProjectRoot, project.StructurePath)
                 .Replace('\\', '/'),
@@ -38,13 +42,20 @@ public static class BuildJobFactory
             action = profile.action,
             target = profile.target,
             environment = environment,
-            outputRoot = string.IsNullOrWhiteSpace(outputRoot) ? string.Empty :
-                Path.GetFullPath(outputRoot),
+            outputRoot = resolvedOutput,
             version = version ?? string.Empty,
             buildNumber = buildNumber,
             clean = clean,
             development = development,
             modules = selectedModules,
         };
+    }
+
+    static string defaultOutputRoot(ProjectDocument project, MfBuildProfile profile,
+        string jobId)
+    {
+        if (profile.action == "validate") return string.Empty;
+        return Path.GetFullPath(Path.Combine(project.ProjectRoot, "BuildOutput", "BuildStudio",
+            profile.id, jobId));
     }
 }
