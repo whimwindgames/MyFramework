@@ -101,11 +101,19 @@ public sealed class CoreTests
             File.WriteAllText(executable, string.Empty);
             Directory.CreateDirectory(Path.Combine(versionRoot, "PlaybackEngines",
                 "AndroidPlayer"));
+            string nativeTarget = OperatingSystem.IsMacOS() ? "StandaloneOSX" :
+                "StandaloneWindows64";
+            string nativeModule = OperatingSystem.IsMacOS() ? Path.Combine(versionRoot,
+                "Unity.app", "Contents", "PlaybackEngines", "MacStandaloneSupport") :
+                Path.Combine(versionRoot, "Editor", "Data", "PlaybackEngines",
+                    "WindowsStandaloneSupport");
+            Directory.CreateDirectory(nativeModule);
 
             UnityInstallation unity = UnityInstallationLocator.FindExact(version, root);
 
             Assert.Equal(Path.GetFullPath(executable), unity.EditorPath);
             Assert.True(UnityInstallationLocator.HasTargetModule(unity, "Android"));
+            Assert.True(UnityInstallationLocator.HasTargetModule(unity, nativeTarget));
             Assert.False(UnityInstallationLocator.HasTargetModule(unity, "iOS"));
         }
         finally { if (Directory.Exists(root)) Directory.Delete(root, true); }

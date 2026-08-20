@@ -47,8 +47,19 @@ public static partial class UnityInstallationLocator
             "iOS" => "iOSSupport",
             _ => null,
         };
-        return module is not null && Directory.Exists(Path.Combine(unity.Root,
-            "PlaybackEngines", module));
+        return module is not null && playbackEngineRoots(unity).Any(root =>
+            Directory.Exists(Path.Combine(root, module)));
+    }
+
+    static IEnumerable<string> playbackEngineRoots(UnityInstallation unity)
+    {
+        yield return Path.Combine(unity.Root, "PlaybackEngines");
+        string editorDirectory = Path.GetDirectoryName(unity.EditorPath)!;
+        if (OperatingSystem.IsMacOS())
+            yield return Path.GetFullPath(Path.Combine(editorDirectory, "..",
+                "PlaybackEngines"));
+        if (OperatingSystem.IsWindows())
+            yield return Path.Combine(editorDirectory, "Data", "PlaybackEngines");
     }
 
     static StringComparer pathComparer() => OperatingSystem.IsWindows() ?
