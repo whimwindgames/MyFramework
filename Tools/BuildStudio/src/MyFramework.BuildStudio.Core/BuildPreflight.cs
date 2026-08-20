@@ -47,6 +47,7 @@ public static class BuildPreflight
             report.Items.Add(target ? ok("module", "平台模块", profile.target) :
                 error("module", "平台模块", "Missing module for " + profile.target));
         }
+        addProfileRequirements(report, project, profile);
         bool open = File.Exists(Path.Combine(project.ProjectRoot, "Temp", "UnityLockfile"));
         report.Items.Add(open ? new PreflightItem("project-open", "Unity 项目占用", false,
             PreflightSeverity.Warning, "构建时将请求保存并关闭当前 Unity Editor。") :
@@ -73,6 +74,40 @@ public static class BuildPreflight
         report.Items.Add(freeGiB >= 20 ? ok("disk", "磁盘空间", freeGiB + " GiB 可用") :
             error("disk", "磁盘空间", "少于 20 GiB。"));
         return report;
+    }
+
+    static void addProfileRequirements(PreflightReport report, ProjectDocument project,
+        MfBuildProfile profile)
+    {
+        if (profile.properties.TryGetValue("requiredEnvironment", out string? declaration) &&
+            !string.IsNullOrWhiteSpace(declaration))
+        {
+            string[] groups = declaration.Split(',', StringSplitOptions.RemoveEmptyEntries |
+                StringSplitOptions.TrimEntries);
+            string[] missing = groups.Where(group => group.Split('|',
+                    StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .All(name => string.IsNullOrWhiteSpace(
+                    Environment.GetEnvironmentVariable(name))))
+                .Select(group => group.Replace("|", " 或 ", StringComparison.Ordinal))
+                .ToArray();
+            report.Items.Add(missing.Length == 0
+                ? ok("environment", "外部配置", "已提供")
+                : error("environment", "外部配置", "缺少 " + string.Join("、", missing) +
+                    "；本地测试请选择无需外部配置的本地构建 Profile。"));
+        }
+
+        if (profile.properties.TryGetValue("requiresLocalHybridClr", out string? local) &&
+            string.Equals(local, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            string host = OperatingSystem.IsMacOS() ? "OSXEditor" :
+                OperatingSystem.IsWindows() ? "WindowsEditor" : string.Empty;
+            string path = Path.Combine(project.ProjectRoot, "HybridCLRData",
+                "LocalIl2CppData-" + host, "il2cpp");
+            report.Items.Add(host.Length > 0 && Directory.Exists(path)
+                ? ok("hybridclr-local", "HybridCLR 本地 IL2CPP", "已安装")
+                : error("hybridclr-local", "HybridCLR 本地 IL2CPP",
+                    "尚未安装；请在 Unity 执行 HybridCLR/Installer。"));
+        }
     }
 
     static async Task<string> gitStatus(string root, CancellationToken cancellationToken)
