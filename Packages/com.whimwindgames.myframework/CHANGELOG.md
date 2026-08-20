@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.38] - 2026-08-20
+
+### Fixed
+
+- Build Studio 的自动输出目录移到本机应用数据目录，避免普通 MyFramework 项目未配置 `.gitignore` 时构建产物污染 Git 工作区并阻塞下一次正式构建。
+
 ## [1.1.0-preview.37] - 2026-08-20
 
 ### Added

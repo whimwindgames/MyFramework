@@ -6,7 +6,7 @@ Build Studio exposes one deterministic project contract to Unity menus, local GU
 
 Use `MyFramework/Build Studio/生成项目结构文件` to create `MyFrameworkProject.json` at the Unity project root. The file is safe to commit: it contains project capabilities, exact package versions, scenes, managed-code boundaries, AssetBundle roots, build profiles and module declarations. It never contains passwords, tokens, private keys or machine-specific output paths.
 
-When `ProjectSettings/AbCfg.asset` exists and the project has not supplied a custom AssetBundle profile, MyFramework automatically declares Windows, macOS, Android and iOS AssetBundle-only profiles. These profiles use the framework's built-in AssetBundle provider and do not require a project adapter, HybridCLR baseline, update URL or signing key. Build Studio creates a unique default output under `BuildOutput/BuildStudio/<profile>/<job>` when no output directory is selected.
+When `ProjectSettings/AbCfg.asset` exists and the project has not supplied a custom AssetBundle profile, MyFramework automatically declares Windows, macOS, Android and iOS AssetBundle-only profiles. These profiles use the framework's built-in AssetBundle provider and do not require a project adapter, HybridCLR baseline, update URL or signing key. Build Studio creates a unique output under its local application-data `Outputs/<project>/<profile>/<job>` tree when no output directory is selected, so builds never dirty the Unity Git worktree.
 
 Projects extend the generated document by registering `IMfProjectStructureContributor`. Production actions are registered separately through `IMfBuildProvider`, so the public contract remains generic while ArcadeHub, Fishing and later games keep their own production semantics.
 

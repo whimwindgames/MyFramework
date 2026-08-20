@@ -213,6 +213,7 @@ public static class BuildStudioPaths
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "WhimwindGames", "MyFrameworkBuildStudio");
     public static string JobsRoot { get; } = Path.Combine(AppDataRoot, "Jobs");
+    public static string OutputsRoot { get; } = Path.Combine(AppDataRoot, "Outputs");
     public static string DatabasePath { get; } = Path.Combine(AppDataRoot, "history.db");
     public static string SettingsPath { get; } = Path.Combine(AppDataRoot, "settings.json");
 }

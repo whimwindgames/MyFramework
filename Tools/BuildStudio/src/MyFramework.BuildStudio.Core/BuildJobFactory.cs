@@ -55,7 +55,7 @@ public static class BuildJobFactory
         string jobId)
     {
         if (profile.action == "validate") return string.Empty;
-        return Path.GetFullPath(Path.Combine(project.ProjectRoot, "BuildOutput", "BuildStudio",
-            profile.id, jobId));
+        return Path.GetFullPath(Path.Combine(BuildStudioPaths.OutputsRoot,
+            project.Structure.project.id, profile.id, jobId));
     }
 }

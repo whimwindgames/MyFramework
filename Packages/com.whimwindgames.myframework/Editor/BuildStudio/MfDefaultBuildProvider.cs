@@ -23,13 +23,13 @@ namespace MyFramework.BuildStudio.Editor
 			{
 				if (context.job.action != "assets") throw new InvalidOperationException(
 					"The default MyFramework provider only supports AssetBundle builds.");
-				_ = output(context.job);
+				_ = output(context);
 				AbBuild.check(roots: null);
 			}
 
 			public MfBuildExecutionResult run(MfBuildContext context)
 			{
-				string root = output(context.job);
+				string root = output(context);
 				BuildTarget target = EditorUserBuildSettings.activeBuildTarget;
 				if (!AbBuild.run(target, root, roots: null) ||
 					!AbBuild.ready(root, roots: null))
@@ -41,12 +41,15 @@ namespace MyFramework.BuildStudio.Editor
 				return result;
 			}
 
-			static string output(MfBuildJob job)
+			static string output(MfBuildContext context)
 			{
+				MfBuildJob job = context.job;
 				string value = job.outputRoot;
 				if (string.IsNullOrWhiteSpace(value))
-					value = Path.Combine(MfProjectStructureService.projectRoot(), "BuildOutput",
-						"BuildStudio", job.profileId, job.jobId);
+					value = Path.Combine(Environment.GetFolderPath(
+						Environment.SpecialFolder.LocalApplicationData), "WhimwindGames",
+						"MyFrameworkBuildStudio", "Outputs", context.structure.project.id,
+						job.profileId, job.jobId);
 				if (!Path.IsPathRooted(value)) throw new InvalidDataException(
 					"AssetBundle output must be an absolute directory.");
 				return Path.GetFullPath(value);

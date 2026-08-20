@@ -81,7 +81,7 @@ public sealed class CoreTests
 
         MfBuildJob job = BuildJobFactory.Create(source, profile, "test");
 
-        Assert.Equal(Path.Combine(source.ProjectRoot, "BuildOutput", "BuildStudio",
+        Assert.Equal(Path.Combine(BuildStudioPaths.OutputsRoot, source.Structure.project.id,
             profile.id, job.jobId), job.outputRoot);
         Assert.False(Directory.Exists(job.outputRoot));
     }
