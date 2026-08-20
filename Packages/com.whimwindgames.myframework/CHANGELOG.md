@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.39] - 2026-08-20
+
+### Changed
+
+- Git 工作区状态对所有 Build Studio Profile 都改为纯提醒；未提交、未跟踪或无法读取 Git 状态时仍可开始构建，Unity Worker 也不再二次拒绝任务。
+
 ## [1.1.0-preview.38] - 2026-08-20
 
 ### Fixed

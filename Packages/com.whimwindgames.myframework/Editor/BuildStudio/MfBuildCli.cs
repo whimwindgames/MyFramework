@@ -69,8 +69,6 @@ namespace MyFramework.BuildStudio.Editor
 					value.id == job.profileId) ?? throw new InvalidDataException(
 					"Unknown build profile: " + job.profileId);
 				validateProfileJob(profile, job);
-				if (profile.requiresCleanGit && !gitClean(root))
-					throw new InvalidOperationException("Build profile requires a clean Git worktree.");
 				HashSet<string> declaredModules = new(saved.modules.Select(value => value.id),
 					StringComparer.Ordinal);
 				if (job.modules.Any(value => !declaredModules.Contains(value)))
@@ -179,28 +177,6 @@ namespace MyFramework.BuildStudio.Editor
 			if (profile.target != "Current" && wanted != active)
 				throw new InvalidOperationException("Unity active target is " + active +
 					" but profile requires " + wanted + ". Start Unity with -buildTarget.");
-		}
-
-		static bool gitClean(string root)
-		{
-			try
-			{
-				ProcessStartInfo start = new("git")
-				{
-					WorkingDirectory = root,
-					RedirectStandardOutput = true,
-					RedirectStandardError = true,
-					UseShellExecute = false,
-					CreateNoWindow = true,
-				};
-				start.ArgumentList.Add("status");
-				start.ArgumentList.Add("--porcelain");
-				using Process process = Process.Start(start) ?? throw new InvalidOperationException();
-				string output = process.StandardOutput.ReadToEnd();
-				process.WaitForExit();
-				return process.ExitCode == 0 && string.IsNullOrWhiteSpace(output);
-			}
-			catch { return false; }
 		}
 
 		static void copyIdentity(MfBuildJob job, MfBuildReceipt receipt)

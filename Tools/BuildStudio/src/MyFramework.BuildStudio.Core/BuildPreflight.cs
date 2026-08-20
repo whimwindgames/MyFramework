@@ -54,9 +54,10 @@ public static class BuildPreflight
         string git = await gitStatus(project.ProjectRoot, cancellationToken);
         bool clean = string.IsNullOrWhiteSpace(git);
         report.Items.Add(clean ? ok("git", "Git 工作区", "干净") : new PreflightItem(
-            "git", "Git 工作区", !profile.requiresCleanGit,
-            profile.requiresCleanGit ? PreflightSeverity.Error : PreflightSeverity.Warning,
-            profile.requiresCleanGit ? "正式 Profile 要求干净工作区。" : "存在未提交修改。"));
+            "git", "Git 工作区", false, PreflightSeverity.Warning,
+            git == "git unavailable"
+                ? "Git 不可用；已跳过检查，仅提醒且不影响构建。"
+                : "检测到未提交修改；建议自行确认，仅提醒且不影响构建。"));
         report.Items.Add(string.IsNullOrWhiteSpace(project.Structure.content.assetBundleConfig) ||
                          project.Structure.content.bundleRoots.Count > 0
             ? ok("content", "AssetBundle 计划",

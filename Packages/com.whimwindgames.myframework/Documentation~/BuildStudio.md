@@ -8,6 +8,8 @@ Use `MyFramework/Build Studio/生成项目结构文件` to create `MyFrameworkPr
 
 When `ProjectSettings/AbCfg.asset` exists and the project has not supplied a custom AssetBundle profile, MyFramework automatically declares Windows, macOS, Android and iOS AssetBundle-only profiles. These profiles use the framework's built-in AssetBundle provider and do not require a project adapter, HybridCLR baseline, update URL or signing key. Build Studio creates a unique output under its local application-data `Outputs/<project>/<profile>/<job>` tree when no output directory is selected, so builds never dirty the Unity Git worktree.
 
+Git worktree state is advisory for every profile. Uncommitted, untracked or unavailable Git state is shown as a warning in preflight, but it never disables or aborts a build. Teams that require immutable release sources should enforce that policy in their own CI or review process.
+
 Projects extend the generated document by registering `IMfProjectStructureContributor`. Production actions are registered separately through `IMfBuildProvider`, so the public contract remains generic while ArcadeHub, Fishing and later games keep their own production semantics.
 
 The canonical SHA-256 in `structureHash` excludes only the hash field itself. Build jobs must carry the same hash; the Unity worker regenerates the live structure and rejects stale or edited contracts.

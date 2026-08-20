@@ -112,6 +112,49 @@ public sealed class CoreTests
     }
 
     [Fact]
+    public async Task DirtyGitStateIsAdvisoryForFormalProfiles()
+    {
+        string root = temporary("dirty-preflight");
+        string unityRoot = temporary("dirty-preflight-unity");
+        try
+        {
+            string version = "6000.3.11f1";
+            string versionRoot = Path.Combine(unityRoot, version);
+            string executable = OperatingSystem.IsMacOS()
+                ? Path.Combine(versionRoot, "Unity.app", "Contents", "MacOS", "Unity")
+                : Path.Combine(versionRoot, "Editor", "Unity.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(executable)!);
+            File.WriteAllText(executable, string.Empty);
+            MfProjectStructure structure = new();
+            structure.unity.version = version;
+            structure.managedCode.hybridClrEnabled = true;
+            MfBuildProfile profile = new()
+            {
+                id = "release-current",
+                action = "release",
+                target = "Current",
+                requiresCleanGit = true,
+            };
+            ProjectDocument project = new(root, Path.Combine(root,
+                MfBuildSchema.ProjectFileName), structure);
+
+            PreflightReport report = await BuildPreflight.RunAsync(project, profile,
+                unityRoot);
+
+            PreflightItem git = Assert.Single(report.Items, value => value.Id == "git");
+            Assert.False(git.Ok);
+            Assert.Equal(PreflightSeverity.Warning, git.Severity);
+            Assert.True(report.CanBuild);
+            Assert.Contains("不影响构建", git.Detail, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+            if (Directory.Exists(unityRoot)) Directory.Delete(unityRoot, true);
+        }
+    }
+
+    [Fact]
     public void HistoryRoundTripsReceipt()
     {
         string root = temporary("history");
