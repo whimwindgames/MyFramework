@@ -79,6 +79,23 @@ public static class BuildPreflight
     static void addProfileRequirements(PreflightReport report, ProjectDocument project,
         MfBuildProfile profile)
     {
+        if (profile.properties.TryGetValue("configurationFile", out string? configured) &&
+            !string.IsNullOrWhiteSpace(configured))
+        {
+            string path = configured.Trim();
+            if (path.StartsWith("~/", StringComparison.Ordinal) ||
+                path.StartsWith("~\\", StringComparison.Ordinal))
+                path = Path.Combine(Environment.GetFolderPath(
+                    Environment.SpecialFolder.UserProfile), path[2..]);
+            bool absolute = Path.IsPathRooted(path);
+            string full = absolute ? Path.GetFullPath(path) : path;
+            report.Items.Add(absolute && File.Exists(full)
+                ? ok("configuration-file", "项目发布配置", full)
+                : error("configuration-file", "项目发布配置", absolute
+                    ? "配置文件不存在: " + full
+                    : "配置文件必须使用绝对路径或 ~/ 路径。"));
+        }
+
         if (profile.properties.TryGetValue("requiredEnvironment", out string? declaration) &&
             !string.IsNullOrWhiteSpace(declaration))
         {

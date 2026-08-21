@@ -167,6 +167,10 @@ public sealed class UnityBuildRunner
                value.Contains("assetbundle构建", StringComparison.Ordinal) ||
                value.Contains("hybridclr generate", StringComparison.Ordinal) ||
                value.Contains("release complete", StringComparison.Ordinal) ||
+               value.Contains("rel_step=", StringComparison.Ordinal) ||
+               value.Contains("rel_receipt=", StringComparison.Ordinal) ||
+               value.Contains("pub_step=", StringComparison.Ordinal) ||
+               value.Contains("pub_receipt=", StringComparison.Ordinal) ||
                value.Contains("[fishing", StringComparison.Ordinal) ||
                value.Contains("[arcade", StringComparison.Ordinal);
     }

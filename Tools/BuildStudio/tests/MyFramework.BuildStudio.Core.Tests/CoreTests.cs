@@ -214,6 +214,61 @@ public sealed class CoreTests
     }
 
     [Fact]
+    public async Task ProjectConfigurationFileIsValidatedBeforeStartingUnityWorker()
+    {
+        string root = temporary("profile-configuration");
+        string unityRoot = temporary("profile-configuration-unity");
+        try
+        {
+            string version = "6000.3.11f1";
+            string versionRoot = Path.Combine(unityRoot, version);
+            string executable = OperatingSystem.IsMacOS()
+                ? Path.Combine(versionRoot, "Unity.app", "Contents", "MacOS", "Unity")
+                : Path.Combine(versionRoot, "Editor", "Unity.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(executable)!);
+            File.WriteAllText(executable, string.Empty);
+            Directory.CreateDirectory(Path.Combine(versionRoot, "PlaybackEngines",
+                "AndroidPlayer"));
+            string configuration = Path.Combine(root, "test.env");
+            MfProjectStructure structure = new();
+            structure.unity.version = version;
+            structure.managedCode.hybridClrEnabled = true;
+            MfBuildProfile profile = new()
+            {
+                id = "integrated-android",
+                action = "integrated",
+                target = "Android",
+                properties = new Dictionary<string, string>
+                {
+                    ["configurationFile"] = configuration,
+                },
+            };
+            ProjectDocument project = new(root, Path.Combine(root,
+                MfBuildSchema.ProjectFileName), structure);
+
+            PreflightReport missing = await BuildPreflight.RunAsync(project, profile,
+                unityRoot);
+            PreflightItem missingItem = Assert.Single(missing.Items,
+                value => value.Id == "configuration-file");
+            Assert.Equal(PreflightSeverity.Error, missingItem.Severity);
+            Assert.False(missing.CanBuild);
+
+            File.WriteAllText(configuration, "FISHING_ENV=test\n");
+            PreflightReport present = await BuildPreflight.RunAsync(project, profile,
+                unityRoot);
+            PreflightItem presentItem = Assert.Single(present.Items,
+                value => value.Id == "configuration-file");
+            Assert.True(presentItem.Ok);
+            Assert.True(present.CanBuild);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+            if (Directory.Exists(unityRoot)) Directory.Delete(unityRoot, true);
+        }
+    }
+
+    [Fact]
     public void HistoryRoundTripsReceipt()
     {
         string root = temporary("history");
