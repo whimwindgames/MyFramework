@@ -174,6 +174,34 @@ public sealed class CoreTests
     }
 
     [Fact]
+    public void BaseRequirementRunnerSupportsLegacyFishingMenuPath()
+    {
+        MfProjectStructure structure = new();
+        structure.properties["baseRequirementAnalyzer"] =
+            "FishGame/Framework/Analyze Base Requirement/Working Tree";
+        ProjectDocument project = new("/project", "/project/MyFrameworkProject.json",
+            structure);
+
+        string method = BaseRequirementRunner.ResolveAnalyzerMethod(project);
+
+        Assert.Equal("FishGame.EditorTools.FishingBaseRequirementDetector.RunBatch", method);
+    }
+
+    [Fact]
+    public void BaseRequirementRunnerRejectsUnknownMenuPaths()
+    {
+        MfProjectStructure structure = new();
+        structure.properties["baseRequirementAnalyzer"] = "Tools/Analyze Base";
+        ProjectDocument project = new("/project", "/project/MyFrameworkProject.json",
+            structure);
+
+        InvalidDataException error = Assert.Throws<InvalidDataException>(() =>
+            BaseRequirementRunner.ResolveAnalyzerMethod(project));
+
+        Assert.Contains("Unity 菜单路径", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void UnityLocatorFindsExactFakeInstallationAndModules()
     {
         string root = temporary("unity-hub");
