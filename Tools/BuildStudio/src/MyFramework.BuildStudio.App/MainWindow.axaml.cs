@@ -377,7 +377,7 @@ public sealed partial class MainWindow : Window
         CleanCheck.IsEnabled = _profile.supportsCleanBuild;
         CheckBaseButton.IsEnabled = BaseRequirementRunner.IsSupported(_project);
         BaseRequirementText.Text = CheckBaseButton.IsEnabled
-            ? "点击检测后，Unity 会根据当前 Git 改动判断是否必须重新打 Base。"
+            ? "点击检测后，Unity 会与当前平台最后一次成功 Base 快照比较。"
             : "当前项目未提供 Base 必要性检测器。";
         _updatingSelection = false;
         refreshSummary();
