@@ -691,7 +691,7 @@ public static class RelBuild
 		foreach (FileInfo info in local)
 		{
 			if ((info.Attributes & FileAttributes.ReparsePoint) != 0) throw new InvalidDataException("发布目录不能包含符号链接文件:" + info.FullName);
-			if (info.Extension.Equals(".meta", StringComparison.OrdinalIgnoreCase) ||
+			if (ProdFile.ignoreMetadata(info.Name) ||
 				info.Name.EndsWith(".manifest", StringComparison.OrdinalIgnoreCase)) continue;
 			if (info.Name.Equals("Version", StringComparison.OrdinalIgnoreCase) ||
 				info.Name.Equals("FileList", StringComparison.OrdinalIgnoreCase))

@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.40] - 2026-08-28
+
+### Fixed
+
+- macOS Player 内置资源与 Release 清单统一忽略 `.DS_Store`、AppleDouble 等操作系统元数据，避免 Unity 自动过滤这些文件后误报“Player内置资源内容与Stage不一致”。
+
 ## [1.1.0-preview.39] - 2026-08-20
 
 ### Changed

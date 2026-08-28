@@ -347,7 +347,7 @@ public sealed class PackFlow
 		foreach (string file in Directory.GetFiles(full, "*", SearchOption.AllDirectories))
 		{
 			string rel = Path.GetRelativePath(full, file).Replace('\\', '/');
-			if (rel.EndsWith(".meta", StringComparison.OrdinalIgnoreCase)) continue;
+			if (ProdFile.ignoreMetadata(rel)) continue;
 			values.Add(rel, fileSha(file));
 		}
 		return values;
@@ -844,7 +844,7 @@ public sealed class PackFlow
 		Directory.CreateDirectory(target);
 		foreach (string file in Directory.GetFiles(source, "*", SearchOption.TopDirectoryOnly))
 		{
-			if (file.EndsWith(".meta", StringComparison.OrdinalIgnoreCase)) continue;
+			if (ProdFile.ignoreMetadata(file)) continue;
 			string dst = Path.Combine(target, Path.GetFileName(file));
 			File.Copy(file, dst, false);
 			if (fileSha(file) != fileSha(dst)) throw new IOException("内置Stage复制校验失败:" + file);
@@ -885,5 +885,18 @@ internal sealed class PackBuildGuard : IPreprocessBuildWithReport
 			mDone = true;
 			--sDepth;
 		}
+	}
+}
+
+internal static class ProdFile
+{
+	internal static bool ignoreMetadata(string path)
+	{
+		string name = Path.GetFileName(path);
+		return name.EndsWith(".meta", StringComparison.OrdinalIgnoreCase) ||
+			name.Equals(".DS_Store", StringComparison.OrdinalIgnoreCase) ||
+			name.StartsWith("._", StringComparison.Ordinal) ||
+			name.Equals("Thumbs.db", StringComparison.OrdinalIgnoreCase) ||
+			name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase);
 	}
 }

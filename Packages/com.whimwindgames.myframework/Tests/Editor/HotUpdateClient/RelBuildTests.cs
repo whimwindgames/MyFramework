@@ -98,6 +98,22 @@ public sealed class RelBuildTests
 	}
 
 	[Test]
+	public void BuildIgnoresOperatingSystemMetadata()
+	{
+		File.WriteAllText(Path.Combine(mSource, ".DS_Store"), "finder");
+		File.WriteAllText(Path.Combine(mSource, "ui", "._main.unity3d"),
+			"resource-fork");
+		UpdCfg cfg = makeCfg();
+
+		string release = RelBuild.make(request(cfg, true));
+
+		string files = Path.Combine(mOutput, cfg.env, "releases", release, "files");
+		Assert.That(File.Exists(Path.Combine(files, ".DS_Store")), Is.False);
+		Assert.That(File.Exists(Path.Combine(files, "ui", "._main.unity3d")), Is.False);
+		Assert.That(RelBuild.verify(request(cfg, false)).releaseId, Is.EqualTo(release));
+	}
+
+	[Test]
 	public void FrozenBaseRejectsChangedUrl()
 	{
 		UpdCfg cfg = makeCfg();

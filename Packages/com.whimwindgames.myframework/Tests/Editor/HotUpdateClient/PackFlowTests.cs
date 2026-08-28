@@ -116,6 +116,30 @@ public sealed class PackFlowTests
 	}
 
 	[Test]
+	public void MacEmbedIgnoresOperatingSystemMetadataFilteredByUnity()
+	{
+		File.WriteAllText(Path.Combine(mStage, ".DS_Store"), "finder");
+		string appleDouble = Path.Combine(mStage, "ui", "._main.unity3d");
+		File.WriteAllText(appleDouble, "resource-fork");
+		UpdCfg cfg = makeCfg();
+		HotPlan plan = HotList.fromCfg(cfg);
+		FakePackApi api = new(mStripped, cfg, mRunPath, true)
+		{
+			filterOperatingSystemMetadata = true,
+		};
+		PackFlow flow = makeFlow(cfg, plan, api, true, false);
+
+		PackReport report = flow.build();
+
+		Assert.That(Directory.Exists(report.player), Is.True);
+		Assert.That(File.Exists(Path.Combine(report.player, "Contents", "Resources", "Data",
+			"StreamingAssets", cfg.platform, ".DS_Store")), Is.False);
+		Assert.That(File.Exists(Path.Combine(report.player, "Contents", "Resources", "Data",
+			"StreamingAssets", cfg.platform, "ui", "._main.unity3d")), Is.False);
+		assertProjectRestored();
+	}
+
+	[Test]
 	public void FailedPlayerBuildLeavesNoPlayerOrBaseline()
 	{
 		UpdCfg cfg = makeCfg();
@@ -369,6 +393,7 @@ public sealed class PackFlowTests
 		readonly bool mSuccess;
 		public bool throwGenerate;
 		public bool unloadRunOnGenerate;
+		public bool filterOperatingSystemMetadata;
 		public int validated;
 		public int generated;
 		public int built;
@@ -420,12 +445,16 @@ public sealed class PackFlowTests
 
 		public string strippedAot(BuildTarget target) { return mStripped; }
 
-		static void copyTree(string source, string target)
+		void copyTree(string source, string target)
 		{
 			Directory.CreateDirectory(target);
 			foreach (string file in Directory.GetFiles(source))
 			{
 				if (file.EndsWith(".meta", StringComparison.OrdinalIgnoreCase)) continue;
+				string name = Path.GetFileName(file);
+				if (filterOperatingSystemMetadata &&
+					(name.Equals(".DS_Store", StringComparison.OrdinalIgnoreCase) ||
+					 name.StartsWith("._", StringComparison.Ordinal))) continue;
 				File.Copy(file, Path.Combine(target, Path.GetFileName(file)), false);
 			}
 			foreach (string child in Directory.GetDirectories(source))
