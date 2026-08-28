@@ -51,7 +51,9 @@ public static class BaseRequirementRunner
         string method = ResolveAnalyzerMethod(project);
         await EditorCloseCoordinator.EnsureClosedAsync(project.ProjectRoot, progress,
             cancellationToken: cancellationToken);
-        string work = Path.Combine(project.ProjectRoot, "Temp", "BuildStudio",
+        // Unity recreates the project's Temp directory while opening in batch mode. Keeping
+        // the report there makes both the report and log disappear before the analyzer runs.
+        string work = Path.Combine(BuildStudioPaths.AppDataRoot, "BaseChecks",
             "base-requirement-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(work);
         PathSecurity.EnsureNoLinks(work);
