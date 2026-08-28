@@ -28,9 +28,19 @@ mf-build preflight --project /absolute/unity/project --profile validate
 Run a profile:
 
 ```bash
-mf-build build --project /absolute/unity/project --profile base-windows \
+mf-build build --project /absolute/unity/project --profile release-android \
   --env test --version 1.0.0 --build-number 100
 ```
+
+The desktop application presents project profiles as two choices: action and platform. Projects
+can expose a small action set such as `AssetBundle`, `Hot Update`, and `Base + Hot Update` while
+keeping maintenance-only profiles hidden. Uploading is a separate choice. An AssetBundle-only
+action cannot upload; release actions can add `--upload` in the CLI or enable upload in the app.
+
+Projects may expose a safe configuration summary. Server addresses are shown directly while key
+material is limited to its configured path or a masked status; private-key contents are never
+rendered. A project-specific Base analyzer can also be launched from the app to classify the
+working tree before choosing between a hot update and a new Base.
 
 Required project modules are selected automatically. Repeat `--module <id>` to opt into optional modules; an explicit selection cannot omit a required module or name an undeclared module.
 

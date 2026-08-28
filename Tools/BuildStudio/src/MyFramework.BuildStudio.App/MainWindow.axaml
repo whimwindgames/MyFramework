@@ -47,16 +47,23 @@
                   <TextBlock Text="构建配置" Classes="section" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel>
-                      <TextBlock Text="Profile" Classes="muted" />
-                      <ComboBox x:Name="ProfileCombo" SelectionChanged="ProfileChanged" />
+                      <TextBlock Text="要做什么" Classes="muted" />
+                      <ComboBox x:Name="ActionCombo" SelectionChanged="ActionChanged" />
                     </StackPanel>
                     <StackPanel Grid.Column="1">
-                      <TextBlock Text="环境" Classes="muted" />
-                      <ComboBox x:Name="EnvironmentCombo" SelectedIndex="0">
-                        <ComboBoxItem Content="test" />
-                        <ComboBoxItem Content="prod" />
-                      </ComboBox>
+                      <TextBlock Text="平台" Classes="muted" />
+                      <ComboBox x:Name="PlatformCombo" SelectionChanged="PlatformChanged" />
                     </StackPanel>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                    <StackPanel>
+                      <TextBlock Text="环境" Classes="muted" />
+                      <ComboBox x:Name="EnvironmentCombo" SelectionChanged="EnvironmentChanged" />
+                    </StackPanel>
+                    <CheckBox Grid.Column="1" x:Name="UploadCheck"
+                              Content="构建完成后上传并发布 Latest"
+                              VerticalAlignment="Bottom" Checked="UploadChanged"
+                              Unchecked="UploadChanged" />
                   </Grid>
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
                     <StackPanel>
@@ -104,6 +111,26 @@
                   <TextBlock Text="项目摘要" Classes="section" />
                   <TextBlock x:Name="SummaryText" Text="尚未加载项目" TextWrapping="Wrap" />
                   <Button Content="重新预检" Click="RunPreflight" />
+                </StackPanel>
+              </Border>
+              <Border Classes="panel">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="发布配置" Classes="section" />
+                  <TextBlock x:Name="ConfigurationFileText" Text="尚未读取"
+                             Classes="muted" TextWrapping="Wrap" />
+                  <ListBox x:Name="ConfigurationList" MinHeight="112" />
+                </StackPanel>
+              </Border>
+              <Border Classes="panel">
+                <StackPanel Spacing="8">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="是否需要新 Base" Classes="section" />
+                    <Button Grid.Column="1" x:Name="CheckBaseButton" Content="开始检测"
+                            Click="CheckBaseRequirement" IsEnabled="False" />
+                  </Grid>
+                  <TextBlock x:Name="BaseRequirementText"
+                             Text="加载支持该功能的项目后可检测。"
+                             Classes="muted" TextWrapping="Wrap" />
                 </StackPanel>
               </Border>
               <Border Classes="panel">

@@ -87,6 +87,93 @@ public sealed class CoreTests
     }
 
     [Fact]
+    public void JobFactoryCopiesUploadChoiceIntoImmutableJobInput()
+    {
+        ProjectDocument project = ProjectStructureStore.LoadProject(repositoryRoot());
+        MfBuildProfile profile = Assert.Single(project.Structure.profiles,
+            value => value.id == "validate");
+        Dictionary<string, string> arguments = new() { ["upload"] = "true" };
+
+        MfBuildJob job = BuildJobFactory.Create(project, profile, "test",
+            arguments: arguments);
+        arguments["upload"] = "false";
+
+        Assert.Equal("true", job.arguments["upload"]);
+    }
+
+    [Fact]
+    public void ProfileCatalogSeparatesActionAndPlatformAndHidesAuxiliaryProfiles()
+    {
+        MfBuildProfile assetsAndroid = profile("assets-android", "assets", "Android",
+            "assets", "AssetBundle");
+        MfBuildProfile assetsMac = profile("assets-macos", "assets", "StandaloneOSX",
+            "assets", "AssetBundle");
+        MfBuildProfile releaseAndroid = profile("release-android", "release", "Android",
+            "release", "热更新");
+        releaseAndroid.properties["supportsUpload"] = "true";
+        releaseAndroid.properties["defaultUpload"] = "true";
+        MfBuildProfile hidden = profile("validate", "validate", "Current", "validate", "校验");
+        hidden.properties["uiHidden"] = "true";
+
+        IReadOnlyList<BuildActionOption> actions = BuildProfileCatalog.Actions(
+            [assetsAndroid, assetsMac, releaseAndroid, hidden]);
+
+        Assert.Equal(["assets", "release"], actions.Select(value => value.Id));
+        Assert.Equal(["Android", "StandaloneOSX"], BuildProfileCatalog.Platforms(
+            [assetsAndroid, assetsMac, releaseAndroid, hidden], "assets")
+            .Select(value => value.Target));
+        Assert.False(BuildProfileCatalog.SupportsUpload(assetsAndroid));
+        Assert.True(BuildProfileCatalog.DefaultUpload(releaseAndroid));
+    }
+
+    [Fact]
+    public void ProjectConfigurationDisplayShowsAddressesButMasksInlineKeys()
+    {
+        string root = temporary("configuration-display");
+        try
+        {
+            string shared = Path.Combine(root, "shared.env");
+            string configuration = Path.Combine(root, "test.env");
+            File.WriteAllText(shared, "FISHING_PRIVATE_KEY=inline-secret-value\n");
+            File.WriteAllText(configuration, "source " + shared + "\n" +
+                "FISHING_UPDATE_BASE_URL=https://updates.example.test/\n" +
+                "FISHING_SSH_HOST=192.0.2.10\n" +
+                "FISHING_SSH_KEY=/keys/deploy_ed25519\n");
+            MfProjectStructure structure = new();
+            MfBuildProfile profile = new()
+            {
+                properties = new Dictionary<string, string>
+                {
+                    ["configurationFile"] = configuration,
+                    ["configurationDisplay"] =
+                        "热更新地址=FISHING_UPDATE_BASE_URL;热更新签名 Key=FISHING_PRIVATE_KEY;" +
+                        "上传服务器 IP=FISHING_SSH_HOST;上传 Key=FISHING_SSH_KEY",
+                },
+            };
+            ProjectDocument project = new(root, Path.Combine(root,
+                MfBuildSchema.ProjectFileName), structure);
+
+            ProjectConfigurationSnapshot snapshot = ProjectConfigurationReader.Read(project,
+                profile);
+            IReadOnlyList<ProjectConfigurationDisplayItem> display =
+                ProjectConfigurationReader.Describe(profile, snapshot);
+
+            Assert.Null(snapshot.Error);
+            Assert.Contains(display, value => value.Label == "热更新地址" &&
+                value.Detail == "https://updates.example.test/");
+            Assert.Contains(display, value => value.Label == "上传服务器 IP" &&
+                value.Detail == "192.0.2.10");
+            Assert.Contains(display, value => value.Label == "热更新签名 Key" &&
+                value.Detail.Contains("内容已隐藏", StringComparison.Ordinal));
+            Assert.DoesNotContain(display.Select(value => value.Detail), value =>
+                value.Contains("inline-secret-value", StringComparison.Ordinal));
+            Assert.Contains(display, value => value.Label == "上传 Key" &&
+                value.Detail.Contains("deploy_ed25519", StringComparison.Ordinal));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public void UnityLocatorFindsExactFakeInstallationAndModules()
     {
         string root = temporary("unity-hub");
@@ -269,6 +356,73 @@ public sealed class CoreTests
     }
 
     [Fact]
+    public async Task ExistingBasePreflightRequiresBaselineAndReleaseTrust()
+    {
+        string root = temporary("existing-base");
+        string unityRoot = temporary("existing-base-unity");
+        try
+        {
+            const string version = "6000.3.11f1";
+            string versionRoot = Path.Combine(unityRoot, version);
+            string executable = OperatingSystem.IsMacOS()
+                ? Path.Combine(versionRoot, "Unity.app", "Contents", "MacOS", "Unity")
+                : Path.Combine(versionRoot, "Editor", "Unity.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(executable)!);
+            File.WriteAllText(executable, string.Empty);
+            string baselineRoot = Path.Combine(root, "baseline");
+            string releaseRoot = Path.Combine(root, "release");
+            string configuration = Path.Combine(root, "test.env");
+            File.WriteAllText(configuration, "FISHING_BASE_ID=base-1\n" +
+                "FISHING_BASELINE_ROOT=" + baselineRoot + "\n" +
+                "FISHING_RELEASE_ROOT=" + releaseRoot + "\n");
+            Directory.CreateDirectory(Path.Combine(baselineRoot, "test", "base-1", "Current"));
+            File.WriteAllText(Path.Combine(baselineRoot, "test", "base-1", "Current",
+                ".base-cap"), "ok");
+            MfProjectStructure structure = new();
+            structure.unity.version = version;
+            structure.managedCode.hybridClrEnabled = true;
+            MfBuildProfile profile = new()
+            {
+                id = "release-current",
+                action = "release",
+                target = "Current",
+                allowedEnvironments = ["test"],
+                properties = new Dictionary<string, string>
+                {
+                    ["configurationFile"] = configuration,
+                    ["supportsUpload"] = "true",
+                    ["existingBaseIdVariable"] = "FISHING_BASE_ID",
+                    ["existingBaseRootVariable"] = "FISHING_BASELINE_ROOT",
+                    ["existingBaseReleaseRootVariable"] = "FISHING_RELEASE_ROOT",
+                    ["existingBasePublishPlatform"] = "Current",
+                },
+            };
+            ProjectDocument project = new(root, Path.Combine(root,
+                MfBuildSchema.ProjectFileName), structure);
+
+            PreflightReport missingTrust = await BuildPreflight.RunAsync(project, profile,
+                unityRoot);
+            Assert.Equal(PreflightSeverity.Error, Assert.Single(missingTrust.Items,
+                value => value.Id == "existing-base").Severity);
+
+            string trust = Path.Combine(releaseRoot, "test", "base", "Current",
+                "base-1.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(trust)!);
+            File.WriteAllText(trust, "{}");
+            PreflightReport valid = await BuildPreflight.RunAsync(project, profile, unityRoot);
+
+            Assert.True(Assert.Single(valid.Items,
+                value => value.Id == "existing-base").Ok);
+            Assert.True(valid.CanBuild);
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, true);
+            if (Directory.Exists(unityRoot)) Directory.Delete(unityRoot, true);
+        }
+    }
+
+    [Fact]
     public void HistoryRoundTripsReceipt()
     {
         string root = temporary("history");
@@ -341,6 +495,20 @@ public sealed class CoreTests
         }
         throw new DirectoryNotFoundException("MyFramework repository root was not found.");
     }
+
+    static MfBuildProfile profile(string id, string action, string target,
+        string uiAction, string uiLabel) => new()
+    {
+        id = id,
+        displayName = uiLabel,
+        action = action,
+        target = target,
+        properties = new Dictionary<string, string>
+        {
+            ["uiAction"] = uiAction,
+            ["uiActionLabel"] = uiLabel,
+        },
+    };
 
     static string temporary(string name)
     {

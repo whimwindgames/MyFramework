@@ -18,6 +18,8 @@ public sealed partial class MainWindow : Window
     CancellationTokenSource? _buildCancellation;
     string? _selectedProjectRoot;
     IReadOnlyList<BuildHistoryItem> _historyItems = [];
+    IReadOnlyList<MfBuildProfile> _visibleProfiles = [];
+    bool _updatingSelection;
 
     public MainWindow()
     {
@@ -50,21 +52,22 @@ public sealed partial class MainWindow : Window
                                      $"{_project.Structure.structureHash[..12]}";
             SideProjectName.Text = _project.Structure.project.displayName;
             SideProjectMeta.Text = _project.ProjectRoot;
-            ProfileCombo.ItemsSource = _project.Structure.profiles.Select(profile =>
-                new ProfileItem(profile)).ToArray();
-            ProfileCombo.SelectedIndex = 0;
+            _visibleProfiles = BuildProfileCatalog.VisibleProfiles(
+                _project.Structure.profiles);
+            configureProfileSelectors();
             GenerateStructureButton.IsEnabled = true;
             if (remember)
             {
                 _settings.RememberProject(_project.ProjectRoot);
                 _settings.Save();
             }
-            await preflight();
+            await profileUpdated(true);
         }
         catch (Exception exception)
         {
             _project = null;
             _profile = null;
+            _visibleProfiles = [];
             HeaderProjectName.Text = "项目尚未就绪";
             HeaderProjectMeta.Text = exception.Message;
             SideProjectName.Text = Path.GetFileName(_selectedProjectRoot);
@@ -92,21 +95,40 @@ public sealed partial class MainWindow : Window
         finally { GenerateStructureButton.IsEnabled = true; }
     }
 
-    async void ProfileChanged(object? sender, SelectionChangedEventArgs e)
+    async void ActionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        _profile = (ProfileCombo.SelectedItem as ProfileItem)?.Profile;
-        if (_profile is not null && _project is not null)
-        {
-            SummaryText.Text = $"类型：{_profile.displayName}\n动作：{_profile.action}\n" +
-                               $"平台：{_profile.target}\n说明：{_profile.description}\n" +
-                               $"产物：{string.Join("、", _profile.outputKinds)}\nBundle：" +
-                               $"{_project.Structure.content.bundleRoots.Count} 个根\n" +
-                               $"Hot：{_project.Structure.managedCode.hotAssemblies.Count} 个程序集\n" +
-                               $"模块：{_project.Structure.modules.Count} 个";
-            DevelopmentCheck.IsEnabled = _profile.supportsDevelopment;
-            CleanCheck.IsEnabled = _profile.supportsCleanBuild;
-            await preflight();
-        }
+        if (_updatingSelection) return;
+        _updatingSelection = true;
+        string? previousTarget = (PlatformCombo.SelectedItem as BuildPlatformOption)?.Target;
+        BuildActionOption? action = ActionCombo.SelectedItem as BuildActionOption;
+        IReadOnlyList<BuildPlatformOption> platforms = action is null
+            ? [] : BuildProfileCatalog.Platforms(_visibleProfiles, action.Id);
+        PlatformCombo.ItemsSource = platforms;
+        int index = previousTarget is null ? -1 : platforms.ToList().FindIndex(value =>
+            value.Target == previousTarget);
+        PlatformCombo.SelectedIndex = index >= 0 ? index : platforms.Count > 0 ? 0 : -1;
+        selectProfile();
+        _updatingSelection = false;
+        await profileUpdated(true);
+    }
+
+    async void PlatformChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingSelection) return;
+        selectProfile();
+        await profileUpdated(true);
+    }
+
+    async void EnvironmentChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!_updatingSelection) await preflight();
+    }
+
+    async void UploadChanged(object? sender, RoutedEventArgs e)
+    {
+        if (_updatingSelection) return;
+        refreshSummary();
+        await preflight();
     }
 
     async void RunPreflight(object? sender, RoutedEventArgs e) => await preflight();
@@ -117,7 +139,7 @@ public sealed partial class MainWindow : Window
         try
         {
             _preflight = await BuildPreflight.RunAsync(_project, _profile,
-                empty(UnityRootBox.Text));
+                empty(UnityRootBox.Text), buildArguments());
             PreflightList.ItemsSource = _preflight.Items.Select(item =>
                 $"{(item.Ok ? "✓" : item.Severity == PreflightSeverity.Error ? "✕" : "!")} " +
                 $"{item.Label}  {item.Detail}").ToArray();
@@ -146,11 +168,11 @@ public sealed partial class MainWindow : Window
         {
             string? output = empty(OutputBox.Text) ?? empty(DefaultOutputBox.Text);
             MfBuildJob job = BuildJobFactory.Create(_project, _profile,
-                (EnvironmentCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "test",
+                EnvironmentCombo.SelectedItem?.ToString() ?? "test",
                 output, empty(VersionBox.Text), (long)(BuildNumberBox.Value ?? 0),
                 CleanCheck.IsChecked == true, DevelopmentCheck.IsChecked == true,
                 _project.Structure.modules.Where(value => !value.optional)
-                    .Select(value => value.id));
+                    .Select(value => value.id), buildArguments());
             Progress<BuildProgress> progress = new(value =>
             {
                 StageText.Text = value.Stage + " · " + value.State;
@@ -191,6 +213,38 @@ public sealed partial class MainWindow : Window
     }
 
     void CancelBuild(object? sender, RoutedEventArgs e) => _buildCancellation?.Cancel();
+
+    async void CheckBaseRequirement(object? sender, RoutedEventArgs e)
+    {
+        if (_project is null || _profile is null) return;
+        await preflight();
+        if (_preflight?.Unity is null) return;
+        CheckBaseButton.IsEnabled = false;
+        BaseRequirementText.Text = "正在启动 Unity 分析改动…";
+        try
+        {
+            Progress<BuildProgress> progress = new(value =>
+            {
+                StageText.Text = value.Stage + " · " + value.State;
+                appendLog($"[{value.Stage}] {value.Message}");
+            });
+            BaseRequirementReport result = await BaseRequirementRunner.RunAsync(_project,
+                _preflight.Unity, progress);
+            BaseRequirementText.Text = (result.RequiresBasePackage ? "需要新 Base。" :
+                "不需要新 Base。") + $" 共分析 {result.ChangeCount} 项改动。\n" +
+                result.Recommendation + "\n报告：" + result.ReportPath;
+        }
+        catch (Exception exception)
+        {
+            BaseRequirementText.Text = "检测失败：" + exception.Message;
+            appendLog("[base-check] " + exception.Message);
+        }
+        finally
+        {
+            CheckBaseButton.IsEnabled = _project is not null &&
+                                        BaseRequirementRunner.IsSupported(_project);
+        }
+    }
     void RefreshHistory(object? sender, RoutedEventArgs e) => refreshHistory();
 
     void refreshHistory()
@@ -275,8 +329,98 @@ public sealed partial class MainWindow : Window
 
     static string? empty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    sealed record ProfileItem(MfBuildProfile Profile)
+    void configureProfileSelectors()
     {
-        public override string ToString() => $"{Profile.displayName} · {Profile.target}";
+        _updatingSelection = true;
+        IReadOnlyList<BuildActionOption> actions = BuildProfileCatalog.Actions(_visibleProfiles);
+        ActionCombo.ItemsSource = actions;
+        ActionCombo.SelectedIndex = actions.Count > 0 ? 0 : -1;
+        IReadOnlyList<BuildPlatformOption> platforms = actions.Count == 0 ? [] :
+            BuildProfileCatalog.Platforms(_visibleProfiles, actions[0].Id);
+        PlatformCombo.ItemsSource = platforms;
+        PlatformCombo.SelectedIndex = platforms.Count > 0 ? 0 : -1;
+        selectProfile();
+        _updatingSelection = false;
     }
+
+    void selectProfile()
+    {
+        BuildActionOption? action = ActionCombo.SelectedItem as BuildActionOption;
+        BuildPlatformOption? platform = PlatformCombo.SelectedItem as BuildPlatformOption;
+        _profile = action is null || platform is null ? null :
+            BuildProfileCatalog.Find(_visibleProfiles, action.Id, platform.Target);
+    }
+
+    async Task profileUpdated(bool resetUpload)
+    {
+        if (_profile is null || _project is null) return;
+        _updatingSelection = true;
+        string? previousEnvironment = EnvironmentCombo.SelectedItem?.ToString();
+        IReadOnlyList<string> environments = _profile.allowedEnvironments.Count > 0
+            ? _profile.allowedEnvironments : ["test", "prod"];
+        EnvironmentCombo.ItemsSource = environments;
+        int environmentIndex = previousEnvironment is null ? -1 : environments.ToList()
+            .FindIndex(value => value == previousEnvironment);
+        if (environmentIndex < 0) environmentIndex = environments.ToList().FindIndex(value =>
+            value == "test");
+        EnvironmentCombo.SelectedIndex = environmentIndex >= 0 ? environmentIndex : 0;
+        UploadCheck.IsEnabled = BuildProfileCatalog.SupportsUpload(_profile);
+        if (resetUpload)
+            UploadCheck.IsChecked = BuildProfileCatalog.DefaultUpload(_profile);
+        if (!UploadCheck.IsEnabled) UploadCheck.IsChecked = false;
+        DevelopmentCheck.IsEnabled = _profile.supportsDevelopment;
+        CleanCheck.IsEnabled = _profile.supportsCleanBuild;
+        CheckBaseButton.IsEnabled = BaseRequirementRunner.IsSupported(_project);
+        BaseRequirementText.Text = CheckBaseButton.IsEnabled
+            ? "点击检测后，Unity 会根据当前 Git 改动判断是否必须重新打 Base。"
+            : "当前项目未提供 Base 必要性检测器。";
+        _updatingSelection = false;
+        refreshSummary();
+        refreshConfiguration();
+        await preflight();
+    }
+
+    void refreshSummary()
+    {
+        if (_profile is null || _project is null) return;
+        string upload = !BuildProfileCatalog.SupportsUpload(_profile) ? "不适用" :
+            UploadCheck.IsChecked == true ? "是，完成后发布 Latest" : "否，只保留本地产物";
+        string caveat = _profile.action == "integrated" && UploadCheck.IsChecked != true
+            ? "\n提示：新 Base 未上传首个 Release 时，只适合检查产物，联网启动会找不到对应热更新。"
+            : string.Empty;
+        SummaryText.Text = $"动作：{ActionCombo.SelectedItem}\n平台：{PlatformCombo.SelectedItem}\n" +
+                           $"环境：{EnvironmentCombo.SelectedItem}\n上传：{upload}\n" +
+                           $"说明：{_profile.description}\n" +
+                           $"产物：{string.Join("、", _profile.outputKinds)}\nBundle：" +
+                           $"{_project.Structure.content.bundleRoots.Count} 个根\n" +
+                           $"Hot：{_project.Structure.managedCode.hotAssemblies.Count} 个程序集" +
+                           caveat;
+    }
+
+    void refreshConfiguration()
+    {
+        if (_profile is null || _project is null) return;
+        ProjectConfigurationSnapshot snapshot = ProjectConfigurationReader.Read(_project,
+            _profile);
+        if (string.IsNullOrEmpty(snapshot.FilePath))
+        {
+            ConfigurationFileText.Text = "该动作不需要热更新或服务器配置。";
+            ConfigurationList.ItemsSource = Array.Empty<string>();
+            return;
+        }
+        ConfigurationFileText.Text = snapshot.Error is not null
+            ? "配置读取异常：" + snapshot.Error
+            : snapshot.Exists ? "来源：" + snapshot.FilePath : "配置文件不存在：" + snapshot.FilePath;
+        ConfigurationList.ItemsSource = ProjectConfigurationReader.Describe(_profile, snapshot)
+            .Select(item => $"{(item.Configured ? "✓" : "○")} {item.Label}  {item.Detail}")
+            .ToArray();
+    }
+
+    IReadOnlyDictionary<string, string> buildArguments() =>
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["upload"] = UploadCheck.IsEnabled && UploadCheck.IsChecked == true
+                ? "true" : "false",
+            ["environment"] = EnvironmentCombo.SelectedItem?.ToString() ?? "test",
+        };
 }

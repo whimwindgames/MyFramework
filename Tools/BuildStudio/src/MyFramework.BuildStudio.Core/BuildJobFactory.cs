@@ -7,7 +7,8 @@ public static class BuildJobFactory
     public static MfBuildJob Create(ProjectDocument project, MfBuildProfile profile,
         string environment, string? outputRoot = null, string? version = null,
         long buildNumber = 0, bool clean = false, bool development = false,
-        IEnumerable<string>? modules = null)
+        IEnumerable<string>? modules = null,
+        IReadOnlyDictionary<string, string>? arguments = null)
     {
         if (environment is not ("test" or "prod"))
             throw new InvalidDataException("Environment must be test or prod.");
@@ -48,6 +49,9 @@ public static class BuildJobFactory
             clean = clean,
             development = development,
             modules = selectedModules,
+            arguments = arguments is null
+                ? new Dictionary<string, string>()
+                : new Dictionary<string, string>(arguments, StringComparer.Ordinal),
         };
     }
 

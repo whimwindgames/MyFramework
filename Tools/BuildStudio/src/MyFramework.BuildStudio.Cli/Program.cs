@@ -51,8 +51,13 @@ public static class Program
     {
         ProjectDocument project = ProjectStructureStore.LoadProject(args.Required("project"));
         MfBuildProfile profile = findProfile(project, args.Required("profile"));
+        Dictionary<string, string> preflightArguments = new(StringComparer.Ordinal)
+        {
+            ["upload"] = args.Flag("upload") ? "true" : "false",
+            ["environment"] = args.Optional("env") ?? "test",
+        };
         PreflightReport report = await BuildPreflight.RunAsync(project, profile,
-            args.Optional("unity-root"));
+            args.Optional("unity-root"), preflightArguments);
         foreach (PreflightItem item in report.Items)
             Console.WriteLine($"{(item.Ok ? "OK" : item.Severity.ToString().ToUpperInvariant())} " +
                               $"{item.Label}: {item.Detail}");
@@ -63,8 +68,13 @@ public static class Program
     {
         ProjectDocument project = ProjectStructureStore.LoadProject(args.Required("project"));
         MfBuildProfile profile = findProfile(project, args.Required("profile"));
+        Dictionary<string, string> jobArguments = new(StringComparer.Ordinal)
+        {
+            ["upload"] = args.Flag("upload") ? "true" : "false",
+            ["environment"] = args.Optional("env") ?? "test",
+        };
         PreflightReport preflight = await BuildPreflight.RunAsync(project, profile,
-            args.Optional("unity-root"));
+            args.Optional("unity-root"), jobArguments);
         if (!preflight.CanBuild) throw new InvalidOperationException(
             "Preflight failed: " + string.Join("; ", preflight.Items.Where(item =>
                 !item.Ok && item.Severity == PreflightSeverity.Error).Select(item => item.Detail)));
@@ -72,7 +82,7 @@ public static class Program
         MfBuildJob job = BuildJobFactory.Create(project, profile,
             args.Optional("env") ?? "test", args.Optional("output"), args.Optional("version"),
             args.Long("build-number"), args.Flag("clean"), args.Flag("development"),
-            selectedModules.Count == 0 ? null : selectedModules);
+            selectedModules.Count == 0 ? null : selectedModules, jobArguments);
         Progress<BuildProgress> progress = new(value =>
             Console.WriteLine($"[{value.Stage}] {value.State}: {value.Message}"));
         MfBuildReceipt receipt = await new UnityBuildRunner().RunAsync(new BuildRunRequest
@@ -106,10 +116,11 @@ public static class Program
 
               mf-build scan --project <path>
               mf-build generate --project <path> [--unity-root <path>]
-              mf-build preflight --project <path> --profile <id>
+              mf-build preflight --project <path> --profile <id> [--env test|prod] [--upload]
               mf-build build --project <path> --profile <id> [--env test|prod]
                              [--output <path>] [--version <value>]
                              [--build-number <number>] [--module <id>] [--clean]
+                             [--development] [--upload]
               mf-build history [--limit 20]
             """);
     }
