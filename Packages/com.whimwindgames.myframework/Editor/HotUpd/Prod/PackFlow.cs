@@ -98,6 +98,8 @@ public sealed class UnityPackApi : IPackApi
 	public PackBuildResult build(BuildPlayerOptions options)
 	{
 		BuildReport report = BuildPipeline.BuildPlayer(options);
+		if (report.summary.result == BuildResult.Succeeded)
+			PackMacSign.finish(options.locationPathName, options.target);
 		return new PackBuildResult
 		{
 			succeeded = report.summary.result == BuildResult.Succeeded,
@@ -111,6 +113,62 @@ public sealed class UnityPackApi : IPackApi
 		string path = SettingsUtil.GetAssembliesPostIl2CppStripDir(target);
 		return Path.IsPathRooted(path) ? Path.GetFullPath(path) :
 			Path.GetFullPath(Path.Combine(SettingsUtil.ProjectDir, path));
+	}
+}
+
+// HybridCLR patches ScriptingAssemblies.json from IPostprocessBuildWithReport.
+// On macOS this happens after Unity's built-in ad-hoc signing, so the bundle must
+// be sealed again before PackFlow validates or publishes the Player.
+internal static class PackMacSign
+{
+	internal static void finish(string player, BuildTarget target,
+		Action<string, string[]> execute = null)
+	{
+		if (target != BuildTarget.StandaloneOSX) return;
+		if (string.IsNullOrWhiteSpace(player) || !Directory.Exists(player))
+			throw new BuildFailedException("macOS Player不存在，无法重新签名:" + player);
+		if (execute == null && Application.platform != RuntimePlatform.OSXEditor)
+			throw new BuildFailedException("macOS Player重新签名必须在macOS编辑器执行");
+		execute ??= run;
+		execute("重新签名", new[]
+		{
+			"--force", "--deep", "--sign", "-", "--timestamp=none",
+			"--preserve-metadata=identifier,entitlements,requirements,flags,runtime", player,
+		});
+		execute("验签", new[] { "--verify", "--deep", "--strict", "--verbose=2", player });
+	}
+
+	static void run(string operation, string[] arguments)
+	{
+		System.Diagnostics.ProcessStartInfo start = new()
+		{
+			FileName = "/usr/bin/codesign",
+			UseShellExecute = false,
+			CreateNoWindow = true,
+			RedirectStandardOutput = true,
+			RedirectStandardError = true,
+		};
+		foreach (string argument in arguments) start.ArgumentList.Add(argument);
+		using System.Diagnostics.Process process = new() { StartInfo = start };
+		try
+		{
+			if (!process.Start()) throw new IOException("无法启动codesign");
+			string output = process.StandardOutput.ReadToEnd();
+			string error = process.StandardError.ReadToEnd();
+			if (!process.WaitForExit(120000))
+			{
+				try { process.Kill(); } catch { }
+				throw new TimeoutException("codesign执行超时");
+			}
+			if (process.ExitCode != 0)
+				throw new BuildFailedException("macOS Player" + operation + "失败:" +
+					(string.IsNullOrWhiteSpace(error) ? output : error).Trim());
+		}
+		catch (BuildFailedException) { throw; }
+		catch (Exception ex)
+		{
+			throw new BuildFailedException("macOS Player" + operation + "失败:" + ex.Message);
+		}
 	}
 }
 

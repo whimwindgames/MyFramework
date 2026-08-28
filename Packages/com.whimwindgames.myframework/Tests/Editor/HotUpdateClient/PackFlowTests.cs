@@ -140,6 +140,31 @@ public sealed class PackFlowTests
 	}
 
 	[Test]
+	public void MacFinalizeResignsAndVerifiesAfterBuildPostProcessors()
+	{
+		string app = Path.Combine(mRoot, "Signed.app");
+		Directory.CreateDirectory(app);
+		string[] resign = null;
+		string[] verify = null;
+
+		PackMacSign.finish(app, BuildTarget.StandaloneOSX, (operation, arguments) =>
+		{
+			if (operation == "重新签名") resign = arguments;
+			else if (operation == "验签") verify = arguments;
+		});
+
+		Assert.That(resign, Is.Not.Null);
+		Assert.That(resign, Does.Contain("--force"));
+		Assert.That(resign, Does.Contain("--deep"));
+		Assert.That(resign, Does.Contain("-"));
+		Assert.That(resign[^1], Is.EqualTo(app));
+		Assert.That(verify, Is.EqualTo(new[]
+		{
+			"--verify", "--deep", "--strict", "--verbose=2", app,
+		}));
+	}
+
+	[Test]
 	public void FailedPlayerBuildLeavesNoPlayerOrBaseline()
 	{
 		UpdCfg cfg = makeCfg();

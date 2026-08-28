@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.41] - 2026-08-28
+
+### Fixed
+
+- HybridCLR 在 macOS Player 构建后修改 `ScriptingAssemblies.json` 时会自动重新封装并严格验签，避免 Unity 原始签名因后处理写入而失效。
+
 ## [1.1.0-preview.40] - 2026-08-28
 
 ### Fixed
