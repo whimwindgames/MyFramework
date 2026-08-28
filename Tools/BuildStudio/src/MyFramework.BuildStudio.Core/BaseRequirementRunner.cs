@@ -8,6 +8,12 @@ public sealed class BaseRequirementReport
 {
     public string GeneratedAtUtc { get; init; } = string.Empty;
     public string Source { get; init; } = string.Empty;
+    public bool BaselineFound { get; init; }
+    public string BaselineCommit { get; init; } = string.Empty;
+    public string BaselineBaseId { get; init; } = string.Empty;
+    public string BaselineEnvironment { get; init; } = string.Empty;
+    public string BaselineTarget { get; init; } = string.Empty;
+    public string BaselineRecordedAtUtc { get; init; } = string.Empty;
     public bool RequiresBasePackage { get; init; }
     public bool ContainsHotCode { get; init; }
     public bool ContainsHotAssets { get; init; }
@@ -45,7 +51,8 @@ public static class BaseRequirementRunner
     }
 
     public static async Task<BaseRequirementReport> RunAsync(ProjectDocument project,
-        UnityInstallation unity, IProgress<BuildProgress>? progress = null,
+        UnityInstallation unity, string? target, string? environment,
+        IProgress<BuildProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
         string method = ResolveAnalyzerMethod(project);
@@ -61,6 +68,10 @@ public static class BaseRequirementRunner
         string logPath = Path.Combine(work, "UnityEditor.log");
         string reportArgument = project.Structure.properties.GetValueOrDefault(
             "baseRequirementReportArgument", "-fishingBaseReport");
+        string environmentArgument = project.Structure.properties.GetValueOrDefault(
+            "baseRequirementEnvironmentArgument", "-fishingBaseEnvironment");
+        string targetArgument = project.Structure.properties.GetValueOrDefault(
+            "baseRequirementTargetArgument", "-fishingBaseTarget");
         ProcessStartInfo start = new(unity.EditorPath)
         {
             WorkingDirectory = project.ProjectRoot,
@@ -71,8 +82,20 @@ public static class BaseRequirementRunner
                  {
                      "-batchmode", "-quit", "-accept-apiupdate", "-projectPath",
                      project.ProjectRoot, "-executeMethod", method, reportArgument,
-                     reportPath, "-logFile", logPath,
+                     reportPath,
                  }) start.ArgumentList.Add(value);
+        if (!string.IsNullOrWhiteSpace(environment))
+        {
+            start.ArgumentList.Add(environmentArgument);
+            start.ArgumentList.Add(environment);
+        }
+        if (!string.IsNullOrWhiteSpace(target))
+        {
+            start.ArgumentList.Add(targetArgument);
+            start.ArgumentList.Add(target);
+        }
+        start.ArgumentList.Add("-logFile");
+        start.ArgumentList.Add(logPath);
         progress?.Report(new BuildProgress("base-check", "started",
             "正在由 Unity 分析本次改动是否需要新 Base…", -1));
         using Process process = Process.Start(start) ?? throw new InvalidOperationException(
@@ -92,6 +115,12 @@ public static class BaseRequirementRunner
         {
             GeneratedAtUtc = text(root, "generatedAtUtc"),
             Source = text(root, "source"),
+            BaselineFound = boolean(root, "baselineFound"),
+            BaselineCommit = text(root, "baselineCommit"),
+            BaselineBaseId = text(root, "baselineBaseId"),
+            BaselineEnvironment = text(root, "baselineEnvironment"),
+            BaselineTarget = text(root, "baselineTarget"),
+            BaselineRecordedAtUtc = text(root, "baselineRecordedAtUtc"),
             RequiresBasePackage = boolean(root, "requiresBasePackage"),
             ContainsHotCode = boolean(root, "containsHotCode"),
             ContainsHotAssets = boolean(root, "containsHotAssets"),

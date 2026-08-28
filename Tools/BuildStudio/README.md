@@ -39,8 +39,12 @@ action cannot upload; release actions can add `--upload` in the CLI or enable up
 
 Projects may expose a safe configuration summary. Server addresses are shown directly while key
 material is limited to its configured path or a masked status; private-key contents are never
-rendered. A project-specific Base analyzer can also be launched from the app to classify the
-working tree before choosing between a hot update and a new Base.
+rendered. A project-specific Base analyzer can compare the current project with the matching
+environment/platform snapshot of the last successful Base. Fishing stores those snapshots as
+ordinary commits on the private `feature/build-baseline` branch. It builds the commit through a
+temporary Git index and never checks out that branch, so the developer's current branch, staged
+files and uncommitted work remain untouched. AssetBundle-only and hot-update builds do not advance
+the Base snapshot because they do not create a new Player.
 
 Required project modules are selected automatically. Repeat `--module <id>` to opt into optional modules; an explicit selection cannot omit a required module or name an undeclared module.
 

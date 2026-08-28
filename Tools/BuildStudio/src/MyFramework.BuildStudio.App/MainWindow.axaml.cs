@@ -228,11 +228,16 @@ public sealed partial class MainWindow : Window
                 StageText.Text = value.Stage + " · " + value.State;
                 appendLog($"[{value.Stage}] {value.Message}");
             });
+            string environment = EnvironmentCombo.SelectedItem?.ToString() ?? "test";
             BaseRequirementReport result = await BaseRequirementRunner.RunAsync(_project,
-                _preflight.Unity, progress);
+                _preflight.Unity, _profile.target, environment, progress);
+            string baseline = result.BaselineFound
+                ? $"基准：{result.BaselineEnvironment} / {result.BaselineTarget} / " +
+                  $"Base {result.BaselineBaseId}。\n"
+                : $"基准：{environment} / {_profile.target} 尚无成功 Base 快照。\n";
             BaseRequirementText.Text = (result.RequiresBasePackage ? "需要新 Base。" :
-                "不需要新 Base。") + $" 共分析 {result.ChangeCount} 项改动。\n" +
-                result.Recommendation + "\n报告：" + result.ReportPath;
+                "不需要新 Base。") + $" 共比较 {result.ChangeCount} 项差异。\n" +
+                baseline + result.Recommendation + "\n报告：" + result.ReportPath;
         }
         catch (Exception exception)
         {
