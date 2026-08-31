@@ -14,11 +14,13 @@ public sealed class PlatRunSetTests
             run.mPlatform = "Android";
             run.mBaseId = "base-1";
             run.mPubKey = "key";
+            run.mContentAddressed = true;
 
             UpdCfg cfg = run.getCfg();
 
             Assert.That(cfg.resList, Is.EqualTo(FrameBaseDefine.AB_INDEX_FILE));
             Assert.That(cfg.baseUrl, Is.EqualTo(run.mBaseUrl));
+            Assert.That(cfg.contentAddressed, Is.True);
         }
         finally
         {

@@ -566,6 +566,7 @@ public sealed class UpdCore
             fixDn(job, got);
             pushDn(job, done, total, true);
             UpdRet<long> result = await mHttp.download(releaseId, file,
+                mCfg.contentAddressed,
                 mStore.partPath(releaseId, file.path), got, size =>
                 {
                     addDn(job, size);
@@ -892,6 +893,7 @@ public sealed class UpdCore
             platform = cfg.platform,
             baseId = cfg.baseId,
             pubKey = cfg.pubKey,
+            contentAddressed = cfg.contentAddressed,
             retry = cfg.retry,
             timeout = cfg.timeout,
             aotDlls = cfg.aotDlls == null ? null : (string[])cfg.aotDlls.Clone(),

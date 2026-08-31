@@ -234,6 +234,7 @@ public sealed class UpdRes
             platform = cfg.platform,
             baseId = cfg.baseId,
             pubKey = cfg.pubKey,
+            contentAddressed = cfg.contentAddressed,
             retry = cfg.retry,
             timeout = cfg.timeout,
             aotDlls = cfg.aotDlls == null ? null : (string[])cfg.aotDlls.Clone(),

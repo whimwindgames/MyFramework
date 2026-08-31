@@ -143,16 +143,16 @@ context.Assets.UseProvider(provider);
 ## Schema 11 热更新
 
 - `HotUpd_Core` 提供协议、签名、哈希、事务存储、Active/Previous/Candidate 回滚和 `UpdRes` 资源映射，不依赖 UniTask。
-- `HotUpd_Client` 提供 `UpdCore`、HTTPS Latest/Manifest、内置资源复用、并发下载和 HTTP Range 续传。
+- `HotUpd_Client` 提供 `UpdCore`、HTTPS Latest/Manifest、跨 Base 共享 SHA-256 Blob 缓存、旧缓存懒迁移、保守 GC、并发下载和 HTTP Range 续传。
 - `HybridCLRSystem` 同时保留旧 `launchHotFix(Action)` 和 ArcadeHub 的 `launch(UpdRes, CancellationToken, Func<CancellationToken, UniTask>)` / `launchEdit(...)` 入口；两条链共用单次启动门，不会重复加载热更程序集。
 - Schema 11 启动前会校验并一次性读取全部 AOT、热更程序集和动态密钥；热更层的资源路径固定来自 `UpdRes` 本地 Release 映射，启动成功后才标记版本健康并销毁 AOT 框架。
 - `HotUpd_Editor` 提供与 ArcadeHub 同名的 `RelBuild`、`RelReq`、`RelSign`、`HotPlan` 生产核心：冻结 Base 身份，生成并回读 Manifest，使用项目外 P-256 私钥签名 Latest，通过候选目录和发布锁原子提升 Release，并支持全量校验和安全回指历史 Release。
 - `ProdFlow.check / preview / makeAll` 提供通用 Stage 编排事务；项目通过 `IProdStep` 接入 AB、HybridCLR 或其他生产步骤。步骤按稳定顺序执行，失败不会覆盖旧 Stage，也不会留下可见 Release。
 - `AbCfg / AbPlan / AbCheck / AbPipe / AbBuild` 提供显式 GUID + 稳定逻辑地址的 AssetBundle 生产链；`AbProdStep` 已接入 `ProdFlow`，支持图集边界、依赖闭包、构建回读、跨磁盘候选复制与 SHA-256 校验。
-- `AotBase / DllBuild / DllProd` 提供通用 HybridCLR 生产链：Base ID 原子冻结 stripped AOT、Hot 能力、启动地址、公钥和 Obfuz 能力；Release 重新编译并验证 Hot DLL，只能从冻结基线提取已声明的 AOT 元数据。`DllProdStep` 已接入 `ProdFlow`。
+- `AotBase / DllBuild / DllProd` 提供通用 HybridCLR 生产链：Base ID 原子冻结 stripped AOT、Hot 能力、启动地址、公钥、内容仓库模式和 Obfuz 能力；Release 重新编译并验证 Hot DLL，只能从冻结基线提取已声明的 AOT 元数据。`DllProdStep` 已接入 `ProdFlow`。
 - `DllBuild.analyzeAot / withAot` 从最终 Hot DLL 自动生成 `UpdCfg.aotDlls`；正式生产会复算 AOT 泛型引用并运行 `MissingMetadataChecker`，拒绝新增 Base 外元数据需求以及访问主包已裁剪类型或成员的补丁。
 - `PackFlow` 提供完整 Player/Base 外层事务：临时同步 HybridCLR Hot 分类和 `PlatRunSet`，可选内置完整 Stage，执行 GenerateAll 与 Player 构建，回读内置资源后才同时提升 Player、AOT 基线和首个签名 Release。配置了 HybridCLR 的非 Development 直接 Build 会被阻止。
-- `PubFlow / PubCli / PubWin` 提供 hot-store v2 的 SSH 断点发布、远端回读、Latest 最后曝光、Previous 回退、主机指纹信任和结构化回执；真实服务器 smoke 仅允许在隔离 batchmode/CI 中运行。
+- `PubFlow / PubCli / PubWin` 提供 hot-store v2 的 SSH 断点发布、跨 Base 内容寻址去重、远端回读、Latest 最后曝光、Previous 回退、主机指纹信任和结构化回执；真实服务器 smoke 仅允许在隔离 batchmode/CI 中运行。
 - `RelKeyStore / RelKeyWin` 把 test/prod P-256 私钥隔离到项目外 keyring，支持加密 PEM、旧 EditorPrefs 迁移和有证据的四阶段轮换；Git hook 会拒绝私钥材料进入提交。
 - `IRelGate / RelGateRunner / RelGateCli` 提供 Project、Plan、Candidate 三阶段项目门禁、结构化诊断与统一无头回执；内置 MonoScript 归属和声明式必需资源检查不感知业务名称。
 - `AbIndex` 提供确定性的 Schema 11 AssetBundle 索引编解码，会拒绝重复、乱序、缺失依赖、循环依赖和尾随数据。

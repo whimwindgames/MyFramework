@@ -222,6 +222,7 @@ public static class UpdRule
             platform = cfg.platform,
             baseId = cfg.baseId,
             pubKey = cfg.pubKey,
+            contentAddressed = cfg.contentAddressed,
             retry = cfg.retry,
             timeout = cfg.timeout,
             aotDlls = man.aotDlls == null ? null : (string[])man.aotDlls.Clone(),

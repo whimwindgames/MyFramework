@@ -51,6 +51,20 @@ public static class RelBuild
 		public string baseId;
 		public string baseUrl;
 		public string pubKey;
+		public bool contentAddressed;
+		public string resList;
+	}
+
+	// preview.42及更早版本的Base记录已有resList，但尚未冻结内容仓库能力。
+	[Serializable]
+	sealed class RelBaseV1
+	{
+		public int schema;
+		public string env;
+		public string platform;
+		public string baseId;
+		public string baseUrl;
+		public string pubKey;
 		public string resList;
 	}
 
@@ -391,6 +405,7 @@ public static class RelBuild
 			platform = cfg.platform,
 			baseId = cfg.baseId,
 			pubKey = cfg.pubKey,
+			contentAddressed = cfg.contentAddressed,
 			retry = cfg.retry,
 			timeout = cfg.timeout,
 			aotDlls = cfg.aotDlls == null ? null : (string[])cfg.aotDlls.Clone(),
@@ -455,6 +470,7 @@ public static class RelBuild
 		if (value == null || value.schema != UpdLim.Schema || value.env != cfg.env ||
 			value.platform != cfg.platform || value.baseId != cfg.baseId ||
 			value.baseUrl != cfg.baseUrl || value.pubKey != cfg.pubKey ||
+			value.contentAddressed != cfg.contentAddressed ||
 			value.resList != cfg.resList)
 			throw new InvalidDataException("Base信任身份已冻结且与当前配置不一致");
 	}
@@ -483,6 +499,7 @@ public static class RelBuild
 			platform = value.platform,
 			baseId = value.baseId,
 			pubKey = value.pubKey,
+			contentAddressed = value.contentAddressed,
 			resList = value.resList,
 		};
 		UpdRule.cfg(cfg);
@@ -499,6 +516,22 @@ public static class RelBuild
 		{
 			return value;
 		}
+		RelBaseV1 prior = JsonUtility.FromJson<RelBaseV1>(text);
+		if (prior != null && !string.IsNullOrEmpty(prior.resList) &&
+			same(raw, json(prior)))
+		{
+			return new RelBase
+			{
+				schema = prior.schema,
+				env = prior.env,
+				platform = prior.platform,
+				baseId = prior.baseId,
+				baseUrl = prior.baseUrl,
+				pubKey = prior.pubKey,
+				contentAddressed = false,
+				resList = prior.resList,
+			};
+		}
 		RelBaseLegacy legacy = JsonUtility.FromJson<RelBaseLegacy>(text);
 		if (legacy == null || !same(raw, json(legacy)))
 		{
@@ -512,6 +545,7 @@ public static class RelBuild
 			baseId = legacy.baseId,
 			baseUrl = legacy.baseUrl,
 			pubKey = legacy.pubKey,
+			contentAddressed = false,
 			resList = FrameBaseDefine.AB_INDEX_FILE,
 		};
 	}
@@ -528,6 +562,7 @@ public static class RelBuild
 			baseId = cfg.baseId,
 			baseUrl = cfg.baseUrl,
 			pubKey = cfg.pubKey,
+			contentAddressed = cfg.contentAddressed,
 			resList = cfg.resList,
 		};
 		writeNew(path, json(value));

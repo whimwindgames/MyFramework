@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Text;
 using System.Threading;
 using NUnit.Framework;
+using UnityEngine;
 
 public sealed class UpdStoreTests
 {
@@ -151,14 +153,166 @@ public sealed class UpdStoreTests
         Assert.That(File.ReadAllBytes(store.filePath(file)), Is.EqualTo(data));
     }
 
-    private UpdStore makeStore()
+    [Test]
+    public void ContentAddressedStore_ReusesBlobAcrossBaseIdsButKeepsStateIsolated()
     {
-        return new UpdStore(new UpdCfg
+        byte[] data = { 8, 6, 7, 5, 3, 0, 9 };
+        UpdFile file = updateFile("bundles/shared.bundle", data);
+        UpdStore first = makeStore("base-1", true);
+        UpdStore second = makeStore("base-2", true);
+        commit(first, "release-1", file, data);
+        first.saveState(new UpdState
         {
+            schema = UpdLim.Schema,
             env = "test",
             platform = "Android",
             baseId = "base-1",
+            seq = 1,
+            releaseId = "release-1",
+            latestSha = new string('a', 64),
+        });
+
+        Assert.That(second.match(file, CancellationToken.None), Is.True);
+        Assert.That(second.filePath(file), Is.EqualTo(first.filePath(file)));
+        Assert.That(second.loadState(), Is.Null);
+    }
+
+    [Test]
+    public void ContentAddressedStore_LazilyImportsVerifiedLegacyBaseBlob()
+    {
+        byte[] data = { 1, 4, 1, 4, 2, 1 };
+        UpdFile file = updateFile("bundles/legacy.bundle", data);
+        UpdStore legacy = makeStore("base-1", false);
+        UpdStore shared = makeStore("base-2", true);
+        commit(legacy, "release-1", file, data);
+
+        Assert.That(shared.match(file, CancellationToken.None), Is.True);
+        Assert.That(shared.filePath(file), Is.Not.EqualTo(legacy.filePath(file)));
+        Assert.That(File.ReadAllBytes(shared.filePath(file)), Is.EqualTo(data));
+        Assert.That(File.Exists(legacy.filePath(file)), Is.True,
+            "迁移不能删除旧Base仍可能用于回滚的缓存");
+    }
+
+    [Test]
+    public void ContentAddressedStore_DoesNotReuseAcrossEnvironment()
+    {
+        byte[] data = { 2, 7, 1, 8, 2, 8 };
+        UpdFile file = updateFile("bundles/env.bundle", data);
+        UpdStore test = makeStore("base-1", true, "test");
+        UpdStore prod = makeStore("base-2", true, "prod");
+        commit(test, "release-1", file, data);
+
+        Assert.That(prod.match(file, CancellationToken.None), Is.False);
+        Assert.That(prod.filePath(file), Is.Not.EqualTo(test.filePath(file)));
+    }
+
+    [Test]
+    public void ContentAddressedStore_SerializesUpdatesAcrossBaseIds()
+    {
+        UpdStore first = makeStore("base-1", true);
+        UpdStore second = makeStore("base-2", true);
+
+        using (first.takeLock())
+        {
+            UpdBad bad = Assert.Throws<UpdBad>(() =>
+            {
+                using (second.takeLock()) { }
+            });
+            Assert.That(bad.err.code, Is.EqualTo(UpdCode.Busy));
+        }
+    }
+
+    [Test]
+    public void ContentAddressedStore_PruneKeepsOtherBaseRollbackReachableBlobs()
+    {
+        UpdStore first = makeStore("base-1", true);
+        UpdStore second = makeStore("base-2", true);
+        byte[] firstData = { 1, 1, 1 };
+        byte[] secondData = { 2, 2, 2 };
+        byte[] staleData = { 3, 3, 3 };
+        UpdFile firstFile = updateFile("bundles/first.bundle", firstData);
+        UpdFile secondFile = updateFile("bundles/second.bundle", secondData);
+        UpdFile staleFile = updateFile("bundles/stale.bundle", staleData);
+        commit(first, "release-1", firstFile, firstData);
+        commit(second, "release-2", secondFile, secondData);
+        commit(first, "release-stale", staleFile, staleData);
+        UpdActive firstActive = saveManifest(first, "release-1", firstFile, 1);
+        UpdActive secondActive = saveManifest(second, "release-2", secondFile, 1);
+        first.saveActive(firstActive);
+        second.saveActive(secondActive);
+
+        first.prune(firstActive, null);
+
+        Assert.That(File.Exists(first.filePath(firstFile)), Is.True);
+        Assert.That(File.Exists(second.filePath(secondFile)), Is.True,
+            "当前Base执行GC不能删除另一个Base的活动或回滚内容");
+        Assert.That(File.Exists(first.filePath(staleFile)), Is.False);
+    }
+
+    private UpdStore makeStore()
+    {
+        return makeStore("base-1", false);
+    }
+
+    private UpdStore makeStore(string baseId, bool contentAddressed,
+        string env = "test")
+    {
+        return new UpdStore(new UpdCfg
+        {
+            env = env,
+            platform = "Android",
+            baseId = baseId,
+            contentAddressed = contentAddressed,
         }, mRoot);
+    }
+
+    private static UpdFile updateFile(string path, byte[] data)
+    {
+        return new UpdFile
+        {
+            path = path,
+            size = data.LongLength,
+            sha256 = UpdHash.data(data),
+        };
+    }
+
+    private static void commit(UpdStore store, string releaseId, UpdFile file,
+        byte[] data)
+    {
+        string copy = store.copyPath(releaseId, file.path);
+        File.WriteAllBytes(copy, data);
+        store.stage(file, releaseId, copy, UpdPhase.Copy, CancellationToken.None);
+        store.commit(file, releaseId);
+    }
+
+    private static UpdActive saveManifest(UpdStore store, string releaseId,
+        UpdFile file, long seq)
+    {
+        UpdMan man = new UpdMan
+        {
+            schema = UpdLim.Schema,
+            env = "test",
+            releaseId = releaseId,
+            platform = "Android",
+            baseId = "base-" + seq,
+            aotDlls = Array.Empty<string>(),
+            codeDlls = new[] { "Frame_HotFix.dll.bytes", "HotFix.dll.bytes" },
+            entryDll = "HotFix.dll.bytes",
+            hotId = new string('a', 64),
+            secret = string.Empty,
+            files = new[] { file },
+        };
+        byte[] raw = Encoding.UTF8.GetBytes(JsonUtility.ToJson(man, false));
+        store.saveMan(releaseId, raw);
+        return new UpdActive
+        {
+            schema = UpdLim.Schema,
+            seq = seq,
+            releaseId = releaseId,
+            manifestSha = UpdHash.data(raw),
+            manifestSize = raw.LongLength,
+            latestSha = new string('b', 64),
+        };
     }
 
     private static UpdActive active(string releaseId, long seq, char hash)

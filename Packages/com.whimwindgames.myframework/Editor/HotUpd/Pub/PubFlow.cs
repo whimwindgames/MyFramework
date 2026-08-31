@@ -180,6 +180,7 @@ public static class PubBases
 			baseId = baseId,
 			baseUrl = info.baseUrl,
 			pubKey = info.pubKey,
+			contentAddressed = info.contentAddressed,
 		};
 	}
 }
@@ -359,6 +360,11 @@ public sealed class PubFlow : IDisposable
 			putRel(data, lease, keys);
 			lease.keep();
 			keys = relKeys(data.cfg.env, item.relId);
+		}
+		else if (data.cfg.contentAddressed)
+		{
+			// Manifest已经存在但共享Blob可能因一次中断未完整落盘；安全补齐缺失对象。
+			putFiles(data, lease, keys);
 		}
 		lease.keep();
 		checkRel(data, keys);
@@ -603,22 +609,7 @@ public sealed class PubFlow : IDisposable
 
 	void putRel(PubData data, IObjLease lease, string[] keys)
 	{
-		HashSet<string> done = new(keys, StringComparer.Ordinal);
-		for (int i = 0; i < data.man.files.Length; ++i)
-		{
-			lease.keep();
-			UpdFile file = data.man.files[i];
-			step("上传 Release", i, data.man.files.Length + 1);
-			string key = relKey(data.cfg.env, data.man.releaseId,
-				"files/" + file.path);
-			if (done.Contains(key))
-			{
-				if (!fileSame(key, file))
-					throw new IOException("未完成Release文件校验失败:" + file.path);
-				continue;
-			}
-			putFile(key, filePath(data, file.path), file);
-		}
+		putFiles(data, lease, keys);
 		step("上传 Manifest", data.man.files.Length,
 			data.man.files.Length + 1);
 		lease.keep();
@@ -626,6 +617,53 @@ public sealed class PubFlow : IDisposable
 			data.manRaw);
 		step("Release 上传完成", data.man.files.Length + 1,
 			data.man.files.Length + 1);
+	}
+
+	void putFiles(PubData data, IObjLease lease, string[] keys)
+	{
+		HashSet<string> done = data.cfg.contentAddressed
+			? casKeys(data)
+			: new HashSet<string>(keys, StringComparer.Ordinal);
+		for (int i = 0; i < data.man.files.Length; ++i)
+		{
+			lease.keep();
+			UpdFile file = data.man.files[i];
+			step("上传 Release", i, data.man.files.Length + 1);
+			string key = fileKey(data.cfg, data.man.releaseId, file);
+			if (done.Contains(key))
+			{
+				// CAS对象在下面的统一Release回读中只下载校验一次，避免重复传输。
+				if (!data.cfg.contentAddressed && !fileSame(key, file))
+					throw new IOException("不可变内容对象校验失败:" + file.path);
+				continue;
+			}
+			putFile(key, filePath(data, file.path), file);
+		}
+	}
+
+	HashSet<string> casKeys(PubData data)
+	{
+		HashSet<string> prefixes = new(StringComparer.Ordinal);
+		for (int i = 0; i < data.man.files.Length; ++i)
+		{
+			string sha = data.man.files[i].sha256;
+			prefixes.Add(data.cfg.env + "/blobs/" + sha.Substring(0, 2) + "/");
+		}
+		HashSet<string> result = new(StringComparer.Ordinal);
+		foreach (string prefix in prefixes)
+		{
+			string[] keys = mStore.list(prefix);
+			if (keys == null) throw new IOException("发布存储返回了空列表");
+			for (int i = 0; i < keys.Length; ++i)
+			{
+				string key = fixKey(keys[i], false);
+				if (!key.StartsWith(prefix, StringComparison.Ordinal) || !result.Add(key))
+				{
+					throw new IOException("发布存储返回了无效或重复的Blob对象");
+				}
+			}
+		}
+		return result;
 	}
 
 	void readRel(PubData data, IObjLease lease = null)
@@ -640,8 +678,7 @@ public sealed class PubFlow : IDisposable
 				UpdFile file = data.man.files[i];
 				step("回读 Release", i, data.man.files.Length);
 				string path = Path.Combine(temp, "files", osPath(file.path));
-				get(relKey(data.cfg.env, data.man.releaseId,
-					"files/" + file.path), path);
+				get(fileKey(data.cfg, data.man.releaseId, file), path);
 				checkFile(path, file);
 				dropTemp(path);
 			}
@@ -688,8 +725,11 @@ public sealed class PubFlow : IDisposable
 		};
 		for (int i = 0; i < data.man.files.Length; ++i)
 		{
-			expect.Add(relKey(data.cfg.env, data.man.releaseId,
-				"files/" + data.man.files[i].path));
+			if (!data.cfg.contentAddressed)
+			{
+				expect.Add(relKey(data.cfg.env, data.man.releaseId,
+					"files/" + data.man.files[i].path));
+			}
 		}
 		HashSet<string> actual = new(StringComparer.Ordinal);
 		for (int i = 0; i < keys.Length; ++i)
@@ -708,7 +748,7 @@ public sealed class PubFlow : IDisposable
 	void checkPart(PubData data, string[] keys)
 	{
 		HashSet<string> expect = new(StringComparer.Ordinal);
-		for (int i = 0; i < data.man.files.Length; ++i)
+		for (int i = 0; !data.cfg.contentAddressed && i < data.man.files.Length; ++i)
 		{
 			expect.Add(relKey(data.cfg.env, data.man.releaseId,
 				"files/" + data.man.files[i].path));
@@ -1174,6 +1214,22 @@ public sealed class PubFlow : IDisposable
 	static string relKey(string env, string relId, string path)
 	{
 		return env + "/releases/" + relId + "/" + path;
+	}
+
+	static string fileKey(UpdCfg cfg, string relId, UpdFile file)
+	{
+		return cfg.contentAddressed
+			? blobKey(cfg.env, file.sha256)
+			: relKey(cfg.env, relId, "files/" + file.path);
+	}
+
+	internal static string blobKey(string env, string sha256)
+	{
+		if (!UpdFmt.isId(env) || !UpdFmt.isSha(sha256))
+		{
+			throw new InvalidDataException("共享内容对象身份非法");
+		}
+		return env + "/blobs/" + sha256.Substring(0, 2) + "/" + sha256;
 	}
 
 	static string headKey(UpdCfg cfg)

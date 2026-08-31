@@ -27,6 +27,7 @@ public class PlatRunSet : ScriptableObject
 	public string mPlatform;
 	public string mBaseId;
 	public string mPubKey;
+	public bool mContentAddressed;
 	public string[] mAotDeny;
 
 	static PlatRunSet mIns;
@@ -48,6 +49,7 @@ public class PlatRunSet : ScriptableObject
 		run.mPlatform = cfg.platform;
 		run.mBaseId = cfg.baseId;
 		run.mPubKey = cfg.pubKey;
+		run.mContentAddressed = cfg.contentAddressed;
 		run.mAotDeny = (string[])deny.Clone();
 		mIns = run;
 	}
@@ -71,6 +73,7 @@ public class PlatRunSet : ScriptableObject
 			platform = mPlatform,
 			baseId = mBaseId,
 			pubKey = mPubKey,
+			contentAddressed = mContentAddressed,
 			resList = FrameBaseDefine.AB_INDEX_FILE,
 		};
 	}

@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.43] - 2026-08-31
+
+### Added
+
+- 新 Base 可冻结 `contentAddressed` 能力，把远端文件保存为按 SHA-256 分片的共享 Blob；不同 Base 的相同内容只上传和下载一次，Release 目录只保留不可变 Manifest。
+- 客户端新增跨 Base 共享缓存、旧版按 Base 缓存的校验后懒迁移、跨 Base 更新锁，以及扫描所有活动/回滚 Manifest 的保守共享 GC。
+
+### Changed
+
+- Schema 11、按 Base 的 Latest、签名、状态和回滚链保持不变；旧 Base 的冻结记录自动按传统 `releases/<releaseId>/files` 布局运行，新 Base 才启用内容寻址模式。
+- HTTPS 部署模板允许 `blobs/` 的 GET/Range，并为 Release 与 Blob 统一返回长期 immutable 缓存头。
+
 ## [1.1.0-preview.42] - 2026-08-31
 
 ### Fixed

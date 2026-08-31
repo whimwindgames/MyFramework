@@ -33,6 +33,7 @@ public sealed class AotBaseInfo
 	public string obfCap;
 	public string baseUrl;
 	public string pubKey;
+	public bool contentAddressed;
 }
 
 // prepare/promote/accept用于把AOT基线纳入Player产物的外层事务。
@@ -197,7 +198,8 @@ public static class AotBase
 			writeList(candidate, dlls);
 			HotList.save(candidate, req.plan.cap);
 			writeObf(candidate, req.useObf ? requiredObfCap() : DllObf.NoCap);
-			writeBoot(candidate, req.cfg.baseUrl, req.cfg.pubKey);
+			writeBoot(candidate, req.cfg.baseUrl, req.cfg.pubKey,
+				req.cfg.contentAddressed);
 			File.WriteAllText(Path.Combine(candidate, BASE_MARK), baselineIdentity(candidate,
 				req.cfg.env, req.cfg.baseId, req.target), new UTF8Encoding(false));
 			read(candidate, req.cfg.env, req.cfg.baseId, req.target, req.cfg, req.plan,
@@ -274,12 +276,13 @@ public static class AotBase
 			checkDll(Path.Combine(full, dll), Path.GetFileNameWithoutExtension(dll));
 		HotCap cap = HotList.loadCap(full);
 		string obf = readObf(full);
-		(string baseUrl, string pubKey) = readBoot(full);
+		(string baseUrl, string pubKey, bool contentAddressed) = readBoot(full);
 		checkCanonicalTree(full, dlls);
 		if (plan != null && !HotList.same(plan.cap, cap))
 			throw new InvalidDataException("本次热更计划与冻结Base能力不一致");
 		if (cfg != null && (cfg.env != env || cfg.baseId != baseId || cfg.platform != platform(target) ||
-			cfg.baseUrl != baseUrl || cfg.pubKey != pubKey))
+			cfg.baseUrl != baseUrl || cfg.pubKey != pubKey ||
+			cfg.contentAddressed != contentAddressed))
 			throw new InvalidDataException("Base ID已绑定不同启动配置");
 		if (useObf)
 		{
@@ -294,6 +297,7 @@ public static class AotBase
 			obfCap = obf,
 			baseUrl = baseUrl,
 			pubKey = pubKey,
+			contentAddressed = contentAddressed,
 		};
 	}
 
@@ -446,14 +450,17 @@ public static class AotBase
 		return value;
 	}
 
-	static void writeBoot(string root, string baseUrl, string pubKey)
+	static void writeBoot(string root, string baseUrl, string pubKey,
+		bool contentAddressed)
 	{
 		checkBoot(baseUrl, pubKey);
-		string text = "schema=1\nbaseUrl=" + enc(baseUrl) + "\npubKey=" + enc(pubKey) + "\n";
+		string text = "schema=2\nbaseUrl=" + enc(baseUrl) + "\npubKey=" +
+			enc(pubKey) + "\nstore=" + (contentAddressed
+				? "cas-sha256-v1" : "release-v1") + "\n";
 		File.WriteAllText(Path.Combine(root, BootMark), text, new UTF8Encoding(false));
 	}
 
-	static (string, string) readBoot(string root)
+	static (string, string, bool) readBoot(string root)
 	{
 		string path = Path.Combine(root, BootMark);
 		FileInfo file = new(path);
@@ -462,12 +469,23 @@ public static class AotBase
 			throw new InvalidDataException("AOT基线的启动能力标识缺失或非法");
 		string text = File.ReadAllText(path, sUtf8);
 		string[] lines = text.Split('\n');
-		if (lines.Length != 4 || lines[0] != "schema=1" || lines[3].Length != 0)
+		bool legacy = lines.Length == 4 && lines[0] == "schema=1" &&
+			lines[3].Length == 0;
+		bool current = lines.Length == 5 && lines[0] == "schema=2" &&
+			lines[4].Length == 0;
+		if (!legacy && !current)
 			throw new InvalidDataException("AOT基线的启动能力标识格式非法");
 		string baseUrl = dec(lines[1], "baseUrl=");
 		string pubKey = dec(lines[2], "pubKey=");
+		bool contentAddressed = false;
+		if (current)
+		{
+			if (lines[3] == "store=cas-sha256-v1") contentAddressed = true;
+			else if (lines[3] != "store=release-v1")
+				throw new InvalidDataException("AOT基线的内容仓库能力标识非法");
+		}
 		checkBoot(baseUrl, pubKey);
-		return (baseUrl, pubKey);
+		return (baseUrl, pubKey, contentAddressed);
 	}
 
 	static void checkBoot(string baseUrl, string pubKey)

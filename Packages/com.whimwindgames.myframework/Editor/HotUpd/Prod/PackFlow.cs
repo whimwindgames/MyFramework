@@ -468,6 +468,7 @@ public sealed class PackFlow
 		return left != null && right != null && left.baseUrl == right.baseUrl &&
 			left.env == right.env && left.platform == right.platform &&
 			left.baseId == right.baseId && left.pubKey == right.pubKey &&
+			left.contentAddressed == right.contentAddressed &&
 			left.retry == right.retry && left.timeout == right.timeout &&
 			left.entryDll == right.entryDll && left.hotId == right.hotId &&
 			left.secret == right.secret && left.resList == right.resList &&
@@ -494,7 +495,8 @@ public sealed class PackFlow
 		return new UpdCfg
 		{
 			baseUrl = cfg.baseUrl, env = cfg.env, platform = cfg.platform,
-			baseId = cfg.baseId, pubKey = cfg.pubKey, retry = cfg.retry,
+			baseId = cfg.baseId, pubKey = cfg.pubKey,
+			contentAddressed = cfg.contentAddressed, retry = cfg.retry,
 			timeout = cfg.timeout,
 			aotDlls = cfg.aotDlls == null ? null : (string[])cfg.aotDlls.Clone(),
 			codeDlls = cfg.codeDlls == null ? null : (string[])cfg.codeDlls.Clone(),
@@ -777,7 +779,9 @@ public sealed class PackFlow
 				PlatRunSet actual = AssetDatabase.LoadAssetAtPath<PlatRunSet>(path);
 				if (actual == null || actual.mBaseUrl != cfg.baseUrl || actual.mEnv != cfg.env ||
 					actual.mPlatform != cfg.platform || actual.mBaseId != cfg.baseId ||
-					actual.mPubKey != cfg.pubKey || !same(actual.mAotDeny, deny))
+					actual.mPubKey != cfg.pubKey ||
+					actual.mContentAddressed != cfg.contentAddressed ||
+					!same(actual.mAotDeny, deny))
 					throw new InvalidDataException("最终Player运行配置资产写入失败");
 			}
 			catch
@@ -811,7 +815,9 @@ public sealed class PackFlow
 		{
 			mRun.mBaseUrl = cfg.baseUrl; mRun.mEnv = cfg.env;
 			mRun.mPlatform = cfg.platform; mRun.mBaseId = cfg.baseId;
-			mRun.mPubKey = cfg.pubKey; mRun.mAotDeny = (string[])deny.Clone();
+			mRun.mPubKey = cfg.pubKey;
+			mRun.mContentAddressed = cfg.contentAddressed;
+			mRun.mAotDeny = (string[])deny.Clone();
 			EditorUtility.SetDirty(mRun);
 		}
 

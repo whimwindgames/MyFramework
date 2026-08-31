@@ -37,15 +37,18 @@ internal sealed class UpdHttp
         return getMem(url(path), UpdLim.ManMax, UpdPhase.Manifest, false, mTimeout, ct);
     }
 
-    public async UniTask<UpdRet<long>> download(string releaseId, UpdFile file, string dst,
-        long from, Action<long> prog, CancellationToken ct)
+    public async UniTask<UpdRet<long>> download(string releaseId, UpdFile file,
+        bool contentAddressed, string dst, long from, Action<long> prog,
+        CancellationToken ct)
     {
         if (file == null || from < 0 || from >= file.size || prog == null)
         {
             return UpdRet<long>.fail(new UpdErr(UpdCode.State, "download_args", UpdPhase.Down));
         }
-        string path = esc(mEnv) + "/releases/" + esc(releaseId) + "/files/" +
-            escPath(file.path);
+        string path = contentAddressed
+            ? blobPath(mEnv, file.sha256)
+            : esc(mEnv) + "/releases/" + esc(releaseId) + "/files/" +
+                escPath(file.path);
         FileSink sink = null;
         try
         {
@@ -217,6 +220,15 @@ internal sealed class UpdHttp
             parts[i] = esc(parts[i]);
         }
         return string.Join("/", parts);
+    }
+
+    internal static string blobPath(string env, string sha256)
+    {
+        if (!UpdFmt.isId(env) || !UpdFmt.isSha(sha256))
+        {
+            throw new InvalidDataException("blob_path");
+        }
+        return esc(env) + "/blobs/" + sha256.Substring(0, 2) + "/" + sha256;
     }
 
     private static string esc(string value)

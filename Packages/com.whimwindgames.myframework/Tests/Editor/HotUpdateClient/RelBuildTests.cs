@@ -56,6 +56,7 @@ public sealed class RelBuildTests
 		string release1 = RelBuild.make(first);
 		UpdCfg trust = RelBuild.loadBase(mOutput, cfg.env, cfg.platform, cfg.baseId);
 		Assert.That(trust.resList, Is.EqualTo(cfg.resList));
+		Assert.That(trust.contentAddressed, Is.True);
 		RelCheck check1 = RelBuild.verify(request(cfg, false));
 		Assert.That(release1, Is.EqualTo(firstView.releaseId));
 		Assert.That(check1.releaseId, Is.EqualTo(release1));
@@ -125,6 +126,18 @@ public sealed class RelBuildTests
 	}
 
 	[Test]
+	public void FrozenBaseRejectsChangedContentStoreCapability()
+	{
+		UpdCfg cfg = makeCfg();
+		RelBuild.make(request(cfg, true));
+		UpdCfg changed = makeCfg();
+		changed.contentAddressed = false;
+
+		Assert.Throws<InvalidDataException>(() =>
+			RelBuild.verify(request(changed, false)));
+	}
+
+	[Test]
 	public void LegacyBaseDefaultsToSchema11ResourceIndex()
 	{
 		UpdCfg cfg = makeCfg();
@@ -145,6 +158,7 @@ public sealed class RelBuildTests
 		UpdCfg trust = RelBuild.loadBase(mOutput, cfg.env, cfg.platform, cfg.baseId);
 
 		Assert.That(trust.resList, Is.EqualTo(FrameBaseDefine.AB_INDEX_FILE));
+		Assert.That(trust.contentAddressed, Is.False);
 	}
 
 	RelReq request(UpdCfg cfg, bool newBase)
@@ -174,6 +188,7 @@ public sealed class RelBuildTests
 			platform = FrameBaseDefine.ANDROID,
 			baseId = "base-7",
 			pubKey = mPublicKey,
+			contentAddressed = true,
 			aotDlls = new[] { "AotMeta.dll.bytes" },
 			codeDlls = hot,
 			entryDll = FrameBaseDefine.HOTFIX_BYTES_FILE,

@@ -57,6 +57,8 @@ public sealed class UpdCfg
     public string platform;
     public string baseId;
     public string pubKey;
+    // 随Base冻结。false保持旧版Release文件布局；true使用跨Base共享的SHA-256内容仓库。
+    public bool contentAddressed;
     public int retry = UpdLim.Retry;
     public int timeout = UpdLim.Timeout;
     public string[] aotDlls = Array.Empty<string>();

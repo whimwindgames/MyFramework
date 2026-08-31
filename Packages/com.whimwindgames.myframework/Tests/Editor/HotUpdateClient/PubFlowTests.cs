@@ -34,6 +34,7 @@ public sealed class PubFlowTests
 	string mPubKey;
 	MemStore mStore;
 	PubEnv mEnv;
+	bool mContentAddressed;
 
 	sealed class MemStore : IObjStore
 	{
@@ -104,6 +105,7 @@ public sealed class PubFlowTests
 		File.WriteAllText(mPrivPem, pair.privatePem);
 		mPubKey = pair.publicKey;
 		mStore = new MemStore("https://hot.test/");
+		mContentAddressed = false;
 		mEnv = new PubEnv
 		{
 			envIds = new[] { ENV },
@@ -128,6 +130,7 @@ public sealed class PubFlowTests
 			platform = platform,
 			baseId = baseId,
 			pubKey = mPubKey,
+			contentAddressed = mContentAddressed,
 			resList = RES_LIST,
 			aotDlls = Array.Empty<string>(),
 			codeDlls = CODE_DLLS,
@@ -197,6 +200,11 @@ public sealed class PubFlowTests
 
 	string makeRelease(string relId, long seq, int extraFiles)
 	{
+		return makeRelease(relId, seq, extraFiles, BASE);
+	}
+
+	string makeRelease(string relId, long seq, int extraFiles, string baseId)
+	{
 		string relDir = Path.Combine(mRoot, ENV, "releases", relId);
 		string filesDir = Path.Combine(relDir, "files");
 		Directory.CreateDirectory(filesDir);
@@ -214,7 +222,7 @@ public sealed class PubFlowTests
 			env = ENV,
 			releaseId = relId,
 			platform = PLATFORM,
-			baseId = BASE,
+			baseId = baseId,
 			aotDlls = Array.Empty<string>(),
 			codeDlls = CODE_DLLS,
 			entryDll = ENTRY_DLL,
@@ -228,7 +236,7 @@ public sealed class PubFlowTests
 			schema = UpdLim.Schema,
 			env = ENV,
 			platform = PLATFORM,
-			baseId = BASE,
+			baseId = baseId,
 			seq = seq,
 			releaseId = relId,
 			manifestSha = UpdHash.data(manRaw),
@@ -236,7 +244,7 @@ public sealed class PubFlowTests
 		};
 		string latestDir = Path.Combine(mRoot, ENV, "latest", PLATFORM);
 		Directory.CreateDirectory(latestDir);
-		File.WriteAllBytes(Path.Combine(latestDir, BASE + ".json"), signLatest(head));
+		File.WriteAllBytes(Path.Combine(latestDir, baseId + ".json"), signLatest(head));
 		return relId;
 	}
 
@@ -262,7 +270,22 @@ public sealed class PubFlowTests
 
 	static string latestKey()
 	{
-		return ENV + "/latest/" + PLATFORM + "/" + BASE + ".json";
+		return latestKey(BASE);
+	}
+
+	static string latestKey(string baseId)
+	{
+		return ENV + "/latest/" + PLATFORM + "/" + baseId + ".json";
+	}
+
+	int countPut(string key)
+	{
+		int count = 0;
+		for (int i = 0; i < mStore.ops.Count; ++i)
+		{
+			if (mStore.ops[i] == "put:" + key) ++count;
+		}
+		return count;
 	}
 
 	UpdLatest openRemoteLatest()
@@ -341,6 +364,56 @@ public sealed class PubFlowTests
 		Assert.Greater(manAt, fileAt, "Manifest必须在Release文件之后上传");
 		Assert.Greater(headAt, manAt, "Latest必须最后曝光");
 		Assert.AreEqual("rel-b01", openRemoteLatest().releaseId);
+	}
+
+	[Test]
+	public void ContentAddressedPublish_ReusesImmutableBlobAcrossBaseIds()
+	{
+		mContentAddressed = true;
+		makeRelease("rel-cas-a01", 1, 1, "base-1");
+		string firstFile = Path.Combine(mRoot, ENV, "releases", "rel-cas-a01",
+			"files", "HotFix.dll.bytes");
+		string sha = UpdHash.file(firstFile);
+		string blob = PubFlow.blobKey(ENV, sha);
+		Assert.That(blob, Is.EqualTo(UpdHttp.blobPath(ENV, sha)),
+			"发布端和客户端下载路径必须共享同一协议");
+		using (PubFlow pub = flow()) publish(pub, "rel-cas-a01");
+
+		makeRelease("rel-cas-b01", 1, 1, "base-2");
+		using (PubFlow pub = flow()) publish(pub, "rel-cas-b01");
+
+		Assert.That(mStore.has(blob), Is.True);
+		Assert.That(countPut(blob), Is.EqualTo(1),
+			"相同SHA-256内容跨Base只能上传一次");
+		Assert.That(mStore.has(relFileKey("rel-cas-a01", "HotFix.dll.bytes")),
+			Is.False);
+		Assert.That(mStore.has(relFileKey("rel-cas-b01", "HotFix.dll.bytes")),
+			Is.False);
+		Assert.That(mStore.has(ENV + "/releases/rel-cas-a01/manifest.json"), Is.True);
+		Assert.That(mStore.has(ENV + "/releases/rel-cas-b01/manifest.json"), Is.True);
+		Assert.That(mStore.has(latestKey("base-1")), Is.True);
+		Assert.That(mStore.has(latestKey("base-2")), Is.True);
+	}
+
+	[Test]
+	public void ContentAddressedPublish_RejectsCorruptExistingBlobBeforeLatest()
+	{
+		mContentAddressed = true;
+		makeRelease("rel-cas-good01", 1, 1, "base-1");
+		string file = Path.Combine(mRoot, ENV, "releases", "rel-cas-good01",
+			"files", "HotFix.dll.bytes");
+		string blob = PubFlow.blobKey(ENV, UpdHash.file(file));
+		using (PubFlow pub = flow()) publish(pub, "rel-cas-good01");
+		byte[] corrupt = { 9, 9, 9 };
+		mStore.seed(blob, corrupt);
+
+		makeRelease("rel-cas-bad01", 1, 1, "base-2");
+		using PubFlow retry = flow();
+		Assert.Throws<InvalidDataException>(() => publish(retry, "rel-cas-bad01"));
+
+		CollectionAssert.AreEqual(corrupt, mStore.raw(blob),
+			"发布器不能覆盖已经存在的不可变Blob");
+		Assert.That(mStore.has(latestKey("base-2")), Is.False);
 	}
 
 	[Test]

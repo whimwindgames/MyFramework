@@ -52,6 +52,7 @@ public static class DllMeta
 			req.cfg, req.plan, req.target, req.useObf);
 		if (baseline?.dlls == null || baseline.cap == null ||
 			baseline.baseUrl != req.cfg.baseUrl || baseline.pubKey != req.cfg.pubKey ||
+			baseline.contentAddressed != req.cfg.contentAddressed ||
 			!HotList.same(baseline.cap, req.plan.cap))
 			throw new InvalidDataException("候选AOT基线与元数据分析计划不一致");
 		return analyzeCandidate(req.hotDir, baseline, req.plan.hot, req.target);

@@ -6,7 +6,7 @@
 
 ## 安全边界
 
-- 首个 Release 必须设置 `newBase = true`。生产器会冻结 `env/platform/baseId/baseUrl/pubKey`，后续 Release 不允许修改这些值。
+- 首个 Release 必须设置 `newBase = true`。生产器会冻结 `env/platform/baseId/baseUrl/pubKey/contentAddressed`，后续 Release 不允许修改这些值。
 - ES256 私钥必须是 P-256 PEM 文件，使用项目外绝对路径，且路径不能经过符号链接。私钥不会写入 Unity 资产、ProjectSettings 或 Release。
 - 生产器在加锁后将文件复制到 `.staging`，回读所有 SHA-256 和 Manifest，再以同父目录移动提升。
 - Latest 写入失败时会恢复原 Latest；恢复状态不可确定时，保留 Release 并要求停止上传。
@@ -31,6 +31,21 @@
 ```
 
 `latest/*.json` 是 ES256 签名的 `UpdBox`。`manifest.json` 和 `files/` 均会在提升前回读校验。
+
+上面是可审计的本地生产结构。`contentAddressed = true` 的 Base 经 `PubFlow`
+发布后，远端 Release 目录只保留不可变 Manifest，文件内容按哈希跨 Base 共享：
+
+```text
+<env>/
+  blobs/<sha256前两位>/<sha256>
+  releases/<releaseId>/manifest.json
+  latest/<platform>/<baseId>.json
+  previous/<platform>/<baseId>.json
+```
+
+客户端的 Latest、安装状态和回滚链仍按 Base 隔离；共享的只有已经按长度和
+SHA-256 完整校验的不可变内容。新 Base 会先复用共享缓存，并可懒迁移旧 Base
+的已验证 Blob。任一 Base 状态或 Manifest 无法验证时，共享 GC 会放弃本次回收。
 
 ## API 示例
 
@@ -58,6 +73,7 @@ UpdCfg cfg = new()
     platform = FrameBaseDefine.ANDROID,
     baseId = "base-1001",
     pubKey = publicKeyDerBase64,
+    contentAddressed = true,
     aotDlls = aotDlls,
     codeDlls = codeDlls,
     entryDll = FrameBaseDefine.HOTFIX_BYTES_FILE,
@@ -87,6 +103,11 @@ RelCheck check = RelBuild.verify(new RelReq
 ```
 
 后续 Release 将 `newBase` 设为 `false`。如需回指历史版本，设置 `RelReq.releaseId` 后调用 `RelBuild.point(req)`。
+
+`contentAddressed` 是 Base 能力，不是可在线切换的发布选项。旧 Base 的冻结记录
+缺少该字段时按 `false` 解释，继续使用 `releases/<releaseId>/files/...`；下一份
+新 Base 才应设为 `true`。部署新 Base 前必须先让 HTTPS 服务器开放
+`/<env>/blobs/<prefix>/<sha256>` 的 GET/Range，并配置 immutable CDN 缓存。
 
 ## Stage 编排
 

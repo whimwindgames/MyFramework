@@ -169,7 +169,9 @@ public sealed class DllProd
 	{
 		if (info?.dlls == null || info.cap == null ||
 			string.IsNullOrWhiteSpace(info.path) || info.baseUrl != mReq.cfg.baseUrl ||
-			info.pubKey != mReq.cfg.pubKey || !HotList.same(info.cap, mReq.plan.cap))
+			info.pubKey != mReq.cfg.pubKey ||
+			info.contentAddressed != mReq.cfg.contentAddressed ||
+			!HotList.same(info.cap, mReq.plan.cap))
 			throw new InvalidDataException("候选AOT基线与DLL生产计划不一致");
 		_ = safeDir(info.path, "AOT基线");
 	}
@@ -339,6 +341,7 @@ public sealed class DllProd
 			obfCap = value.obfCap,
 			baseUrl = value.baseUrl,
 			pubKey = value.pubKey,
+			contentAddressed = value.contentAddressed,
 		};
 	}
 
@@ -352,6 +355,7 @@ public sealed class DllProd
 			platform = cfg.platform,
 			baseId = cfg.baseId,
 			pubKey = cfg.pubKey,
+			contentAddressed = cfg.contentAddressed,
 			retry = cfg.retry,
 			timeout = cfg.timeout,
 			aotDlls = cfg.aotDlls == null ? null : (string[])cfg.aotDlls.Clone(),

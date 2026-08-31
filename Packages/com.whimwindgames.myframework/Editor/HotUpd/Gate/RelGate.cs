@@ -54,6 +54,7 @@ public sealed class RelGateBase
 	public string baseId { get; }
 	public string baseUrl { get; }
 	public string publicKey { get; }
+	public bool contentAddressed { get; }
 	public string resourceList { get; }
 	public string[] aotAssemblies { get; }
 
@@ -66,6 +67,7 @@ public sealed class RelGateBase
 		baseId = cfg.baseId;
 		baseUrl = cfg.baseUrl;
 		publicKey = cfg.pubKey;
+		contentAddressed = cfg.contentAddressed;
 		resourceList = cfg.resList;
 		this.aotAssemblies = normalizeAssemblies(aotAssemblies);
 	}
@@ -73,7 +75,8 @@ public sealed class RelGateBase
 	public static RelGateBase from(UpdCfg cfg, AotBaseInfo info)
 	{
 		if (info == null || info.dlls == null || info.baseUrl != cfg?.baseUrl ||
-			info.pubKey != cfg?.pubKey)
+			info.pubKey != cfg?.pubKey ||
+			info.contentAddressed != cfg.contentAddressed)
 		{
 			throw new InvalidDataException("门禁Base冻结记录与Release配置不一致");
 		}
@@ -129,6 +132,7 @@ public sealed class RelGateInput
 			trustedBase.baseId != this.cfg.baseId ||
 			trustedBase.baseUrl != this.cfg.baseUrl ||
 			trustedBase.publicKey != this.cfg.pubKey ||
+			trustedBase.contentAddressed != this.cfg.contentAddressed ||
 			trustedBase.resourceList != this.cfg.resList)
 		{
 			throw new InvalidDataException("门禁输入的Release与Base身份不一致");
@@ -146,7 +150,8 @@ public sealed class RelGateInput
 		StringBuilder value = new();
 		value.Append(cfg.env).Append('\n').Append(cfg.platform).Append('\n')
 			.Append(cfg.baseId).Append('\n').Append(cfg.baseUrl).Append('\n')
-			.Append(cfg.pubKey).Append('\n').Append(cfg.resList).Append('\n')
+			.Append(cfg.pubKey).Append('\n').Append(cfg.contentAddressed ? "cas1" : "rel1")
+			.Append('\n').Append(cfg.resList).Append('\n')
 			.Append(cfg.entryDll).Append('\n').Append(cfg.hotId).Append('\n')
 			.Append(cfg.secret).Append('\n').Append(stage).Append('\n').Append(releaseId)
 			.Append('\n');
@@ -206,6 +211,7 @@ public sealed class RelGateInput
 			platform = cfg.platform,
 			baseId = cfg.baseId,
 			pubKey = cfg.pubKey,
+			contentAddressed = cfg.contentAddressed,
 			retry = cfg.retry,
 			timeout = cfg.timeout,
 			aotDlls = cfg.aotDlls == null ? null : (string[])cfg.aotDlls.Clone(),

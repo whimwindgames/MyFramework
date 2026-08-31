@@ -34,7 +34,7 @@ IP HTTPS 证书是短周期证书，服务器上的 Certbot 定时器负责自�
 协议时，另一侧与 `tests/test_hot_store.py::test_version_matches_unity_client`
 必须同步更新。
 
-协议 v2 语义：不可变 Release（已存在且内容不同的对象拒绝覆盖）、可变
+协议 v2 语义：不可变 Release/共享 SHA-256 Blob（已存在且内容不同的对象拒绝覆盖）、可变
 `{test,prod}/{latest,previous}/<platform>/*.json` 指针、断点续传（meta 不匹配
 或尺寸异常时自动重传）、发布锁租约（`leaseSeconds`，允许过期后重新获取）。
 
@@ -62,6 +62,9 @@ python3 Deploy/HotUpdate/tests/test_hot_store.py
 2. `curl https://47.243.79.140/.hot-health` 返回 `ok`；
 3. Unity 内运行 `[Explicit]` 测试 `PubSmokeTests.RealServerPublishAndRollback`
    完成上传、回读、Latest 曝光、Previous 回退和 HTTPS 验签。
+
+启用 `UpdCfg.contentAddressed` 前，必须先部署本目录的 `nginx-https.conf`，确认
+`/{env}/blobs/{sha前两位}/{sha}` 支持 GET、Range，并返回一年 immutable 缓存头。
 
 旧 Base 中冻结的资源地址不会被自动改写；切换服务器后应生产并验证新的
 Base、Release 和客户端。
