@@ -8,6 +8,7 @@ public static class EditorCloseCoordinator
 
     public static async Task EnsureClosedAsync(string projectRoot,
         IProgress<BuildProgress>? progress = null, TimeSpan? timeout = null,
+        TimeSpan? shutdownTimeout = null,
         CancellationToken cancellationToken = default)
     {
         string root = Path.GetFullPath(projectRoot);
@@ -31,18 +32,38 @@ public static class EditorCloseCoordinator
         progress?.Report(new BuildProgress("editor-close", "waiting",
             "Unity 项目正在使用，已请求保存并关闭编辑器。", -1));
 
-        DateTime deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromMinutes(2));
+        DateTime readyDeadline = DateTime.UtcNow +
+            (timeout ?? TimeSpan.FromMinutes(5));
+        DateTime? shutdownDeadline = null;
         try
         {
             while (File.Exists(lockPath))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string? failure = readFailure(ackPath, token);
+                bool acknowledged = readAck(ackPath, token, out string? failure);
                 if (failure is not null)
-                    throw new InvalidOperationException("Unity Editor refused to close: " + failure);
+                    throw new InvalidOperationException(
+                        "Unity Editor refused to close: " + failure);
+                if (acknowledged && shutdownDeadline is null)
+                {
+                    shutdownDeadline = DateTime.UtcNow +
+                        (shutdownTimeout ?? TimeSpan.FromMinutes(2));
+                    progress?.Report(new BuildProgress("editor-close", "closing",
+                        "Unity 已保存，正在等待编辑器进程退出。", -1));
+                }
+                DateTime deadline = shutdownDeadline ?? readyDeadline;
                 if (DateTime.UtcNow >= deadline)
-                    throw new TimeoutException(
-                        "Unity Editor did not close within the allowed time. Save prompts or compilation may be blocking it.");
+                {
+                    // The lock can disappear between the loop condition and the timeout
+                    // check while Unity is in the final part of process shutdown.
+                    if (!File.Exists(lockPath)) break;
+                    throw new TimeoutException(shutdownDeadline is not null
+                        ? "Unity saved the project but its process did not exit " +
+                          "within the allowed time."
+                        : "Unity Editor did not become ready to close within the " +
+                          "allowed time. Compilation, import, tests, or a modal " +
+                          "dialog may be blocking it.");
+                }
                 await Task.Delay(250, cancellationToken);
             }
             progress?.Report(new BuildProgress("editor-close", "succeeded",
@@ -81,17 +102,19 @@ public static class EditorCloseCoordinator
         finally { deleteIfExists(temporary); }
     }
 
-    static string? readFailure(string path, string token)
+    static bool readAck(string path, string token, out string? failure)
     {
-        if (!File.Exists(path)) return null;
+        failure = null;
+        if (!File.Exists(path)) return false;
         string[] lines;
         try { lines = File.ReadAllLines(path); }
-        catch (IOException) { return null; }
+        catch (IOException) { return false; }
         if (lines.Length < 2 || !string.Equals(lines[0].Trim(), token,
-                StringComparison.Ordinal)) return null;
-        if (string.Equals(lines[1].Trim(), "ok", StringComparison.Ordinal)) return null;
-        return lines.Length > 2 && !string.IsNullOrWhiteSpace(lines[2])
+                StringComparison.Ordinal)) return false;
+        if (string.Equals(lines[1].Trim(), "ok", StringComparison.Ordinal)) return true;
+        failure = lines.Length > 2 && !string.IsNullOrWhiteSpace(lines[2])
             ? lines[2].Trim() : "Unknown Editor error.";
+        return false;
     }
 
     static void deleteOwned(string path, string token)
