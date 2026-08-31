@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using MyFramework.BuildStudio;
 using MyFramework.BuildStudio.Core;
@@ -491,14 +492,21 @@ public sealed class CoreTests
             string ack = Path.Combine(control, EditorCloseCoordinator.AckFileName);
             string unityLock = Path.Combine(temp, "UnityLockfile");
             Directory.CreateDirectory(temp);
-            File.WriteAllText(unityLock, string.Empty);
+            TestUnityLock activeLock = new(unityLock);
             Task editor = Task.Run(async () =>
             {
-                while (!File.Exists(request)) await Task.Delay(10);
-                string token = (await File.ReadAllTextAsync(request)).Trim();
-                Directory.CreateDirectory(control);
-                await File.WriteAllTextAsync(ack, token + "\nok\n");
-                File.Delete(unityLock);
+                try
+                {
+                    while (!File.Exists(request)) await Task.Delay(10);
+                    string token = (await File.ReadAllTextAsync(request)).Trim();
+                    Directory.CreateDirectory(control);
+                    await File.WriteAllTextAsync(ack, token + "\nok\n");
+                }
+                finally
+                {
+                    activeLock.Dispose();
+                    File.Delete(unityLock);
+                }
             });
 
             await EditorCloseCoordinator.EnsureClosedAsync(root,
@@ -523,15 +531,22 @@ public sealed class CoreTests
             string ack = Path.Combine(control, EditorCloseCoordinator.AckFileName);
             string unityLock = Path.Combine(temp, "UnityLockfile");
             Directory.CreateDirectory(temp);
-            File.WriteAllText(unityLock, string.Empty);
+            TestUnityLock activeLock = new(unityLock);
             Task editor = Task.Run(async () =>
             {
-                while (!File.Exists(request)) await Task.Delay(5);
-                string token = (await File.ReadAllTextAsync(request)).Trim();
-                Directory.CreateDirectory(control);
-                await File.WriteAllTextAsync(ack, token + "\nok\n");
-                await Task.Delay(250);
-                File.Delete(unityLock);
+                try
+                {
+                    while (!File.Exists(request)) await Task.Delay(5);
+                    string token = (await File.ReadAllTextAsync(request)).Trim();
+                    Directory.CreateDirectory(control);
+                    await File.WriteAllTextAsync(ack, token + "\nok\n");
+                    await Task.Delay(250);
+                }
+                finally
+                {
+                    activeLock.Dispose();
+                    File.Delete(unityLock);
+                }
             });
 
             await EditorCloseCoordinator.EnsureClosedAsync(root,
@@ -539,6 +554,32 @@ public sealed class CoreTests
                 shutdownTimeout: TimeSpan.FromSeconds(2));
             await editor;
 
+            Assert.False(File.Exists(request));
+            Assert.False(File.Exists(ack));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task EditorCloseCoordinatorRemovesUnownedStaleLock()
+    {
+        string root = temporary("editor-close-stale-lock");
+        try
+        {
+            string temp = Path.Combine(root, "Temp");
+            string control = Path.Combine(temp, EditorCloseCoordinator.ControlDirectoryName);
+            string request = Path.Combine(control, EditorCloseCoordinator.RequestFileName);
+            string ack = Path.Combine(control, EditorCloseCoordinator.AckFileName);
+            string unityLock = Path.Combine(temp, "UnityLockfile");
+            Directory.CreateDirectory(control);
+            File.WriteAllText(unityLock, string.Empty);
+            File.WriteAllText(request, "orphaned-request");
+            File.WriteAllText(ack, "orphaned-ack");
+
+            await EditorCloseCoordinator.EnsureClosedAsync(root,
+                timeout: TimeSpan.FromSeconds(1));
+
+            Assert.False(File.Exists(unityLock));
             Assert.False(File.Exists(request));
             Assert.False(File.Exists(ack));
         }
@@ -556,6 +597,38 @@ public sealed class CoreTests
             directory = directory.Parent;
         }
         throw new DirectoryNotFoundException("MyFramework repository root was not found.");
+    }
+
+    sealed class TestUnityLock : IDisposable
+    {
+        const int LockExclusive = 2;
+        const int LockUnlock = 8;
+        readonly FileStream _stream;
+        readonly bool _native;
+
+        public TestUnityLock(string path)
+        {
+            _native = OperatingSystem.IsMacOS() || OperatingSystem.IsLinux();
+            _stream = new FileStream(path, FileMode.Create, FileAccess.ReadWrite,
+                _native ? FileShare.ReadWrite | FileShare.Delete : FileShare.None);
+            if (!_native) return;
+            int descriptor = _stream.SafeFileHandle.DangerousGetHandle().ToInt32();
+            if (flock(descriptor, LockExclusive) != 0)
+                throw new IOException("Unable to acquire test Unity project lock.");
+        }
+
+        public void Dispose()
+        {
+            if (_native)
+            {
+                int descriptor = _stream.SafeFileHandle.DangerousGetHandle().ToInt32();
+                flock(descriptor, LockUnlock);
+            }
+            _stream.Dispose();
+        }
+
+        [DllImport("libc", EntryPoint = "flock", SetLastError = true)]
+        static extern int flock(int descriptor, int operation);
     }
 
     static MfBuildProfile profile(string id, string action, string target,

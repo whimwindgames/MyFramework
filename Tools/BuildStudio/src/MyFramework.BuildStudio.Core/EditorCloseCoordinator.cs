@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace MyFramework.BuildStudio.Core;
 
 public static class EditorCloseCoordinator
@@ -16,10 +18,14 @@ public static class EditorCloseCoordinator
         string controlRoot = Path.Combine(root, "Temp", ControlDirectoryName);
         string requestPath = Path.Combine(controlRoot, RequestFileName);
         string ackPath = Path.Combine(controlRoot, AckFileName);
-        if (!File.Exists(lockPath))
+        bool lockFileExisted = File.Exists(lockPath);
+        if (!lockIsHeldOrRemoveStale(lockPath))
         {
             deleteIfExists(requestPath);
             deleteIfExists(ackPath);
+            if (lockFileExisted)
+                progress?.Report(new BuildProgress("editor-close", "recovered",
+                    "检测到上次中断留下的 Unity 工程锁，已自动清理。", -1));
             return;
         }
 
@@ -37,7 +43,7 @@ public static class EditorCloseCoordinator
         DateTime? shutdownDeadline = null;
         try
         {
-            while (File.Exists(lockPath))
+            while (lockIsHeldOrRemoveStale(lockPath))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 bool acknowledged = readAck(ackPath, token, out string? failure);
@@ -56,7 +62,7 @@ public static class EditorCloseCoordinator
                 {
                     // The lock can disappear between the loop condition and the timeout
                     // check while Unity is in the final part of process shutdown.
-                    if (!File.Exists(lockPath)) break;
+                    if (!lockIsHeldOrRemoveStale(lockPath)) break;
                     throw new TimeoutException(shutdownDeadline is not null
                         ? "Unity saved the project but its process did not exit " +
                           "within the allowed time."
@@ -85,6 +91,55 @@ public static class EditorCloseCoordinator
                 "Another Build Studio process is already requesting this Unity project to close.");
         File.Delete(path);
     }
+
+    static bool lockIsHeldOrRemoveStale(string path)
+    {
+        if (!File.Exists(path)) return false;
+        try
+        {
+            using FileStream stream = new(path, FileMode.Open, FileAccess.ReadWrite,
+                FileShare.ReadWrite | FileShare.Delete);
+            if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+            {
+                int descriptor = stream.SafeFileHandle.DangerousGetHandle().ToInt32();
+                if (flock(descriptor, LockExclusive | LockNonBlocking) != 0) return true;
+                try { }
+                finally { flock(descriptor, LockUnlock); }
+            }
+            else
+            {
+                // On Windows the share mode is the lock: Unity's open handle prevents
+                // this second exclusive open while the project is active.
+                stream.Dispose();
+                using FileStream exclusive = new(path, FileMode.Open, FileAccess.ReadWrite,
+                    FileShare.None);
+            }
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return true;
+        }
+
+        try { File.Delete(path); }
+        catch (FileNotFoundException) { }
+        catch (IOException exception)
+        {
+            throw new IOException("Stale Unity project lock could not be removed: " + path,
+                exception);
+        }
+        return false;
+    }
+
+    const int LockExclusive = 2;
+    const int LockNonBlocking = 4;
+    const int LockUnlock = 8;
+
+    [DllImport("libc", EntryPoint = "flock", SetLastError = true)]
+    static extern int flock(int descriptor, int operation);
 
     static void writeRequest(string path, string token)
     {
