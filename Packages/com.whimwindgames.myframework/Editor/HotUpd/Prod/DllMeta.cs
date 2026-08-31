@@ -66,14 +66,15 @@ public static class DllMeta
 		checkHot(source, hot);
 		using HotSettingsTx settings = new(hot);
 		using HotOutputTx output = new(source, hot, target);
+		using AotResolverTx aot = new(baseline, target);
 		string generated = tempOutput();
 		string oldAot = settings.cfg.strippedAOTDllOutputRootDir;
 		string oldGenerated = settings.cfg.outputAOTGenericReferenceFile;
 		try
 		{
-			// SettingsUtil会在root后拼接BuildTarget，所以这里指向冻结目录的父目录。
-			settings.cfg.strippedAOTDllOutputRootDir =
-				Path.GetDirectoryName(baseline.path).Replace('\\', '/');
+			// SettingsUtil会在root后拼接BuildTarget。已发布基线可直接使用父目录；
+			// 尚未promote的新Base带有.candidate后缀，需要映射到临时root/BuildTarget。
+			settings.cfg.strippedAOTDllOutputRootDir = aot.root.Replace('\\', '/');
 			settings.cfg.outputAOTGenericReferenceFile = relativeToAssets(generated);
 			AOTReferenceGeneratorCommand.GenerateAOTGenericReference(target);
 			string[] required = parseGeneratedAotAssemblies(
@@ -431,5 +432,57 @@ public static class DllMeta
 		}
 
 		public void Dispose() { restore(); }
+	}
+
+	internal sealed class AotResolverTx : IDisposable
+	{
+		readonly string mOwnedRoot;
+		bool mDone;
+		public string root { get; }
+
+		public AotResolverTx(AotBaseInfo baseline, BuildTarget target)
+		{
+			if (baseline == null) throw new ArgumentNullException(nameof(baseline));
+			if (target == BuildTarget.NoTarget) throw new ArgumentOutOfRangeException(nameof(target));
+			string source = safeDir(baseline.path, "AOT基线");
+			string targetName = target.ToString();
+			if (string.Equals(Path.GetFileName(source), targetName,
+				StringComparison.Ordinal))
+			{
+				root = Path.GetDirectoryName(source);
+				return;
+			}
+
+			mOwnedRoot = Path.Combine(project(), "Library", "MyFramework", "HotUpd",
+				"Meta-Aot-" + Guid.NewGuid().ToString("N"));
+			root = mOwnedRoot;
+			string mapped = Path.Combine(root, targetName);
+			try
+			{
+				Directory.CreateDirectory(mapped);
+				foreach (string name in baseline.dlls ?? Array.Empty<string>())
+				{
+					if (string.IsNullOrWhiteSpace(name) || name != Path.GetFileName(name) ||
+						!name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+						throw new InvalidDataException("AOT基线程序集名称非法:" + name);
+					copyChecked(Path.Combine(source, name), Path.Combine(mapped, name), false);
+				}
+				if (Directory.GetFiles(mapped, "*.dll", SearchOption.TopDirectoryOnly).Length == 0)
+					throw new InvalidDataException("AOT基线没有可供元数据分析的程序集");
+			}
+			catch
+			{
+				Dispose();
+				throw;
+			}
+		}
+
+		public void Dispose()
+		{
+			if (mDone) return;
+			if (!string.IsNullOrEmpty(mOwnedRoot) && Directory.Exists(mOwnedRoot))
+				Directory.Delete(mOwnedRoot, true);
+			mDone = true;
+		}
 	}
 }

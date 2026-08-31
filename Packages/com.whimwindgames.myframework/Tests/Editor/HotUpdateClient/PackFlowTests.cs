@@ -323,6 +323,24 @@ public sealed class PackFlowTests
 		Assert.That(hook.disposed, Is.EqualTo(1));
 	}
 
+	[Test]
+	public void ProjectCommitHookIsDisposedWhenValidationFails()
+	{
+		UpdCfg cfg = makeCfg();
+		HotPlan plan = HotList.fromCfg(cfg);
+		FakeCommitHook hook = new();
+		FakePackApi api = new(mStripped, cfg, mRunPath, true);
+		Directory.CreateDirectory(mOutput);
+		PackFlow flow = makeFlow(cfg, plan, api, false, false, hook);
+
+		Assert.Throws<InvalidOperationException>(() => flow.build());
+
+		Assert.That(hook.validated, Is.Zero);
+		Assert.That(hook.promoted, Is.Zero);
+		Assert.That(hook.accepted, Is.Zero);
+		Assert.That(hook.disposed, Is.EqualTo(1));
+	}
+
 	PackFlow makeFlow(UpdCfg cfg, HotPlan plan, FakePackApi api, bool embed,
 		bool release, IPackCommitHook hook = null)
 	{

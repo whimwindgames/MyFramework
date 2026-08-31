@@ -112,6 +112,44 @@ public sealed class DllMetaTests
 	}
 
 	[Test]
+	public void CandidateAotBaselineIsMappedUnderBuildTargetAndCleaned()
+	{
+		string candidate = Path.Combine(mRoot,
+			"StandaloneOSX.candidate-" + Guid.NewGuid().ToString("N"));
+		Directory.CreateDirectory(candidate);
+		copy("Frame_Base", candidate);
+		string mappedRoot;
+		using (DllMeta.AotResolverTx tx = new(new AotBaseInfo
+		{
+			path = candidate,
+			dlls = new[] { "Frame_Base.dll" },
+		}, BuildTarget.StandaloneOSX))
+		{
+			mappedRoot = tx.root;
+			Assert.That(mappedRoot, Is.Not.EqualTo(mRoot));
+			Assert.That(File.Exists(Path.Combine(mappedRoot, "StandaloneOSX",
+				"Frame_Base.dll")), Is.True);
+		}
+		Assert.That(Directory.Exists(mappedRoot), Is.False);
+	}
+
+	[Test]
+	public void PromotedAotBaselineUsesItsParentWithoutCopying()
+	{
+		string target = Path.Combine(mRoot, BuildTarget.StandaloneOSX.ToString());
+		Directory.CreateDirectory(target);
+		copy("Frame_Base", target);
+		using DllMeta.AotResolverTx tx = new(new AotBaseInfo
+		{
+			path = target,
+			dlls = new[] { "Frame_Base.dll" },
+		}, BuildTarget.StandaloneOSX);
+
+		Assert.That(tx.root, Is.EqualTo(mRoot));
+		Assert.That(File.Exists(Path.Combine(target, "Frame_Base.dll")), Is.True);
+	}
+
+	[Test]
 	public void MissingMetadataCheckerRejectsIncompleteFrozenBase()
 	{
 		string baseline = Path.Combine(mRoot, "baseline");

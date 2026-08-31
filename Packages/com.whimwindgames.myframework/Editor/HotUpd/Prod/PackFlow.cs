@@ -230,12 +230,12 @@ public sealed class PackFlow
 
 	public PackReport build()
 	{
+		using IPackCommitHook hook = mReq.commitHook;
 		validate();
 		using PackPending pack = new(mReq.outputRoot, mReq.playerPath);
 		using HybridSettingsTx hybrid = new(mReq.plan.cap);
 		using RunSetTx run = new(mReq.runSetPath, mReq.cfg, HotList.aotDeny(mReq.plan.cap));
 		using EmbedTx embed = new(mReq.embedStage, mReq.cfg.platform);
-		using IPackCommitHook hook = mReq.commitHook;
 		AotPending aot = null;
 		RelBuild.RelPending release = null;
 		try

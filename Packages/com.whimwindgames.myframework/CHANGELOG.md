@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.42] - 2026-08-31
+
+### Fixed
+
+- HybridCLR 元数据分析会把尚未提交的新 Base 候选目录正确映射到目标平台，避免首次构建新 Base 时误报找不到已生成的裁剪 AOT DLL。
+- Player/Base 在预校验阶段失败时也会释放项目提交钩子，避免项目侧候选 Stage 残留。
+
 ## [1.1.0-preview.41] - 2026-08-28
 
 ### Fixed
