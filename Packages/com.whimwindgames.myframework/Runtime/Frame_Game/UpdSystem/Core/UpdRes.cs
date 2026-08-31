@@ -98,7 +98,7 @@ public sealed class UpdRes
 
     internal void markHealthy()
     {
-        using (FileStream gate = mStore.takeLock())
+        using (IDisposable gate = mStore.takeLock())
         {
             mStore.markHealthy(releaseId);
         }

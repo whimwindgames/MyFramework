@@ -116,6 +116,14 @@ public sealed class UpdCore
         mSign = new UpdSign(mCfg.pubKey);
         mBuiltin = new UpdBuiltin(mStore, mCfg.timeout, mCfg.platform, mBuiltinRoot);
 
+        using (IDisposable runLock = mStore.takeLock())
+        {
+            return await runLocked(ct);
+        }
+    }
+
+    private async UniTask<UpdRet<UpdRes>> runLocked(CancellationToken ct)
+    {
         report(UpdPhase.Latest, null, 0, 4);
         UpdRes local = await openLocal(ct);
         report(UpdPhase.Latest, null, 1, 4);
@@ -178,7 +186,7 @@ public sealed class UpdCore
     {
         return runIo(() =>
         {
-            using (FileStream gate = mStore.takeLock())
+            using (IDisposable gate = mStore.takeLock())
             {
                 UpdActive active = mStore.prepareBoot(out mRejected);
                 UpdRes res = tryOpen(active);
@@ -220,7 +228,7 @@ public sealed class UpdCore
     {
         return runIo(() =>
         {
-            using (FileStream gate = mStore.takeLock())
+            using (IDisposable gate = mStore.takeLock())
             {
                 UpdState state = mStore.loadState();
                 if (state == null)
@@ -244,7 +252,7 @@ public sealed class UpdCore
     {
         return runIo(() =>
         {
-            using (FileStream gate = mStore.takeLock())
+            using (IDisposable gate = mStore.takeLock())
             {
                 mStore.clearRejected();
             }
@@ -661,7 +669,7 @@ public sealed class UpdCore
         mInstTime = Stopwatch.StartNew();
         report(UpdPhase.Install, null, 0, total);
         ct.ThrowIfCancellationRequested();
-        using (FileStream gate = await runIo(() => mStore.takeLock(), ct))
+        using (IDisposable gate = await runIo(() => mStore.takeLock(), ct))
         {
             for (int i = 0; i < changed.Count; ++i)
             {

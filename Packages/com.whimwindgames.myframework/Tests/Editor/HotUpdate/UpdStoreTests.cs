@@ -75,13 +75,26 @@ public sealed class UpdStoreTests
     public void Lock_AllowsOnlyOneUpdaterProcess()
     {
         UpdStore store = makeStore();
+        UpdStore other = makeStore();
         using (store.takeLock())
         {
             UpdBad bad = Assert.Throws<UpdBad>(() =>
             {
-                using (store.takeLock()) { }
+                using (other.takeLock()) { }
             });
             Assert.That(bad.err.code, Is.EqualTo(UpdCode.Busy));
+        }
+    }
+
+    [Test]
+    public void Lock_IsReentrantWithinOneUpdaterRun()
+    {
+        UpdStore store = makeStore();
+
+        using (store.takeLock())
+        using (store.takeLock())
+        {
+            Assert.Pass();
         }
     }
 

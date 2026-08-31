@@ -19,6 +19,28 @@ internal sealed class UpdStore
     private readonly string mCandidate;
     private readonly string mRejected;
     private readonly string mLock;
+    private readonly object mLockSync = new object();
+    private FileStream mHeldLock;
+    private int mLockLeases;
+
+    private sealed class StoreLock : IDisposable
+    {
+        private UpdStore mStore;
+
+        public StoreLock(UpdStore store)
+        {
+            mStore = store;
+        }
+
+        public void Dispose()
+        {
+            UpdStore store = Interlocked.Exchange(ref mStore, null);
+            if (store != null)
+            {
+                store.releaseLock();
+            }
+        }
+    }
 
     public UpdStore(UpdCfg cfg, string root = null)
     {
@@ -46,17 +68,44 @@ internal sealed class UpdStore
         mLock = Path.Combine(mBlobDisk.root, "upd.lock");
     }
 
-    public FileStream takeLock()
+    public IDisposable takeLock()
     {
-        try
+        lock (mLockSync)
         {
-            mBlobDisk.makeParent(mLock);
-            return new FileStream(mLock, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None,
-                1, FileOptions.WriteThrough);
+            if (mHeldLock != null)
+            {
+                ++mLockLeases;
+                return new StoreLock(this);
+            }
+            try
+            {
+                mBlobDisk.makeParent(mLock);
+                mHeldLock = new FileStream(mLock, FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite, FileShare.None, 1, FileOptions.WriteThrough);
+                mLockLeases = 1;
+                return new StoreLock(this);
+            }
+            catch (Exception ex)
+            {
+                throw new UpdBad(new UpdErr(UpdCode.Busy, "upd_lock",
+                    UpdPhase.Idle, ex), ex);
+            }
         }
-        catch (Exception ex)
+    }
+
+    private void releaseLock()
+    {
+        lock (mLockSync)
         {
-            throw new UpdBad(new UpdErr(UpdCode.Busy, "upd_lock", UpdPhase.Idle, ex), ex);
+            if (mHeldLock == null || mLockLeases <= 0)
+            {
+                throw new InvalidOperationException("upd_lock_lease");
+            }
+            if (--mLockLeases == 0)
+            {
+                mHeldLock.Dispose();
+                mHeldLock = null;
+            }
         }
     }
 
