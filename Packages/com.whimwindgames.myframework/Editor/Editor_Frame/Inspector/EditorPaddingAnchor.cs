@@ -35,50 +35,50 @@ public class EditorPaddingAnchor : GameInspector
 			}
 		}
 
-		modified |= toggle("µ÷Õû×ÖÌå´óĞ¡", ref paddingAnchor.mAdjustFont);
-		modified |= displayInt("×ÖÌåµÄ×îĞ¡³ß´ç", ref paddingAnchor.mMinFontSize);
-		// ÀàËÆÓÚEditorGUILayout.EnumPopupÕâÖÖ·½Ê½ÏÔÊ¾ÊôĞÔÊÇÓÃÓÚ¿ÉÒÔÔÚ±à¼­Æ÷ĞŞ¸Ä,²¢ÇÒ´¥·¢Ö¸¶¨Âß¼­
-		ANCHOR_MODE anchorMode = displayEnum("Í£¿¿ÀàĞÍ", paddingAnchor.mAnchorMode);
+		modified |= toggle("è°ƒæ•´å­—ä½“å¤§å°", ref paddingAnchor.mAdjustFont);
+		modified |= displayInt("å­—ä½“çš„æœ€å°å°ºå¯¸", ref paddingAnchor.mMinFontSize);
+		// ç±»ä¼¼äºEditorGUILayout.EnumPopupè¿™ç§æ–¹å¼æ˜¾ç¤ºå±æ€§æ˜¯ç”¨äºå¯ä»¥åœ¨ç¼–è¾‘å™¨ä¿®æ”¹,å¹¶ä¸”è§¦å‘æŒ‡å®šé€»è¾‘
+		ANCHOR_MODE anchorMode = displayEnum("åœé ç±»å‹", paddingAnchor.mAnchorMode);
 		if (anchorMode != paddingAnchor.mAnchorMode)
 		{
 			modified = true;
 			paddingAnchor.setAnchorModeInEditor(anchorMode);
 		}
-		bool relativePos = toggle("ÊÇ·ñ´æ´¢Ïà¶ÔÖµ", paddingAnchor.mRelativeDistance);
+		bool relativePos = toggle("æ˜¯å¦å­˜å‚¨ç›¸å¯¹å€¼", paddingAnchor.mRelativeDistance);
 		if (relativePos != paddingAnchor.mRelativeDistance)
 		{
 			modified = true;
 			paddingAnchor.setRelativeDistanceInEditor(relativePos);
 		}
-		// Ö»ÊÇÍ£¿¿µ½¸¸½ÚµãµÄÄ³¸öÎ»ÖÃ
+		// åªæ˜¯åœé åˆ°çˆ¶èŠ‚ç‚¹çš„æŸä¸ªä½ç½®
 		if (paddingAnchor.mAnchorMode == ANCHOR_MODE.PADDING_PARENT_SIDE)
 		{
-			HORIZONTAL_PADDING horizontalPadding = displayEnum("Ë®Æ½Í£¿¿ÀàĞÍ", "", paddingAnchor.mHorizontalNearSide);
+			HORIZONTAL_PADDING horizontalPadding = displayEnum("æ°´å¹³åœé ç±»å‹", "", paddingAnchor.mHorizontalNearSide);
 			if (horizontalPadding != paddingAnchor.mHorizontalNearSide)
 			{
 				modified = true;
 				paddingAnchor.setHorizontalNearSideInEditor(horizontalPadding);
 			}
-			VERTICAL_PADDING verticalPadding = displayEnum("ÊúÖ±Í£¿¿ÀàĞÍ", "", paddingAnchor.mVerticalNearSide);
+			VERTICAL_PADDING verticalPadding = displayEnum("ç«–ç›´åœé ç±»å‹", "", paddingAnchor.mVerticalNearSide);
 			if (verticalPadding != paddingAnchor.mVerticalNearSide)
 			{
 				modified = true;
 				paddingAnchor.setVerticalNearSideInEditor(verticalPadding);
 			}
-			// HPS_CENTERÄ£Ê½ÏÂ²Å»áÏÔÊ¾mHorizontalPosition
+			// HPS_CENTERæ¨¡å¼ä¸‹æ‰ä¼šæ˜¾ç¤ºmHorizontalPosition
 			if (paddingAnchor.mHorizontalNearSide == HORIZONTAL_PADDING.CENTER)
 			{
-				// displayPropertyÓÃÓÚÖ»ÊÇ¼òµ¥µÄÊ¹ÓÃÄ¬ÈÏ·½Ê½ÏÔÊ¾ÊôĞÔ,ÓÃÓÚ±à¼­Æ÷ÖĞÖ±½ÓĞŞ¸ÄÖµ,²»ÄÜ´¥·¢ÈÎºÎÆäËûÂß¼­
+				// displayPropertyç”¨äºåªæ˜¯ç®€å•çš„ä½¿ç”¨é»˜è®¤æ–¹å¼æ˜¾ç¤ºå±æ€§,ç”¨äºç¼–è¾‘å™¨ä¸­ç›´æ¥ä¿®æ”¹å€¼,ä¸èƒ½è§¦å‘ä»»ä½•å…¶ä»–é€»è¾‘
 				displayProperty("mHorizontalPositionRelative", "HorizontalPositionRelative");
 				displayProperty("mHorizontalPositionAbsolute", "HorizontalPositionAbsolute");
 			}
-			// VPS_CENTERÄ£Ê½ÏÂ²Å»áÏÔÊ¾mVerticalPosition
+			// VPS_CENTERæ¨¡å¼ä¸‹æ‰ä¼šæ˜¾ç¤ºmVerticalPosition
 			if (paddingAnchor.mVerticalNearSide == VERTICAL_PADDING.CENTER)
 			{
 				displayProperty("mVerticalPositionRelative", "VerticalPositionRelative");
 				displayProperty("mVerticalPositionAbsolute", "VerticalPositionAbsolute");
 			}
-			// ÏÔÊ¾±ß¾àÀë²ÎÊı
+			// æ˜¾ç¤ºè¾¹è·ç¦»å‚æ•°
 			if (paddingAnchor.mHorizontalNearSide != HORIZONTAL_PADDING.CENTER ||
 				paddingAnchor.mVerticalNearSide != VERTICAL_PADDING.CENTER)
 			{
@@ -90,7 +90,7 @@ public class EditorPaddingAnchor : GameInspector
 			displayProperty("mAnchorPoint", "AnchorPoint");
 		}
 
-		// ÓÉÓÚ²»È·¶¨hasModifiedPropertiesÔÚApplyModifiedPropertiesÒÔºóÊÇ·ñ»á¸Ä±ä,ËùÒÔÔ¤ÏÈ»ñÈ¡
+		// ç”±äºä¸ç¡®å®šhasModifiedPropertiesåœ¨ApplyModifiedPropertiesä»¥åæ˜¯å¦ä¼šæ”¹å˜,æ‰€ä»¥é¢„å…ˆè·å–
 		bool dirty = serializedObject.hasModifiedProperties || modified;
 		serializedObject.ApplyModifiedProperties();
 		if(dirty)

@@ -9,14 +9,14 @@ public class EditorScaleAnchor : GameInspector
 		var anchor = target as ScaleAnchor;
 
 		bool modified = false;
-		modified |= toggle("±£³Ö¿í¸ß±È", ref anchor.mKeepAspect);
-		modified |= toggle("µ÷Õû×ÖÌå´óĞ¡", ref anchor.mAdjustFont);
-		modified |= displayInt("×ÖÌåµÄ×îĞ¡³ß´ç", ref anchor.mMinFontSize);
-		modified |= toggle("Ëõ·ÅÊ±µ÷ÕûÎ»ÖÃ", ref anchor.mAdjustPosition);
-		modified |= toggle("ÒÆ³ıUGUIµÄÃªµã", ref anchor.mRemoveUGUIAnchor);
+		modified |= toggle("ä¿æŒå®½é«˜æ¯”", ref anchor.mKeepAspect);
+		modified |= toggle("è°ƒæ•´å­—ä½“å¤§å°", ref anchor.mAdjustFont);
+		modified |= displayInt("å­—ä½“çš„æœ€å°å°ºå¯¸", ref anchor.mMinFontSize);
+		modified |= toggle("ç¼©æ”¾æ—¶è°ƒæ•´ä½ç½®", ref anchor.mAdjustPosition);
+		modified |= toggle("ç§»é™¤UGUIçš„é”šç‚¹", ref anchor.mRemoveUGUIAnchor);
 		if (anchor.mKeepAspect)
 		{
-			modified |= displayEnum("Ëõ·Å·½Ê½", "", ref anchor.mAspectBase);
+			modified |= displayEnum("ç¼©æ”¾æ–¹å¼", "", ref anchor.mAspectBase);
 		}
 		if (modified)
 		{

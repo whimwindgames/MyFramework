@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.45] - 2026-09-01
+
+### Fixed
+
+- 将框架自定义 Inspector 编辑器脚本统一转换为 UTF-8，修复 macOS/Unity 中 `ScaleAnchor`、`PaddingAnchor` 等中文字段显示为乱码的问题。
+
 ## [1.1.0-preview.44] - 2026-08-31
 
 ### Fixed

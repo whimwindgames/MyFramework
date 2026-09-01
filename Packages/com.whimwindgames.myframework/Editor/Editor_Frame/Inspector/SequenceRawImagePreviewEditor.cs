@@ -22,13 +22,13 @@ public class SequenceRawImagePreviewEditor : GameInspector
 
         var preview = target as SequenceRawImagePreview;
         space();
-        label("RawImageĞòÁĞÖ¡Ô¤ÀÀ");
+        label("RawImageåºåˆ—å¸§é¢„è§ˆ");
 
         EditorGUI.BeginChangeCheck();
-        EditorGUILayout.PropertyField(mPreviewInEditor, new GUIContent("±à¼­Æ÷ÖĞÔ¤ÀÀ"));
-        EditorGUILayout.PropertyField(mLoop, new GUIContent("Ñ­»·²¥·Å"));
-        EditorGUILayout.PropertyField(mFPS, new GUIContent("²¥·ÅÖ¡ÂÊ"));
-        EditorGUILayout.PropertyField(mSlider, new GUIContent("Ô¤ÀÀ½ø¶È"));
+        EditorGUILayout.PropertyField(mPreviewInEditor, new GUIContent("ç¼–è¾‘å™¨ä¸­é¢„è§ˆ"));
+        EditorGUILayout.PropertyField(mLoop, new GUIContent("å¾ªç¯æ’­æ”¾"));
+        EditorGUILayout.PropertyField(mFPS, new GUIContent("æ’­æ”¾å¸§ç‡"));
+        EditorGUILayout.PropertyField(mSlider, new GUIContent("é¢„è§ˆè¿›åº¦"));
         if (EditorGUI.EndChangeCheck())
         {
             serializedObject.ApplyModifiedProperties();
@@ -45,19 +45,19 @@ public class SequenceRawImagePreviewEditor : GameInspector
 
         using (new EditorGUILayout.HorizontalScope())
         {
-            if (button("Ë¢ĞÂÖ¡ÁĞ±í"))
+            if (button("åˆ·æ–°å¸§åˆ—è¡¨"))
             {
                 Undo.RecordObject(preview, "Refresh RawImage Sequence Frames");
                 preview.EditorRefresh();
                 EditorUtility.SetDirty(preview);
             }
-            if (button("ÉÏÒ»Ö¡"))
+            if (button("ä¸Šä¸€å¸§"))
             {
                 Undo.RecordObject(preview, "Previous RawImage Sequence Frame");
                 preview.EditorPreviousFrame();
                 EditorUtility.SetDirty(preview);
             }
-            if (button("ÏÂÒ»Ö¡"))
+            if (button("ä¸‹ä¸€å¸§"))
             {
                 Undo.RecordObject(preview, "Next RawImage Sequence Frame");
                 preview.EditorNextFrame();
@@ -67,25 +67,25 @@ public class SequenceRawImagePreviewEditor : GameInspector
 
         using (new EditorGUILayout.HorizontalScope())
         {
-            if (button("²¥·Å"))
+            if (button("æ’­æ”¾"))
             {
                 Undo.RecordObject(preview, "Play RawImage Sequence Preview");
                 preview.Play();
                 EditorUtility.SetDirty(preview);
             }
-            if (button("ÔİÍ£"))
+            if (button("æš‚åœ"))
             {
                 Undo.RecordObject(preview, "Pause RawImage Sequence Preview");
                 preview.Pause();
                 EditorUtility.SetDirty(preview);
             }
-            if (button("¼ÌĞø"))
+            if (button("ç»§ç»­"))
             {
                 Undo.RecordObject(preview, "Resume RawImage Sequence Preview");
                 preview.Resume();
                 EditorUtility.SetDirty(preview);
             }
-            if (button("Í£Ö¹"))
+            if (button("åœæ­¢"))
             {
                 Undo.RecordObject(preview, "Stop RawImage Sequence Preview");
                 preview.Stop();
@@ -99,10 +99,10 @@ public class SequenceRawImagePreviewEditor : GameInspector
         int curFrame = preview != null ? preview.EditorGetCurFrame() : 0;
         bool playing = preview != null && preview.EditorIsPlaying();
 
-        label("µ±Ç°×´Ì¬");
-        label("Ö¡ÊıÁ¿", frameCount.ToString());
-        label("µ±Ç°Ö¡", frameCount > 0 ? curFrame + " / " + (frameCount - 1) : "ÎŞ");
-        label("²¥·Å×´Ì¬", playing ? "²¥·ÅÖĞ" : "Î´²¥·Å");
+        label("å½“å‰çŠ¶æ€");
+        label("å¸§æ•°é‡", frameCount.ToString());
+        label("å½“å‰å¸§", frameCount > 0 ? curFrame + " / " + (frameCount - 1) : "æ— ");
+        label("æ’­æ”¾çŠ¶æ€", playing ? "æ’­æ”¾ä¸­" : "æœªæ’­æ”¾");
 
         serializedObject.ApplyModifiedProperties();
 

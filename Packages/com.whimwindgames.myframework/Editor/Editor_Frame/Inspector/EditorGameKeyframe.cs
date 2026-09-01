@@ -10,7 +10,7 @@ public class EditorGameKeyframe : GameInspector
 		GUILayout.Space(6f);
 		EditorGUIUtility.labelWidth = 110.0f;
 
-		if (GUILayout.Button("´´½¨"))
+		if (GUILayout.Button("åˆ›å»º"))
 		{
 			var keyframe = target as GameKeyframe;
 			keyframe.createKeyframe();
@@ -50,7 +50,7 @@ public class EditorGameKeyframe : GameInspector
 					}
 					item.mCurve = EditorGUILayout.CurveField(item.mCurve, GUILayout.Height(20));
 				}
-				// Èç¹ûÇúÏßÓÐ¸Ä¶¯,Ôò±ê¼ÇÕû¸öÔ¤ÉèÓÐ¸Ä¶¯
+				// å¦‚æžœæ›²çº¿æœ‰æ”¹åŠ¨,åˆ™æ ‡è®°æ•´ä¸ªé¢„è®¾æœ‰æ”¹åŠ¨
 				if (GUI.changed)
 				{
 					EditorUtility.SetDirty(target);

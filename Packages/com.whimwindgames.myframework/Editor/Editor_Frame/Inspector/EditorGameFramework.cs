@@ -9,16 +9,16 @@ public class EditorGameFramework : GameInspector
 		mGameEntry = target as GameEntryBase;
 
 		bool modified = false;
-		modified |= displayEnum("WindowMode", "´°¿ÚÀàĞÍ", ref mGameEntry.mFrameworkParam.mWindowMode);
+		modified |= displayEnum("WindowMode", "çª—å£ç±»å‹", ref mGameEntry.mFrameworkParam.mWindowMode);
 		if (mGameEntry.mFrameworkParam.mWindowMode != WINDOW_MODE.FULL_SCREEN)
 		{
-			modified |= displayInt("ScreenWidth", "´°¿Ú¿í¶È,µ±WindowModeÎªFULL_SCREENÊ±ÎŞĞ§", ref mGameEntry.mFrameworkParam.mScreenWidth);
-			modified |= displayInt("ScreenHeight", "´°¿Ú¸ß¶È,µ±WindowModeÎªFULL_SCREENÊ±ÎŞĞ§", ref mGameEntry.mFrameworkParam.mScreenHeight);
+			modified |= displayInt("ScreenWidth", "çª—å£å®½åº¦,å½“WindowModeä¸ºFULL_SCREENæ—¶æ— æ•ˆ", ref mGameEntry.mFrameworkParam.mScreenWidth);
+			modified |= displayInt("ScreenHeight", "çª—å£é«˜åº¦,å½“WindowModeä¸ºFULL_SCREENæ—¶æ— æ•ˆ", ref mGameEntry.mFrameworkParam.mScreenHeight);
 		}
-		modified |= displayInt("TargetFrameRate", "´°¿Ú¸ß¶È,µ±WindowModeÎªFULL_SCREENÊ±ÎŞĞ§", ref mGameEntry.mFrameworkParam.mDefaultFrameRate);
-		modified |= toggle("PoolStackTrace", "ÊÇ·ñÆôÓÃ¶ÔÏó³ØÖĞµÄ¶ÑÕ»×·×Ù,ÓÉÓÚ¶ÑÕ»×·×Ù·Ç³£ºÄÊ±,ËùÒÔÄ¬ÈÏ¹Ø±Õ,¿ÉÊ¹ÓÃF4¶¯Ì¬¿ªÆô", ref mGameEntry.mFrameworkParam.mEnablePoolStackTrace);
-		modified |= toggle("ScriptDebug", "ÊÇ·ñÆôÓÃµ÷ÊÔ½Å±¾,Ò²¾ÍÊÇ¹Ò½ÓÔÚGameObjectÉÏÓÃÓÚÏÔÊ¾µ÷ÊÔĞÅÏ¢µÄ½Å±¾,¿ÉÊ¹ÓÃF3¶¯Ì¬¿ªÆô", ref mGameEntry.mFrameworkParam.mEnableScriptDebug);
-		modified |= displayEnum("LoadSource", "¼ÓÔØÔ´", ref mGameEntry.mFrameworkParam.mLoadSource);
+		modified |= displayInt("TargetFrameRate", "çª—å£é«˜åº¦,å½“WindowModeä¸ºFULL_SCREENæ—¶æ— æ•ˆ", ref mGameEntry.mFrameworkParam.mDefaultFrameRate);
+		modified |= toggle("PoolStackTrace", "æ˜¯å¦å¯ç”¨å¯¹è±¡æ± ä¸­çš„å †æ ˆè¿½è¸ª,ç”±äºå †æ ˆè¿½è¸ªéå¸¸è€—æ—¶,æ‰€ä»¥é»˜è®¤å…³é—­,å¯ä½¿ç”¨F4åŠ¨æ€å¼€å¯", ref mGameEntry.mFrameworkParam.mEnablePoolStackTrace);
+		modified |= toggle("ScriptDebug", "æ˜¯å¦å¯ç”¨è°ƒè¯•è„šæœ¬,ä¹Ÿå°±æ˜¯æŒ‚æ¥åœ¨GameObjectä¸Šç”¨äºæ˜¾ç¤ºè°ƒè¯•ä¿¡æ¯çš„è„šæœ¬,å¯ä½¿ç”¨F3åŠ¨æ€å¼€å¯", ref mGameEntry.mFrameworkParam.mEnableScriptDebug);
+		modified |= displayEnum("LoadSource", "åŠ è½½æº", ref mGameEntry.mFrameworkParam.mLoadSource);
 
 		if (modified)
 		{
