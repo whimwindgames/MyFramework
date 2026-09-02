@@ -18,17 +18,22 @@ public class ResScaleAnchor : MonoBehaviour
 	public ASPECT_BASE mAspectBase = ASPECT_BASE.AUTO;      // 缩放基准
 	public void updateRect(bool force = false)
 	{
+		bool firstUpdate = mFirstUpdate;
 		// 如果是第一次更新,则需要获取原始属性
 		if (!TryGetComponent<RectTransform>(out var rectTransform))
 		{
 			logErrorBase("物体上找不到RectTransform,name:" + name);
 		}
-		if (mFirstUpdate)
+		if (firstUpdate)
 		{
-			mScreenScale = getScreenScale(mLayoutManager.getRootSize());
 			mOriginSize = rectTransform.rect.size;
 			mOriginPos = getPositionNoPivotInParent(rectTransform);
 			mFirstUpdate = false;
+		}
+		// force也表示显示区域已经变化。原始属性只记录一次，但缩放值必须重新读取。
+		if (firstUpdate || force)
+		{
+			mScreenScale = getScreenScale(mLayoutManager.getRootSize());
 		}
 		if (!force && !mDirty)
 		{

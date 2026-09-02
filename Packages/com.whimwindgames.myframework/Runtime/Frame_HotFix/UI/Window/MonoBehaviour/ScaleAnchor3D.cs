@@ -22,13 +22,17 @@ public class ScaleAnchor3D : MonoBehaviour
 	{
 		// 是否为编辑器手动预览操作,手动预览不需要启动游戏
 		bool preview = !isPlaying();
+		bool firstUpdate = mFirstUpdate;
 		// 如果是第一次更新,则需要获取原始属性
-		if (mFirstUpdate || preview)
+		if (firstUpdate || preview)
 		{
-			mScreenScale = getScreenScale(preview ? getGameViewSize() : getRootSize());
 			mOriginPos = transform.localPosition;
 			mOriginScale = transform.localScale;
 			mFirstUpdate = false;
+		}
+		if (firstUpdate || preview || force)
+		{
+			mScreenScale = getScreenScale(preview ? getGameViewSize() : getRootSize());
 		}
 		if (!preview && !force && !mDirty)
 		{

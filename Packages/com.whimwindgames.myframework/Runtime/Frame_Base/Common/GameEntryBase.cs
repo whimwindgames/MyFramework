@@ -106,6 +106,7 @@ public class GameEntryBase : MonoBehaviour
 	{
 		try
 		{
+			onBeforeFrameworkUpdate();
 			mFrameworkAOT?.update(Time.deltaTime);
 			mFrameworkHotFix?.update(Time.deltaTime);
 		}
@@ -114,6 +115,9 @@ public class GameEntryBase : MonoBehaviour
 			logExceptionBase(e);
 		}
 	}
+	// 在框架系统更新前同步宿主窗口或显示区域。需要自定义UI视口的项目可覆写此入口，
+	// 这样屏幕变化通知和当帧布局更新都能读取到最新的根节点尺寸。
+	protected virtual void onBeforeFrameworkUpdate() { }
 	public void FixedUpdate()
 	{
 		try

@@ -28,6 +28,7 @@ public class LayoutManager : FrameSystem
 	{
 		// 在构造中获取UI根节点,确保其他组件能在任意时刻正常访问
 		mUGUIRoot = LayoutScript.newUIObject<myUGUICanvas>(null, null, FrameSceneBindings.getUGUIRoot(true), false);
+		FrameScreenContext.changed += onScreenContextChanged;
 	}
 	public Canvas getUGUIRootComponent() { return mUGUIRoot.getCanvas(); }
 	public myUGUICanvas getUIRoot() { return mUGUIRoot; }
@@ -99,6 +100,7 @@ public class LayoutManager : FrameSystem
 	}
 	public override void willDestroy()
 	{
+		FrameScreenContext.changed -= onScreenContextChanged;
 		mInputSystem?.unlistenKey(this);
 		using var a = new SafeDictionaryReader<Type, GameLayout>(mLayoutList);
 		a.mReadList.forValue(layout => layout.destroy());
@@ -110,6 +112,23 @@ public class LayoutManager : FrameSystem
 		myUGUIObject.destroyWindowSingle(mUGUIRoot, false);
 		mUGUIRoot = null;
 		base.willDestroy();
+	}
+	protected void onScreenContextChanged(FrameScreenSnapshot snapshot)
+	{
+		if (!mUseAnchor)
+		{
+			return;
+		}
+		using var reader = new SafeDictionaryReader<Type, GameLayout>(mLayoutList);
+		foreach (var item in reader.mReadList)
+		{
+			GameLayout layout = item.Value;
+			GameObject root = layout?.getRoot()?.getGameObject();
+			if (root != null && layout.isAnchorApplied())
+			{
+				applyAnchorSingle(root, true, layout);
+			}
+		}
 	}
 	public string getLayoutPathByType(Type type) { return mLayoutTypeToPath.get(type); }
 	public Type getLayoutTypeByPath(string path) { return mLayoutPathToType.get(path); }

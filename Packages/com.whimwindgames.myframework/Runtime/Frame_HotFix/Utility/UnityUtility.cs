@@ -1146,6 +1146,19 @@ public class UnityUtility
 	}
 	public static void applyAnchor(GameObject obj, bool force, GameLayout layout = null)
 	{
+		applyAnchorSingle(obj, force, layout);
+
+		// 然后更新所有子节点
+		Transform curTrans = obj.transform;
+		int childCount = curTrans.childCount;
+		for (int i = 0; i < childCount; ++i)
+		{
+			applyAnchor(curTrans.GetChild(i).gameObject, force, layout);
+		}
+	}
+	// 只刷新当前节点。用于显示区域变化后的布局根节点重排；子节点保留UGUI原生锚点结果。
+	public static void applyAnchorSingle(GameObject obj, bool force, GameLayout layout = null)
+	{
 		obj.TryGetComponent<ScaleAnchor>(out var scaleAnchor);
 		obj.TryGetComponent<ScaleAnchor3D>(out var scaleAnchor3D);
 		obj.TryGetComponent<PaddingAnchor>(out var paddingAnchor);
@@ -1173,14 +1186,6 @@ public class UnityUtility
 			paddingAnchor.updateRect(force);
 		}
 		layout?.getUIObject(obj)?.notifyAnchorApply();
-
-		// 然后更新所有子节点
-		Transform curTrans = obj.transform;
-		int childCount = curTrans.childCount;
-		for (int i = 0; i < childCount; ++i)
-		{
-			applyAnchor(curTrans.GetChild(i).gameObject, force, layout);
-		}
 	}
 	public static Vector2Int getGameViewSize()
 	{

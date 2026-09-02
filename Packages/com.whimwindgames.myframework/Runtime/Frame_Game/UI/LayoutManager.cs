@@ -19,6 +19,7 @@ public class LayoutManager : FrameSystem
 	{
 		// 在构造中获取UI根节点,确保其他组件能在任意时刻正常访问
 		mUGUIRoot = FrameSceneBindings.getUGUIRoot(true)?.GetComponent<Canvas>();
+		FrameScreenContext.changed += onScreenContextChanged;
 	}
 	public Vector2 getRootSize() { return (mUGUIRoot.transform as RectTransform).rect.size; }
 	public Canvas getUIRoot() { return mUGUIRoot; }
@@ -39,6 +40,7 @@ public class LayoutManager : FrameSystem
 	}
 	public override void willDestroy()
 	{
+		FrameScreenContext.changed -= onScreenContextChanged;
 		foreach (var item in mLayoutList)
 		{
 			item.Value.destroy();
@@ -48,6 +50,18 @@ public class LayoutManager : FrameSystem
 		mUGUIRoot = null;
 		Resources.UnloadUnusedAssets();
 		base.willDestroy();
+	}
+	protected void onScreenContextChanged(FrameScreenSnapshot snapshot)
+	{
+		foreach (var item in mLayoutList)
+		{
+			GameLayout layout = item.Value;
+			Canvas root = layout?.getRoot();
+			if (root != null)
+			{
+				applyAnchorSingle(root.gameObject, true, layout);
+			}
+		}
 	}
 	public string getLayoutPathByType(Type type) { return mLayoutRegisteList.get(type).mFileNameNoSuffix; }
 	public GameLayout getLayout(Type type) { return mLayoutList.get(type); }

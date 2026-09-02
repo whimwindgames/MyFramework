@@ -36,6 +36,20 @@ public class UnityUtility
 	}
 	public static void applyAnchor(GameObject obj, bool force, GameLayout layout = null)
 	{
+		applyAnchorSingle(obj, force, layout);
+
+		// 然后更新所有子节点
+		Transform curTrans = obj.transform;
+		int childCount = curTrans.childCount;
+		for (int i = 0; i < childCount; ++i)
+		{
+			applyAnchor(curTrans.GetChild(i).gameObject, force, layout);
+		}
+	}
+	// 只刷新当前节点。运行中改变显示区域时，布局根节点需要重新匹配UI根尺寸，
+	// 子节点则继续由UGUI Anchor/Pivot自动排版，避免覆盖它们的新锚点位置。
+	public static void applyAnchorSingle(GameObject obj, bool force, GameLayout layout = null)
+	{
 		obj.TryGetComponent<ResScaleAnchor>(out var scaleAnchor);
 		obj.TryGetComponent<ResPaddingAnchor>(out var paddingAnchor);
 		if (scaleAnchor != null || paddingAnchor != null)
@@ -56,14 +70,6 @@ public class UnityUtility
 		if (paddingAnchor != null)
 		{
 			paddingAnchor.updateRect(force);
-		}
-
-		// 然后更新所有子节点
-		Transform curTrans = obj.transform;
-		int childCount = curTrans.childCount;
-		for (int i = 0; i < childCount; ++i)
-		{
-			applyAnchor(curTrans.GetChild(i).gameObject, force, layout);
 		}
 	}
 	public static Vector3 adjustScreenScale(Vector2 screenScale, ASPECT_BASE aspectBase = ASPECT_BASE.AUTO)

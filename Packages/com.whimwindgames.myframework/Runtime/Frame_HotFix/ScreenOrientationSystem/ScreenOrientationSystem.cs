@@ -8,11 +8,13 @@ public class ScreenOrientationSystem : FrameSystem
 	{
 		base.init();
 		FrameScreenContext.refresh(true);
+		UnityUtility.syncScreenSize(FrameScreenContext.getCurrent().Size);
 	}
 	public override void update(float elapsedTime)
 	{
 		base.update(elapsedTime);
 		FrameScreenContext.refresh();
+		UnityUtility.syncScreenSize(FrameScreenContext.getCurrent().Size);
 		if (isEditor())
 		{
 			return;

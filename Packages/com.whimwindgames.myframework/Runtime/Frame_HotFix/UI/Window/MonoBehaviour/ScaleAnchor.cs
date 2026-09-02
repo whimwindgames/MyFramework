@@ -28,17 +28,22 @@ public class ScaleAnchor : MonoBehaviour
 	{
 		// 是否为编辑器手动预览操作,手动预览不需要启动游戏
 		bool preview = !isPlaying();
+		bool firstUpdate = mFirstUpdate;
 		// 如果是第一次更新,则需要获取原始属性
 		if (!TryGetComponent<RectTransform>(out var rectTransform))
 		{
 			logError("物体上找不到RectTransform,name:" + name);
 		}
-		if (mFirstUpdate || preview)
+		if (firstUpdate || preview)
 		{
-			mScreenScale = getScreenScale(preview ? getGameViewSize() : getRootSize());
 			mOriginSize = rectTransform.rect.size;
 			mOriginPos = rectTransform.getPositionNoPivotInParent();
 			mFirstUpdate = false;
+		}
+		// 强制刷新时保留最初的设计属性，只重新计算当前显示区域比例。
+		if (firstUpdate || preview || force)
+		{
+			mScreenScale = getScreenScale(preview ? getGameViewSize() : getRootSize());
 		}
 		if (!preview && !force && !mDirty)
 		{
