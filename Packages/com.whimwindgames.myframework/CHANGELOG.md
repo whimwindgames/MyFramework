@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.48] - 2026-09-22
+
+### Added
+
+- `UpdPackedSource`：内置资源改为从安装包内的签名目录按 release 清单读取，未下载的内容无需先落到可写目录即可参与校验。
+- `FrameBootProgress`：启动阶段对外暴露真实的阶段/进度，供 AOT 与热更新层显示可解释的进度。
+- `UpdSha256`：与 `System.Security.Cryptography.SHA256` 输出完全一致的 SHA-256 实现，避免 IL2CPP 托管实现在低端安卓上的退化（同一设备实测约 2 MB/s，28 MB 资源包校验要约 12 秒）。
+
+### Changed
+
+- 资源包路径解析与 SHA-256 校验不再在 Unity 主线程执行，加载失败与超时回调统一回到主线程。
+- 本地 release 直接交给 `AssetBundle.LoadFromFileAsync`，避免把整包复制进托管内存；资源索引改为后台解码与绑定。
+- 首屏资源按用途分组，页面级提前准备与分帧初始化，页面加载反馈可取消。
+
+### Fixed
+
+- 修复热更新初始化超时后仍继续回调、并在线程池访问 `GameObject` 导致的「只能在主线程访问」异常。
+- 修复按时间推进的假进度，改为按真实完成量更新。
+
 ## [1.1.0-preview.47] - 2026-09-11
 
 ### Added

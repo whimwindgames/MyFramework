@@ -57,6 +57,7 @@ public class CmdLayoutManagerLoad
 	//---------------------------------------------------------------------------------------------------------------------------
 	protected static void postCreate(GameLayout layout, int renderOrder, LAYOUT_ORDER orderType, bool visible)
 	{
+		if (layout == null) return;
 		// 计算实际的渲染顺序
 		int realRenderOrder = mLayoutManager.generateRenderOrder(layout, renderOrder, orderType);
 		// 设置最新的顺序

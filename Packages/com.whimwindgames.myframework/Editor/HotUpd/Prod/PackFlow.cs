@@ -372,7 +372,7 @@ public sealed class PackFlow
 				string rel = entry.FullName.Substring((prefix + platform + "/").Length);
 				if (!packed.TryAdd(rel, entry)) throw new InvalidDataException("Player包含重复内置资源:" + rel);
 			}
-			Dictionary<string, string> expected = hashes(source);
+			Dictionary<string, string> expected = embeddedHashes(source);
 			if (!packed.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(expected.Keys))
 				throw new InvalidDataException("Player内置资源集合与Stage不一致");
 			foreach ((string rel, string sha) in expected)
@@ -392,7 +392,7 @@ public sealed class PackFlow
 			_ => throw new InvalidOperationException("当前平台尚不支持内置Stage回读:" + target),
 		};
 		Dictionary<string, string> actual = hashes(safeTree(streaming, "Player内置资源", false));
-		Dictionary<string, string> wanted = hashes(source);
+		Dictionary<string, string> wanted = embeddedHashes(source);
 		if (actual.Count != wanted.Count || actual.Any(item =>
 			!wanted.TryGetValue(item.Key, out string sha) || sha != item.Value))
 			throw new InvalidDataException("Player内置资源内容与Stage不一致");
@@ -863,6 +863,7 @@ public sealed class PackFlow
 			try
 			{
 				copyTree(source, temp);
+                File.WriteAllBytes(Path.Combine(temp, UpdPackedSource.CatalogName), builtinCatalog(source));
 				Directory.CreateDirectory(Path.GetDirectoryName(mTarget));
 				Directory.CreateDirectory(Path.GetDirectoryName(mBackup));
 				if (mHadTarget)
@@ -902,6 +903,31 @@ public sealed class PackFlow
 
 		public void Dispose() { restore(); }
 	}
+
+    static byte[] builtinCatalog(string source)
+    {
+        var text = new System.Text.StringBuilder("BUILTIN-1\n");
+        foreach (var entry in hashes(source).OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            if (entry.Key == UpdPackedSource.CatalogName || !UpdFmt.isPath(entry.Key))
+                throw new InvalidDataException("Invalid builtin path: " + entry.Key);
+            long size = new FileInfo(Path.Combine(source, entry.Key)).Length;
+            if (size <= 0 || size > UpdLim.FileSize) throw new InvalidDataException("Invalid builtin size: " + entry.Key);
+            text.Append(BitConverter.ToString(Convert.FromBase64String(entry.Value)).Replace("-", "").ToLowerInvariant()).Append('\t').Append(size.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                .Append('\t').Append(entry.Key).Append('\n');
+        }
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text.ToString());
+        if (bytes.Length > UpdLim.ManMax) throw new InvalidDataException("Builtin catalog too large");
+        return bytes;
+    }
+
+    static Dictionary<string, string> embeddedHashes(string source)
+    {
+        var result = hashes(source);
+        using var stream = new MemoryStream(builtinCatalog(source));
+        result.Add(UpdPackedSource.CatalogName, streamSha(stream));
+        return result;
+    }
 
 	static void copyTree(string source, string target)
 	{

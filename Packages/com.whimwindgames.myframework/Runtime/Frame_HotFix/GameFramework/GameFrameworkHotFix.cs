@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Rendering;
 #if USE_OBFUZ
 using Obfuz;
@@ -408,7 +408,9 @@ public class GameFrameworkHotFix : IFramework
 					if (Interlocked.CompareExchange(ref term, 1, 0) == 0) callback?.Invoke(err);
 					return;
 				}
-				if (Interlocked.Increment(ref done) != count ||
+				int completed = Interlocked.Increment(ref done);
+				FrameBootProgress.Report(FrameBootProgress.Step.Framework, count + completed, count * 2, "初始化框架组件");
+				if (completed != count ||
 					Interlocked.CompareExchange(ref term, 1, 0) != 0) return;
 				try { resourceAvailable(); }
 				catch (Exception ex) { callback?.Invoke(ex); return; }
@@ -508,7 +510,9 @@ public class GameFrameworkHotFix : IFramework
 				if (Interlocked.CompareExchange(ref term, 1, 0) == 0) callback?.Invoke(error);
 				return;
 			}
-			if (Interlocked.Increment(ref done) == count &&
+			int completed = Interlocked.Increment(ref done);
+			FrameBootProgress.Report(FrameBootProgress.Step.Framework, completed, count * 2, "加载资源索引");
+			if (completed == count &&
 				Interlocked.CompareExchange(ref term, 1, 0) == 0)
 			{
 				callback?.Invoke(null);

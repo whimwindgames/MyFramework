@@ -5,6 +5,32 @@ using NUnit.Framework;
 
 public sealed class AbIndexTests
 {
+    [Test]
+    public void VersionThreeRemainsReadableAndNewIndexDeduplicatesBundleDependencies()
+    {
+        var items = new List<AbItem> { item("common/icon.prefab", "common/common.unity3d") };
+        for (int i = 0; i < 100; ++i)
+        {
+            var entry = item("ui/" + i.ToString("D3") + ".prefab", "ui/main.unity3d");
+            entry.bdeps.Add("common/common.unity3d");
+            items.Add(entry);
+        }
+        var writer = new SerializerWrite();
+        writer.write(0x41424958); writer.write(3); writer.write(items.Count);
+        foreach (var entry in items)
+        {
+            writer.writeString(entry.key); writer.writeString(entry.name);
+            writer.writeString(entry.bundle); writer.writeString(entry.scene);
+            writer.writeString(entry.atlas); writer.writeList(entry.bdeps);
+        }
+        var old = new byte[writer.getDataSize()];
+        Buffer.BlockCopy(writer.getBuffer(), 0, old, 0, old.Length);
+        byte[] compact = AbIndex.encode(items);
+        Assert.That(compact.Length, Is.LessThan(old.Length * 0.8));
+        Assert.That(AbIndex.decode(old)[100].bdeps, Is.EqualTo(AbIndex.decode(compact)[100].bdeps));
+        Assert.That(AbIndex.decode(old)[100].bundle, Is.EqualTo(AbIndex.decode(compact)[100].bundle));
+    }
+
 	[Test]
 	public void RoundTripKeepsCanonicalItemsAndDependencies()
 	{

@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 
@@ -9,10 +8,11 @@ public static class UpdHash
 {
     public static string data(byte[] data)
     {
-        using (SHA256 sha = SHA256.Create())
-        {
-            return hex(sha.ComputeHash(data ?? Array.Empty<byte>()));
-        }
+        byte[] digest = new byte[32];
+        var sha = new UpdSha256();
+        sha.Update(data ?? Array.Empty<byte>());
+        sha.Finish(digest);
+        return hex(digest);
     }
 
     public static string file(string path)
@@ -23,22 +23,23 @@ public static class UpdHash
     public static string file(string path, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        var sha = new UpdSha256();
+        byte[] buf = new byte[128 * 1024];
         using (FileStream stream = File.OpenRead(path))
-        using (SHA256 sha = SHA256.Create())
         {
-            byte[] buf = new byte[128 * 1024];
             int got;
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
                 got = stream.Read(buf, 0, buf.Length);
                 if (got <= 0) break;
-                sha.TransformBlock(buf, 0, got, buf, 0);
+                sha.Update(buf.AsSpan(0, got));
             }
-            ct.ThrowIfCancellationRequested();
-            sha.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-            return hex(sha.Hash);
         }
+        ct.ThrowIfCancellationRequested();
+        byte[] digest = new byte[32];
+        sha.Finish(digest);
+        return hex(digest);
     }
 
     private static string hex(byte[] data)

@@ -42,7 +42,9 @@ public partial class HybridCLRSystem
 			UpdCfg cfg = res.getCfg();
 			HashSet<string> hot = schemaCheckHot(cfg);
 			schemaCheckPreload(hot);
+			FrameBootProgress.Report(FrameBootProgress.Step.ReadCode, 0, 1, "读取游戏代码");
 			SchemaLoadSet data = await schemaReadAll(cfg, res, ct);
+			await UniTask.SwitchToMainThread();
 			ct.ThrowIfCancellationRequested();
 			Volatile.Write(ref sRun, 2);
 			latched = true;
@@ -64,15 +66,18 @@ public partial class HybridCLRSystem
 				loaded.Add(asm);
 			}
 #else
-			schemaLoadAot(cfg.aotDlls, data.aot);
+			await schemaLoadAot(cfg.aotDlls, data.aot, ct);
+			FrameBootProgress.Report(FrameBootProgress.Step.Assemblies, 0, data.code.Count, "载入游戏代码");
 			for (int i = 0; i < data.code.Count; ++i)
 			{
+				await UniTask.Yield(PlayerLoopTiming.Update, ct);
 				Assembly asm = Assembly.Load(data.code[i]);
 				if (string.Equals(cfg.codeDlls[i], cfg.entryDll, StringComparison.OrdinalIgnoreCase))
 				{
 					entryAsm = asm;
 				}
 				loaded.Add(asm);
+				FrameBootProgress.Report(FrameBootProgress.Step.Assemblies, i + 1, data.code.Count, cfg.codeDlls[i]);
 			}
 #endif
 			schemaCheckAssemblies(cfg, loaded);
@@ -194,27 +199,33 @@ public partial class HybridCLRSystem
 		{
 			ct.ThrowIfCancellationRequested();
 			data.aot.Add(res.read(cfg.aotDlls[i]));
+			FrameBootProgress.Report(FrameBootProgress.Step.ReadCode, i + 1, cfg.aotDlls.Length + cfg.codeDlls.Length + 1, cfg.aotDlls[i]);
 		}
 		for (int i = 0; i < cfg.codeDlls.Length; ++i)
 		{
 			ct.ThrowIfCancellationRequested();
 			data.code.Add(res.read(cfg.codeDlls[i]));
+			FrameBootProgress.Report(FrameBootProgress.Step.ReadCode, cfg.aotDlls.Length + i + 1, cfg.aotDlls.Length + cfg.codeDlls.Length + 1, cfg.codeDlls[i]);
 		}
 		ct.ThrowIfCancellationRequested();
 		data.secret = string.IsNullOrEmpty(cfg.secret) ? Array.Empty<byte>() : res.read(cfg.secret);
+		FrameBootProgress.Report(FrameBootProgress.Step.ReadCode, 1, 1, "游戏代码读取完成");
 		return data;
 	}
 
-	private static void schemaLoadAot(string[] names, List<byte[]> data)
+	private static async UniTask schemaLoadAot(string[] names, List<byte[]> data, CancellationToken ct)
 	{
 #if USE_HYBRID_CLR && !UNITY_EDITOR
+		FrameBootProgress.Report(FrameBootProgress.Step.Metadata, 0, names.Length, "准备代码运行环境");
 		for (int i = 0; i < names.Length; ++i)
 		{
+			await UniTask.Yield(PlayerLoopTiming.Update, ct);
 			LoadImageErrorCode code = RuntimeApi.LoadMetadataForAOTAssembly(data[i], HomologousImageMode.SuperSet);
 			if (code != LoadImageErrorCode.OK)
 			{
 				UpdFail.bad(UpdCode.Load, "aot_" + schemaAssemblyName(names[i]), UpdPhase.Load);
 			}
+			FrameBootProgress.Report(FrameBootProgress.Step.Metadata, i + 1, names.Length, names[i]);
 		}
 #endif
 	}
@@ -233,6 +244,8 @@ public partial class HybridCLRSystem
 
 	private static async UniTask schemaStartHot(Assembly hotAssembly, byte[] secret, CancellationToken ct)
 	{
+		await UniTask.SwitchToMainThread();
+		FrameBootProgress.Report(FrameBootProgress.Step.Framework, 0, 1, "初始化资源系统");
 		Type type = schemaFindEntry(hotAssembly);
 		MethodInfo pre = schemaFindMethod(type, "preStart", typeof(byte[]), typeof(Action));
 		if (pre == null)
@@ -241,7 +254,7 @@ public partial class HybridCLRSystem
 		}
 
 		using CancellationTokenSource wait = CancellationTokenSource.CreateLinkedTokenSource(ct);
-		wait.CancelAfter(60000);
+		using IDisposable timeout = wait.CancelAfterSlim(60000, DelayType.Realtime);
 		int term = 0;
 		UniTaskCompletionSource<bool> done = new();
 		using CancellationTokenRegistration cancel = wait.Token.Register(() =>
@@ -303,11 +316,25 @@ public partial class HybridCLRSystem
 		}
 		try
 		{
+			// Observe loader failures even when a legacy callback cannot carry an exception.
+			while (done.Task.Status == UniTaskStatus.Pending)
+			{
+				if (FrameBootProgress.Error != null) throw FrameBootProgress.Error;
+				await UniTask.Yield(PlayerLoopTiming.Update);
+			}
 			await done.Task;
 		}
 		catch (OperationCanceledException) when (!ct.IsCancellationRequested)
 		{
+			var progress = FrameBootProgress.Read();
+			UnityEngine.Debug.LogError($"[Startup] timeout at {progress.step}: {progress.detail}, {progress.done}/{progress.total}, {progress.elapsed:F2}s");
 			UpdFail.bad(UpdCode.Load, "hotfix_timeout", UpdPhase.Load);
+		}
+		finally
+		{
+			Interlocked.CompareExchange(ref term, 2, 0);
+			// Parent cancellation/completion may originate on a worker thread.
+			await UniTask.SwitchToMainThread();
 		}
 	}
 

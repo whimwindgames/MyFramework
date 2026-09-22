@@ -189,10 +189,15 @@ public class LayoutManager : FrameSystem
 		info.addCallback(callback);
 		info.mName = getFileNameNoSuffixNoDir(path);
 		mLoadingLayoutList.Add(info.mName);
+		var loadTimer = System.Diagnostics.Stopwatch.StartNew();
 		mResourceManager.loadGameResourceAsync<GameObject>(path, (asset) => 
 		{
 			mLoadingLayoutList.Remove(info.mName);
-			info.callAll(newLayout(info, asset)); 
+            UnityEngine.Debug.Log($"[Hub.Load] prefab={path} read={loadTimer.Elapsed.TotalSeconds:F3}s");
+            GameLayout created = null;
+            try { created = newLayout(info, asset); }
+            catch (Exception error) { logException(error); }
+            info.callAll(created); 
 		});
 	}
 	public void destroyLayout(Type type)
@@ -327,8 +332,15 @@ public class LayoutManager : FrameSystem
 		// 因为可能会有同时发起多个异步加载请求,所以如果已经创建了就直接返回出去,不再重复创建
 		if (mLayoutList.tryGetValue(info.mType, out GameLayout layout))
 		{
+            UN_CLASS(ref prefab);
 			return layout;
 		}
+        if (prefab == null || !prefab.isValid())
+        {
+            if (prefab != null) UN_CLASS(ref prefab);
+            return null;
+        }
+        var timer = System.Diagnostics.Stopwatch.StartNew();
 		myUGUIObject layoutParent = info.mIsScene ? null : getUIRoot();
 		Canvas canvas = prefab.get().GetComponent<Canvas>();
 		// 只能在挂到UGUIRoot之前去判断,如果挂之后再获取就是获取的跟UGUIRoot一样的RenderMode
@@ -337,6 +349,7 @@ public class LayoutManager : FrameSystem
 			logError("界面Canvas的RenderMode只能设置为WorldSpace,设置为其他模式可能会出现无法预知的错误,UI:" + info.mName);
 		}
 		GameObject layoutObj = instantiatePrefab(layoutParent?.getGameObject(), prefab.get(), info.mName, true);
+		double instanceSeconds = timer.Elapsed.TotalSeconds;
 		layout = new();
 		layout.setPrefab(prefab);
 		layout.setType(info.mType);
@@ -344,7 +357,14 @@ public class LayoutManager : FrameSystem
 		layout.setParent(layoutParent);
 		layout.setOrderType(info.mOrderType);
 		layout.setRenderOrder(generateRenderOrder(layout, info.mRenderOrder, info.mOrderType));
-		layout.init();
+        try { layout.init(); }
+        catch
+        {
+            try { layout.destroy(); }
+            finally { if (layoutObj != null) UnityEngine.Object.Destroy(layoutObj); }
+            throw;
+        }
+        UnityEngine.Debug.Log($"[Hub.Load] page={info.mName} instantiate={instanceSeconds:F3}s initialize={timer.Elapsed.TotalSeconds - instanceSeconds:F3}s");
 		if (layout.getRoot().getGameObject() != layoutObj)
 		{
 			logError("布局的根节点不是实例化出来的节点,请确保运行前UI根节点下没有与布局同名的节点, layout:" + layout.getRoot().getName());

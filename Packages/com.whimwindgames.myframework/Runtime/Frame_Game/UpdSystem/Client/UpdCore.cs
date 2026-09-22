@@ -56,6 +56,8 @@ public sealed class UpdCore
     private Stopwatch mInstTime;
     private int mStep;
     private float mRate;
+    private Stopwatch mPhaseTime;
+    private int mPackedCount;
 
     public UpdCore(UpdCfg cfg, Action<UpdProg> onProg = null, UpdGate gate = null)
         : this(cfg, onProg, gate, null, null)
@@ -116,6 +118,8 @@ public sealed class UpdCore
         mSign = new UpdSign(mCfg.pubKey);
         mBuiltin = new UpdBuiltin(mStore, mCfg.timeout, mCfg.platform, mBuiltinRoot);
 
+        string streamingRoot = mBuiltinRoot ?? UnityEngine.Application.streamingAssetsPath;
+        await runIo(() => mStore.setPacked(new UpdPackedSource(streamingRoot, mCfg.platform)), ct);
         using (IDisposable runLock = mStore.takeLock())
         {
             return await runLocked(ct);
@@ -389,6 +393,7 @@ public sealed class UpdCore
                 report(UpdPhase.Plan, row.file.path, done + 1, total);
             }
         }
+        UnityEngine.Debug.Log($"[Startup.Plan] files={total} builtin={mPackedCount} stagedOrMissing={changed.Count}");
         await runIo(() => mStore.cleanTemp(man.releaseId), ct);
         long copySize = 0;
         for (int i = 0; i < need.Count; ++i)
@@ -483,7 +488,11 @@ public sealed class UpdCore
             ct.ThrowIfCancellationRequested();
             UpdFile file = man.files[from + i];
             PlanRow row = new PlanRow { file = file };
-            row.local = mStore.match(file, ct);
+            // Matching package entries are available without scanning/copying their bytes.
+            // resolve() verifies and extracts only when a consumer actually requests them.
+            row.local = mStore.hasPacked(file);
+            if (row.local) ++mPackedCount;
+            else row.local = mStore.match(file, ct);
             if (!row.local)
             {
                 row.part = mStore.partSize(man.releaseId, file);
@@ -788,6 +797,11 @@ public sealed class UpdCore
     private void report(UpdPhase phase, string path = null, int done = 0, int total = 0,
         long downGot = 0, long downSize = 0, long bps = 0, int etaSec = -1)
     {
+        if (mPhaseTime == null || mPhase != phase)
+        {
+            if (mPhaseTime != null) UnityEngine.Debug.Log($"[Startup.Update] {mPhase} seconds={mPhaseTime.Elapsed.TotalSeconds:F3}");
+            mPhaseTime = Stopwatch.StartNew();
+        }
         mPhase = phase;
         float rate = calcRate(phase, done, total, downGot, downSize);
         int step = stepOf(phase);
@@ -828,6 +842,8 @@ public sealed class UpdCore
     private void resetProg()
     {
         mPhase = UpdPhase.Idle;
+        mPhaseTime = null;
+        mPackedCount = 0;
         mDnTime = null;
         mDnGot = 0;
         mDnSize = 0;
@@ -849,11 +865,11 @@ public sealed class UpdCore
             (float)Math.Min(1.0, (double)downGot / downSize);
         switch (phase)
         {
-            case UpdPhase.Latest: return item * 0.20f;
-            case UpdPhase.Manifest: return 0.20f + item * 0.10f;
-            case UpdPhase.Plan: return 0.30f + item * 0.60f;
+            case UpdPhase.Latest: return item;
+            case UpdPhase.Manifest: return item;
+            case UpdPhase.Plan: return item;
             case UpdPhase.Ask: return 1.0f;
-            case UpdPhase.Copy: return 0.90f + bytes * 0.10f;
+            case UpdPhase.Copy: return bytes;
             case UpdPhase.Down: return bytes;
             case UpdPhase.Install: return item;
             case UpdPhase.Ready:
@@ -864,14 +880,7 @@ public sealed class UpdCore
 
     private static int stepOf(UpdPhase phase)
     {
-        switch (phase)
-        {
-            case UpdPhase.Down: return 2;
-            case UpdPhase.Install: return 3;
-            case UpdPhase.Ready: return 4;
-            case UpdPhase.Load: return 5;
-            default: return 0;
-        }
+        return (int)phase;
     }
 
     private static int calcEta(Stopwatch timer, int done, int total)

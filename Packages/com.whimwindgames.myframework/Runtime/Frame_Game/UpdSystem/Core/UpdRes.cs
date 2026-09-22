@@ -8,12 +8,14 @@ public sealed class UpdRes
 {
     private sealed class ResItem
     {
+        public readonly UpdFile source;
         public readonly string local;
         public readonly string sha;
         public readonly long size;
 
-        public ResItem(string local, string sha, long size)
+        public ResItem(UpdFile source, string local, string sha, long size)
         {
+            this.source = source;
             this.local = local;
             this.sha = sha;
             this.size = size;
@@ -22,7 +24,6 @@ public sealed class UpdRes
 
     private readonly Dictionary<string, ResItem> mFiles;
     private readonly Dictionary<string, byte[]> mBoot;
-    private readonly HashSet<string> mGood;
     private readonly UpdCfg mCfg;
     private readonly UpdStore mStore;
 
@@ -40,12 +41,11 @@ public sealed class UpdRes
         mCfg = copy(cfg);
         mStore = store;
         mBoot = new Dictionary<string, byte[]>(StringComparer.Ordinal);
-        mGood = new HashSet<string>(StringComparer.Ordinal);
         mFiles = new Dictionary<string, ResItem>(man.files.Length, StringComparer.Ordinal);
         for (int i = 0; i < man.files.Length; ++i)
         {
             UpdFile file = man.files[i];
-            mFiles.Add(file.path, new ResItem(store.filePath(file), file.sha256, file.size));
+            mFiles.Add(file.path, new ResItem(file, store.filePath(file), file.sha256, file.size));
         }
     }
 
@@ -130,43 +130,7 @@ public sealed class UpdRes
     private string getPath(string path, CancellationToken ct)
     {
         ResItem file = item(path);
-        checkFile(path, file, ct);
-        return file.local;
-    }
-
-    private void checkFile(string path, ResItem file, CancellationToken ct)
-    {
-        lock (mGood)
-        {
-            if (mGood.Contains(path))
-            {
-                return;
-            }
-        }
-        try
-        {
-            if (!File.Exists(file.local) || new FileInfo(file.local).Length != file.size ||
-                UpdHash.file(file.local, ct) != file.sha)
-            {
-                throw fileErr(UpdCode.Hash, path);
-            }
-            lock (mGood)
-            {
-                mGood.Add(path);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (UpdBad)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            throw fileErr(UpdCode.Disk, path, ex);
-        }
+        return mStore.resolve(file.source, releaseId, ct);
     }
 
     private void cacheBoot(string path)
@@ -192,7 +156,7 @@ public sealed class UpdRes
     {
         try
         {
-            byte[] data = File.ReadAllBytes(file.local);
+            byte[] data = File.ReadAllBytes(mStore.resolve(file.source, releaseId, CancellationToken.None));
             if (data.LongLength != file.size || UpdHash.data(data) != file.sha)
             {
                 throw fileErr(UpdCode.Hash, path);

@@ -1,4 +1,4 @@
-﻿#if USE_OBFUZ
+#if USE_OBFUZ
 using Obfuz;
 #endif
 using System;
@@ -61,6 +61,7 @@ public abstract class GameHotFixBase<T> : IHotEnt where T : GameHotFixBase<T>
 				mFrameComponentInit.Sort(FrameSystem.compareInit);
 				registerAllTable();
 				registerAll();
+				FrameBootProgress.Report(FrameBootProgress.Step.Data, 0, 1, "读取配置表");
 				loadData(onAllLoaded);
 			}
 			catch (Exception ex) { finish(ex); }
@@ -92,12 +93,17 @@ public abstract class GameHotFixBase<T> : IHotEnt where T : GameHotFixBase<T>
 				mSQLiteManager.checkAll();
 #endif
 			}
+			FrameBootProgress.Report(FrameBootProgress.Step.Data, 1, 1, "配置表就绪");
 			onPreInit();
+			int bootDone = 0;
+			int bootTotal = mFrameComponentInit.Count * 2 + 1;
+			FrameBootProgress.Report(FrameBootProgress.Step.Systems, 0, bootTotal, "初始化游戏功能");
 			foreach (FrameSystem frame in mFrameComponentInit)
 			{
 				mStartCt.ThrowIfCancellationRequested();
 				DateTime start = DateTime.Now;
 				frame.init();
+				FrameBootProgress.Report(FrameBootProgress.Step.Systems, ++bootDone, bootTotal, frame.getName());
 				if (isDevOrEditor() && (int)(DateTime.Now - start).TotalMilliseconds > 1)
 				{
 					log(frame.getName() + "初始化消耗时间:" +
@@ -109,6 +115,7 @@ public abstract class GameHotFixBase<T> : IHotEnt where T : GameHotFixBase<T>
 				mStartCt.ThrowIfCancellationRequested();
 				DateTime start = DateTime.Now;
 				frame.lateInit();
+				FrameBootProgress.Report(FrameBootProgress.Step.Systems, ++bootDone, bootTotal, frame.getName());
 				if (isDevOrEditor() && (int)(DateTime.Now - start).TotalMilliseconds > 1)
 				{
 					log(frame.getName() + " late初始化消耗时间:" +
@@ -116,6 +123,7 @@ public abstract class GameHotFixBase<T> : IHotEnt where T : GameHotFixBase<T>
 				}
 			}
 			onPostInit();
+			FrameBootProgress.Report(FrameBootProgress.Step.Systems, bootTotal, bootTotal, "游戏功能就绪");
 			mStartCt.ThrowIfCancellationRequested();
 			mGameFrameworkHotFix.setAllInited(true);
 			inited = true;

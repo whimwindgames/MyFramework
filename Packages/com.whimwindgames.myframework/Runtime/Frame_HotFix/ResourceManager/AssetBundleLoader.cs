@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.XR;
 using static FileUtility;
@@ -438,50 +440,78 @@ public class AssetBundleLoader
 	// 加载资源包的协程
 	protected IEnumerator loadAssetBundleCoroutine(AssetBundleInfo bundleInfo)
 	{
-		if (isDevOrEditor())
-		{
-			log(bundleInfo.getBundleFileName() + " start load bundle");
-		}
-		while (!bundleInfo.isAllParentLoaded())
-		{
-			yield return null;
-		}
-		string bundleFileName = bundleInfo.getBundleFileName();
-		string fullPath = availableReadPath(bundleFileName);
-		byte[] assetBundleBytes = null;
+		var timer = System.Diagnostics.Stopwatch.StartNew();
+		string name = bundleInfo.getBundleFileName();
+		while (!bundleInfo.isAllParentLoaded()) yield return null;
 		bundleInfo.setLoadState(LOAD_STATE.LOADING);
-		// 返回空表示本地没有此文件,需要先下载
-		if (fullPath == null)
+		string path = null;
+		Exception error = null;
+		// Resolving a release path verifies SHA-256. Never perform this disk/CPU work
+		// on the Unity thread, even though the caller is already a coroutine.
+		if (FrameCrossParam.mReadPathA != null)
 		{
-			yield return downloadAssetBundleCoroutine(bundleInfo, (byte[] bytes) => { assetBundleBytes = bytes; });
+			Task<string> resolve = null;
+			try { resolve = getReadPathA(name, CancellationToken.None); }
+			catch (Exception ex) { error = ex; }
+			if (resolve != null)
+			{
+				while (!resolve.IsCompleted) yield return null;
+				try { path = resolve.GetAwaiter().GetResult(); }
+				catch (Exception ex) { error = ex; }
+			}
 		}
 		else
 		{
-			yield return openFileAsyncInternal(fullPath, true, (byte[] bytes)=> { assetBundleBytes = bytes; });
+			try { path = availableReadPath(name); }
+			catch (Exception ex) { error = ex; }
 		}
-		AssetBundle assetBundle = AssetBundle.LoadFromMemory(assetBundleBytes);
-		if (isDevOrEditor())
+		if (error != null)
 		{
-			if (assetBundle != null)
+			failBundle(bundleInfo, error);
+			yield break;
+		}
+		double verified = timer.Elapsed.TotalSeconds;
+		AssetBundleCreateRequest request = null;
+		if (path != null && File.Exists(path))
+		{
+			// Local releases are already files. Avoid a managed byte[] copy and let
+			// Unity load/decompress asynchronously (LZ4 can be read by chunk).
+			try { request = AssetBundle.LoadFromFileAsync(path); }
+			catch (Exception ex) { error = ex; }
+		}
+		else
+		{
+			byte[] bytes = null;
+			if (path == null)
+				yield return downloadAssetBundleCoroutine(bundleInfo, value => bytes = value);
+			else
+				yield return openFileAsyncInternal(path, true, value => bytes = value);
+			try
 			{
-				log(bundleFileName + " load bundle done");
+				if (bytes == null) throw new IOException("资源包读取失败:" + name);
+				request = AssetBundle.LoadFromMemoryAsync(bytes);
 			}
+			catch (Exception ex) { error = ex; }
 		}
-		if (assetBundle == null)
+		if (request != null) yield return request;
+		AssetBundle bundle = request?.assetBundle;
+		if (bundle == null)
 		{
-			logError("can not load asset bundle async : " + fullPath);
+			failBundle(bundleInfo, error ?? new IOException("资源包加载失败:" + name));
+			yield break;
 		}
-		yield return mWaitForEndOfFrame;
-		// 通知AssetBundleInfo
-		try
-		{
-			bundleInfo.notifyAssetBundleAsyncLoaded(assetBundle);
-		}
-		catch (Exception e)
-		{
-			logException(e);
-		}
+		UnityEngine.Debug.Log($"[Startup.Bundle] {name} verified={verified:F2}s total={timer.Elapsed.TotalSeconds:F2}s");
+		try { bundleInfo.notifyAssetBundleAsyncLoaded(bundle); }
+		catch (Exception ex) { FrameBootProgress.Fail(ex); logException(ex); }
 	}
+
+	private static void failBundle(AssetBundleInfo bundle, Exception error)
+	{
+		FrameBootProgress.Fail(error);
+		logException(error);
+		bundle.notifyAssetBundleAsyncLoaded(null);
+	}
+
 	// 加载资源包内单个资源的协程
 	protected IEnumerator loadAssetCoroutine(AssetBundleInfo bundle, string fileNameWithSuffix)
 	{
@@ -509,6 +539,7 @@ public class AssetBundleLoader
 		}
 		catch (Exception e)
 		{
+			FrameBootProgress.Fail(e);
 			logException(e);
 		}
 	}
@@ -541,11 +572,34 @@ public class AssetBundleLoader
 		}
 		else
 		{
-			openFileAsync(filePath, true, (byte[] fileBuffer) =>
+			byte[] buffer = null;
+			yield return openFileAsyncInternal(filePath, true, bytes => buffer = bytes);
+			if (buffer != null && AbIndex.isCurrent(buffer))
 			{
-				initAssetConfig(fileBuffer, filePath);
-				callback?.Invoke();
-			});
+				var indexTimer = System.Diagnostics.Stopwatch.StartNew();
+				Task<List<AbItem>> decode = Task.Run(() => AbIndex.decode(buffer));
+				while (!decode.IsCompleted) yield return null;
+				try
+				{
+					List<AbItem> items = decode.GetAwaiter().GetResult();
+					UnityEngine.Debug.Log($"[Startup.Index] decode bytes={buffer.Length} items={items.Count} seconds={indexTimer.Elapsed.TotalSeconds:F3}");
+					indexTimer.Restart();
+					mInited = false;
+					mAssetBundleInfoList.Clear();
+					mAssetToBundleInfo.Clear();
+					AbIndex.bindRuntime(items);
+					initAssetConfig(items);
+					finishAssetConfig();
+                    UnityEngine.Debug.Log($"[Startup.Index] bind seconds={indexTimer.Elapsed.TotalSeconds:F3}");
+				}
+				catch (Exception ex) { FrameBootProgress.Fail(ex); logException(ex); yield break; }
+			}
+			else
+			{
+				try { initAssetConfig(buffer, filePath); }
+				catch (Exception ex) { FrameBootProgress.Fail(ex); logException(ex); yield break; }
+			}
+			callback?.Invoke();
 		}
 	}
 	protected void initAssetConfig(byte[] fileBuffer, string filePath)
@@ -607,6 +661,8 @@ public class AssetBundleLoader
 			if (!mAssetBundleInfoList.TryGetValue(bundleName, out AssetBundleInfo bundleInfo))
 			{
 				bundleInfo = mAssetBundleInfoList.add(bundleName, new(bundleName));
+				foreach (string dep in item.bdeps)
+					bundleInfo.addParent(removeSuffix(dep).ToLowerInvariant());
 			}
 			string key = item.key.ToLowerInvariant();
 			string name = item.name.ToLowerInvariant();
@@ -615,10 +671,7 @@ public class AssetBundleLoader
 			{
 				throw new InvalidDataException("AB索引资源地址重复:" + item.key);
 			}
-			foreach (string dep in item.bdeps)
-			{
-				bundleInfo.addParent(removeSuffix(dep).ToLowerInvariant());
-			}
+
 		}
 	}
 	protected void finishAssetConfig()

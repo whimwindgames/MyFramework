@@ -95,6 +95,10 @@ public sealed class PackFlowTests
 		Assert.That(report.outputRoot, Is.EqualTo(mOutput));
 		Assert.That(report.player, Is.EqualTo(Path.Combine(mOutput, "Game.app")));
 		Assert.That(report.embedded, Is.True);
+        var source = new UpdPackedSource(Path.Combine(report.player, "Contents", "Resources", "Data", "StreamingAssets"), cfg.platform);
+        var bundleBytes = System.Text.Encoding.UTF8.GetBytes("bundle-data");
+        Assert.That(source.contains(new UpdFile { path = "ui/main.unity3d", size = bundleBytes.Length,
+            sha256 = UpdHash.data(bundleBytes) }), Is.True, "Built catalog must match release hash encoding");
 		Assert.That(Directory.Exists(report.player), Is.True);
 		Assert.That(Directory.Exists(report.baseline), Is.True);
 		Assert.That(report.releaseId, Is.EqualTo("test-MacOS-base-pack-1"));

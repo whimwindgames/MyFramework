@@ -22,6 +22,81 @@ internal sealed class UpdStore
     private readonly object mLockSync = new object();
     private FileStream mHeldLock;
     private int mLockLeases;
+    private UpdPackedSource mPacked;
+    private readonly Dictionary<string, VerifiedFile> mVerified = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, object> mFileLocks = new(StringComparer.Ordinal);
+
+    private sealed class VerifiedFile
+    {
+        public string sha;
+        public long size;
+        public long modified;
+        public long created;
+    }
+
+    internal void setPacked(UpdPackedSource packed) => mPacked = packed;
+    internal bool hasPacked(UpdFile file) => mPacked != null && mPacked.contains(file);
+
+    private object fileLock(string sha)
+    {
+        lock (mFileLocks)
+        {
+            if (!mFileLocks.TryGetValue(sha, out var gate)) mFileLocks.Add(sha, gate = new object());
+            return gate;
+        }
+    }
+
+    // Verified identities are shared by scan, stage, commit and the resource reader.
+    // They are deliberately process-local; changed/replaced files and new processes rehash.
+    private bool verified(string path, UpdFile file, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var info = new FileInfo(path);
+        if (!info.Exists || info.Length != file.size) return false;
+        lock (mVerified)
+        {
+            if (mVerified.TryGetValue(path, out var value) && value.sha == file.sha256 &&
+                value.size == info.Length && value.modified == info.LastWriteTimeUtc.Ticks &&
+                value.created == info.CreationTimeUtc.Ticks) return true;
+        }
+        if (UpdHash.file(path, ct) != file.sha256) return false;
+        remember(path, file);
+        return true;
+    }
+    private void remember(string path, UpdFile file)
+    {
+        var info = new FileInfo(path);
+        lock (mVerified) mVerified[path] = new VerifiedFile
+        {
+            sha = file.sha256, size = info.Length,
+            modified = info.LastWriteTimeUtc.Ticks, created = info.CreationTimeUtc.Ticks,
+        };
+    }
+
+    internal string resolve(UpdFile file, string releaseId, CancellationToken ct)
+    {
+        lock (fileLock(file.sha256))
+        {
+            if (match(file, ct)) return filePath(file);
+            if (!hasPacked(file)) UpdFail.bad(UpdCode.Hash, file.path, UpdPhase.Load);
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            using (takeLock())
+            {
+                requireSpace(file.size);
+                string temp = copyPath(releaseId, file.path);
+                try
+                {
+                    mPacked.extract(file, temp, ct);
+                    stage(file, releaseId, temp, UpdPhase.Load, ct);
+                    ct.ThrowIfCancellationRequested();
+                    commit(file, releaseId);
+                }
+                finally { dropCopy(temp); }
+            }
+            Debug.Log($"[Startup.Resource] builtin {file.path} bytes={file.size} seconds={timer.Elapsed.TotalSeconds:F3}");
+            return filePath(file);
+        }
+    }
 
     private sealed class StoreLock : IDisposable
     {
@@ -330,8 +405,7 @@ internal sealed class UpdStore
         {
             return false;
         }
-        bool matched = mBlobDisk.fileSize(path) == file.size &&
-            UpdHash.file(path, ct) == file.sha256;
+        bool matched = verified(path, file, ct);
         if (!matched)
         {
             mBlobDisk.quarantine(path);
@@ -428,7 +502,7 @@ internal sealed class UpdStore
         {
             return false;
         }
-        if (UpdHash.file(part, ct) == file.sha256)
+        if (verified(part, file, ct))
         {
             return true;
         }
@@ -458,21 +532,20 @@ internal sealed class UpdStore
     public void stage(UpdFile file, string releaseId, string source, UpdPhase phase,
         CancellationToken ct)
     {
-        if (!File.Exists(source) || mBlobDisk.fileSize(source) != file.size ||
-            UpdHash.file(source, ct) != file.sha256)
+        if (!verified(source, file, ct))
         {
             mBlobDisk.delete(source);
             UpdFail.bad(UpdCode.Hash, "stage", phase);
         }
         string part = partPath(releaseId, file.path);
         mBlobDisk.move(source, part);
+        remember(part, file);
     }
 
     public void commit(UpdFile file, string releaseId)
     {
         string source = rawPart(releaseId, file.path);
-        if (!File.Exists(source) || mBlobDisk.fileSize(source) != file.size ||
-            UpdHash.file(source, CancellationToken.None) != file.sha256)
+        if (!verified(source, file, CancellationToken.None))
         {
             throw new UpdBad(new UpdErr(UpdCode.Hash, "part", UpdPhase.Install,
                 null, 0, true));
@@ -480,8 +553,7 @@ internal sealed class UpdStore
         string target = filePath(file);
         if (File.Exists(target))
         {
-            if (mBlobDisk.fileSize(target) != file.size ||
-                UpdHash.file(target, CancellationToken.None) != file.sha256)
+            if (!verified(target, file, CancellationToken.None))
             {
                 mBlobDisk.quarantine(target);
             }
@@ -492,6 +564,7 @@ internal sealed class UpdStore
             }
         }
         mBlobDisk.move(source, target);
+        remember(target, file);
     }
 
     public void prune(UpdActive active, UpdActive previous)

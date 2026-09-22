@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using UObject = UnityEngine.Object;
 using static UnityUtility;
@@ -379,7 +379,8 @@ public class AssetBundleInfo : ClassObject
 			// 异步加载请求的资源
 			foreach (AssetInfo item in mLoadAsyncList)
 			{
-				item.loadAssetAsync();
+				if (assetBundle != null) item.loadAssetAsync();
+				else { item.setSubAssets(null); item.callbackAll(); }
 			}
 		}
 		// 加载状态为已卸载,表示在异步加载过程中,资源包被卸载掉了

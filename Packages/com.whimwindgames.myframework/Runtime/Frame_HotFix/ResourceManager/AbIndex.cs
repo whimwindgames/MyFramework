@@ -20,7 +20,7 @@ public sealed class AbItem
 public static class AbIndex
 {
 	const int MAGIC = 0x41424958;
-	const int VER = 3;
+	const int VER = 4;
 	const int MAX_ITEMS = 1000000;
 	const int MAX_DEPS = 10000;
 	public static Func<string, string> srcKey;
@@ -125,15 +125,25 @@ public static class AbIndex
 		SerializerWrite ser = new();
 		ser.write(MAGIC);
 		ser.write(VER);
+        // A bundle's dependencies are stored once instead of repeated for every asset.
+        var bundles = new SortedDictionary<string, List<string>>(StringComparer.Ordinal);
+        foreach (var item in items) bundles[item.bundle] = item.bdeps;
+        var ids = new Dictionary<string, int>(StringComparer.Ordinal);
+        ser.write(bundles.Count);
+        foreach (var bundle in bundles)
+        {
+            ids.Add(bundle.Key, ids.Count);
+            ser.writeString(bundle.Key);
+            ser.writeList(bundle.Value);
+        }
 		ser.write(items.Count);
 		foreach (AbItem item in items)
 		{
 			ser.writeString(item.key);
 			ser.writeString(item.name);
-			ser.writeString(item.bundle);
+			ser.write(ids[item.bundle]);
 			ser.writeString(item.scene);
 			ser.writeString(item.atlas);
-			ser.writeList(item.bdeps);
 		}
 		byte[] data = new byte[ser.getDataSize()];
 		Buffer.BlockCopy(ser.getBuffer(), 0, data, 0, data.Length);
@@ -154,23 +164,52 @@ public static class AbIndex
 		SerializerRead ser = new();
 		ser.init(data);
 		if (!ser.read(out int magic) || magic != MAGIC ||
-			!ser.read(out int ver) || ver != VER ||
-			!ser.read(out int count) || count < 0 || count > MAX_ITEMS)
-		{
-			throw new InvalidDataException("AB索引头无效");
-		}
-		List<AbItem> items = new(count);
-		for (int i = 0; i < count; ++i)
-		{
-			AbItem item = new();
-			if (!ser.readString(out item.key) || !ser.readString(out item.name) ||
-				!ser.readString(out item.bundle) || !ser.readString(out item.scene) ||
-				!ser.readString(out item.atlas) || !readVals(ser, item.bdeps))
-			{
-				throw new InvalidDataException("AB索引项无效:" + i);
-			}
-			items.Add(item);
-		}
+            !ser.read(out int ver) || (ver != 3 && ver != VER))
+            throw new InvalidDataException("AB索引头无效");
+        var bundles = new List<AbItem>();
+        if (ver == VER)
+        {
+            if (!ser.read(out int bundleCount) || bundleCount < 0 || bundleCount > MAX_ITEMS)
+                throw new InvalidDataException("AB索引包数量无效");
+            string previous = null;
+            for (int i = 0; i < bundleCount; ++i)
+            {
+                var bundle = new AbItem();
+                if (!ser.readString(out bundle.bundle) || !chkBundle(bundle.bundle) ||
+                    (previous != null && string.CompareOrdinal(previous, bundle.bundle) >= 0) ||
+                    !readVals(ser, bundle.bdeps)) throw new InvalidDataException("AB索引包无效");
+                previous = bundle.bundle;
+                bundles.Add(bundle);
+            }
+        }
+        if (!ser.read(out int count) || count < 0 || count > MAX_ITEMS)
+            throw new InvalidDataException("AB索引资源数量无效");
+        List<AbItem> items = new(count);
+        var usedBundles = new HashSet<int>();
+        for (int i = 0; i < count; ++i)
+        {
+            var item = new AbItem();
+            if (!ser.readString(out item.key) || !ser.readString(out item.name))
+                throw new InvalidDataException("AB索引项无效:" + i);
+            if (ver == 3)
+            {
+                if (!ser.readString(out item.bundle)) throw new InvalidDataException("AB索引包无效");
+            }
+            else
+            {
+                if (!ser.read(out int bundleId) || bundleId < 0 || bundleId >= bundles.Count)
+                    throw new InvalidDataException("AB索引包引用无效");
+                usedBundles.Add(bundleId);
+                item.bundle = bundles[bundleId].bundle;
+                item.bdeps.AddRange(bundles[bundleId].bdeps);
+            }
+            if (!ser.readString(out item.scene) || !ser.readString(out item.atlas) ||
+                (ver == 3 && !readVals(ser, item.bdeps)))
+                throw new InvalidDataException("AB索引项无效:" + i);
+            items.Add(item);
+        }
+        if (ver == VER && usedBundles.Count != bundles.Count)
+            throw new InvalidDataException("AB索引存在未使用的包");
 		if (ser.getIndex() != ser.getDataSize()) throw new InvalidDataException("AB索引存在尾随数据");
 		check(items);
 		return items;
@@ -217,6 +256,7 @@ public static class AbIndex
 			if (pkgDeps.TryGetValue(item.bundle, out List<string> oldDeps))
 			{
 				if (!sameVals(oldDeps, item.bdeps)) throw new InvalidDataException("同一AB的依赖不一致:" + item.bundle);
+				continue; // Identical package dependencies have already been validated.
 			}
 			else pkgDeps.Add(item.bundle, item.bdeps);
 			string packPrev = null;
@@ -228,9 +268,9 @@ public static class AbIndex
 				packPrev = dep;
 			}
 		}
-		foreach (AbItem item in items)
-		foreach (string dep in item.bdeps)
-			if (!bundles.Contains(dep)) throw new InvalidDataException("AB索引包依赖缺失:" + item.bundle + " -> " + dep);
+		foreach (var package in pkgDeps)
+		foreach (string dep in package.Value)
+			if (!bundles.Contains(dep)) throw new InvalidDataException("AB索引包依赖缺失:" + package.Key + " -> " + dep);
 		chkGraph(pkgDeps);
 	}
 
