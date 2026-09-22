@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [1.1.0-preview.49] - 2026-09-22
+
+### Added
+
+- `UpdNative`：随包的 Android 原生 SHA-256（`Runtime/Plugins/Android/libs/<abi>/libarcadesha.so`），摘要与托管实现逐位一致；低端真机实测 67.6 MB/s，对比托管的 2.2 MB/s 提升约 30 倍，库缺失时自动回退托管实现。
+- `UpdVerify`：加载页可用的全量校验入口（`UpdVerify.all(cfg, streamingRoot, workers, report, ct)`），返回 `UpdVerifyReport`（完成数 / 已完成字节 / 总字节 / 失败数 / `progress`），把资源校验成本前置到加载页，游戏中打开页面与弹窗不再等待。
+
+### Changed
+
+- `UpdHash.file` 优先走原生实现，不可用时回退托管实现，`sha256` 语义与清单格式不变。
+- `UpdStore.resolve` 增加 `globalLock` 开关：校验路径使用按 blob 的细粒度锁以支持真实并发，下载与安装仍保留仓库级锁以维持状态切换与回滚语义。
+
 ## [1.1.0-preview.48] - 2026-09-22
 
 ### Added

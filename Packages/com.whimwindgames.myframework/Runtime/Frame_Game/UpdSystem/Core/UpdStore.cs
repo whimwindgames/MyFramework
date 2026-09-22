@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 
 internal sealed class UpdStore
@@ -75,12 +76,20 @@ internal sealed class UpdStore
 
     internal string resolve(UpdFile file, string releaseId, CancellationToken ct)
     {
+        return resolve(file, releaseId, ct, true);
+    }
+
+    // globalLock=false is used by the full verification pass: different files then only
+    // contend on their own blob lock, so the loading screen can verify with real
+    // concurrency. Download/install keep the store-wide lock for state transitions.
+    internal string resolve(UpdFile file, string releaseId, CancellationToken ct, bool globalLock)
+    {
         lock (fileLock(file.sha256))
         {
             if (match(file, ct)) return filePath(file);
             if (!hasPacked(file)) UpdFail.bad(UpdCode.Hash, file.path, UpdPhase.Load);
             var timer = System.Diagnostics.Stopwatch.StartNew();
-            using (takeLock())
+            using (globalLock ? takeLock() : null)
             {
                 requireSpace(file.size);
                 string temp = copyPath(releaseId, file.path);
@@ -96,6 +105,62 @@ internal sealed class UpdStore
             Debug.Log($"[Startup.Resource] builtin {file.path} bytes={file.size} seconds={timer.Elapsed.TotalSeconds:F3}");
             return filePath(file);
         }
+    }
+
+    // 全量校验：加载页对当前 release 的每个文件跑一次 resolve（缺失即物化）。
+    // 走细粒度锁，所以 workers 是真实并行；下载/安装仍使用全局锁路径。
+    // 阻塞式：请在 worker 线程调用（与其它 store 操作一致）。
+    internal UpdVerifyReport verifyAll(UpdActive active, int workers,
+        Action<UpdVerifyReport> report, CancellationToken ct)
+    {
+        if (active == null) throw new ArgumentNullException(nameof(active));
+        byte[] raw = loadMan(active.releaseId);
+        if (raw.LongLength != active.manifestSize || UpdHash.data(raw) != active.manifestSha)
+        {
+            UpdFail.bad(UpdCode.Hash, "manifest", UpdPhase.Load);
+        }
+        UpdMan man = UpdJson.man(raw);
+        var result = new UpdVerifyReport { Total = man.files.Length };
+        for (int i = 0; i < man.files.Length; ++i)
+        {
+            result.TotalBytes += man.files[i].size;
+        }
+        report?.Invoke(result);
+
+        object gate = new object();
+        int next = 0;
+        int count = Math.Max(1, Math.Min(workers, Math.Max(1, man.files.Length)));
+        var tasks = new List<Task>(count);
+        for (int worker = 0; worker < count; ++worker)
+        {
+            tasks.Add(Task.Run(() =>
+            {
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    UpdFile file;
+                    lock (gate)
+                    {
+                        if (next >= man.files.Length) return;
+                        file = man.files[next++];
+                    }
+                    try
+                    {
+                        resolve(file, active.releaseId, ct, false);
+                    }
+                    catch (OperationCanceledException) { throw; }
+                    catch (Exception) { lock (gate) ++result.Failed; }
+                    lock (gate)
+                    {
+                        ++result.Done;
+                        result.DoneBytes += file.size;
+                    }
+                    report?.Invoke(result);
+                }
+            }, ct));
+        }
+        Task.WaitAll(tasks.ToArray());
+        return result;
     }
 
     private sealed class StoreLock : IDisposable
