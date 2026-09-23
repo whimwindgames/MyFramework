@@ -59,6 +59,15 @@ public sealed class UpdRes
         return Task.Run(() => getPath(path, ct), ct);
     }
 
+    internal UpdVerifyReport verifyAll(int workers, Action<UpdVerifyReport> report,
+        CancellationToken ct)
+    {
+        var files = new UpdFile[mFiles.Count];
+        int index = 0;
+        foreach (ResItem item in mFiles.Values) files[index++] = item.source;
+        return mStore.verifyAll(files, releaseId, workers, report, ct);
+    }
+
     public byte[] read(string path)
     {
         ResItem file = item(path);

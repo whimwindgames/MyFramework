@@ -107,29 +107,28 @@ internal sealed class UpdStore
         }
     }
 
-    // 全量校验：加载页对当前 release 的每个文件跑一次 resolve（缺失即物化）。
-    // 走细粒度锁，所以 workers 是真实并行；下载/安装仍使用全局锁路径。
-    // 阻塞式：请在 worker 线程调用（与其它 store 操作一致）。
-    internal UpdVerifyReport verifyAll(UpdActive active, int workers,
+    // Hold one store lease for the whole pass, including materialization. Workers share
+    // that lease and use per-blob locks; another store cannot prune/install concurrently.
+    internal UpdVerifyReport verifyAll(UpdFile[] files, string releaseId, int workers,
         Action<UpdVerifyReport> report, CancellationToken ct)
     {
-        if (active == null) throw new ArgumentNullException(nameof(active));
-        byte[] raw = loadMan(active.releaseId);
-        if (raw.LongLength != active.manifestSize || UpdHash.data(raw) != active.manifestSha)
+        ct.ThrowIfCancellationRequested();
+        using IDisposable lease = takeLock();
+        int done = 0, failed = 0;
+        long totalBytes = 0, doneBytes = 0;
+        string failedPath = null;
+        Exception firstError = null;
+        foreach (UpdFile file in files) totalBytes += file.size;
+        UpdVerifyReport snapshot() => new UpdVerifyReport
         {
-            UpdFail.bad(UpdCode.Hash, "manifest", UpdPhase.Load);
-        }
-        UpdMan man = UpdJson.man(raw);
-        var result = new UpdVerifyReport { Total = man.files.Length };
-        for (int i = 0; i < man.files.Length; ++i)
-        {
-            result.TotalBytes += man.files[i].size;
-        }
-        report?.Invoke(result);
-
+            Total = files.Length, Done = done, Failed = failed,
+            TotalBytes = totalBytes, DoneBytes = doneBytes,
+            FailedPath = failedPath, FirstError = firstError,
+        };
+        report?.Invoke(snapshot());
         object gate = new object();
         int next = 0;
-        int count = Math.Max(1, Math.Min(workers, Math.Max(1, man.files.Length)));
+        int count = Math.Max(1, Math.Min(workers, Math.Max(1, files.Length)));
         var tasks = new List<Task>(count);
         for (int worker = 0; worker < count; ++worker)
         {
@@ -141,26 +140,37 @@ internal sealed class UpdStore
                     UpdFile file;
                     lock (gate)
                     {
-                        if (next >= man.files.Length) return;
-                        file = man.files[next++];
+                        if (next >= files.Length) return;
+                        file = files[next++];
                     }
+                    Exception failure = null;
                     try
                     {
-                        resolve(file, active.releaseId, ct, false);
+                        resolve(file, releaseId, ct, false);
                     }
                     catch (OperationCanceledException) { throw; }
-                    catch (Exception) { lock (gate) ++result.Failed; }
+                    catch (Exception error) { failure = error; }
                     lock (gate)
                     {
-                        ++result.Done;
-                        result.DoneBytes += file.size;
+                        if (failure != null)
+                        {
+                            ++failed;
+                            if (firstError == null) { firstError = failure; failedPath = file.path; }
+                        }
+                        ++done;
+                        doneBytes += file.size;
+                        report?.Invoke(snapshot());
                     }
-                    report?.Invoke(result);
                 }
             }, ct));
         }
-        Task.WaitAll(tasks.ToArray());
-        return result;
+        try { Task.WaitAll(tasks.ToArray()); }
+        catch (AggregateException) when (ct.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(ct);
+        }
+        ct.ThrowIfCancellationRequested();
+        return snapshot();
     }
 
     private sealed class StoreLock : IDisposable

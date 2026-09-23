@@ -5,16 +5,16 @@ using System.Diagnostics;
 // UI polls immutable snapshots, so worker threads never touch Unity objects.
 public static class FrameBootProgress
 {
-    public enum Step { ReadCode, Metadata, Assemblies, Framework, Data, Systems, Views }
-    public const int StepCount = 7;
+    public enum Step { Verify, ReadCode, Metadata, Assemblies, Framework, Data, Systems, Views }
+    public const int StepCount = 8;
     public sealed class Snapshot
     {
         public readonly Step step;
-        public readonly int done, total;
+        public readonly long done, total;
         public readonly string detail;
         public readonly double elapsed;
         public readonly float fraction;
-        internal Snapshot(Step step, int done, int total, string detail, double elapsed)
+        internal Snapshot(Step step, long done, long total, string detail, double elapsed)
         {
             this.step = step; this.done = done; this.total = total;
             this.detail = detail; this.elapsed = elapsed;
@@ -24,7 +24,7 @@ public static class FrameBootProgress
     static readonly object Gate = new();
     static readonly Stopwatch Clock = new();
     static Step sStep;
-    static int sDone, sTotal = 1;
+    static long sDone, sTotal = 1;
     static string sDetail;
     static Exception sError;
     static bool sActive;
@@ -33,11 +33,14 @@ public static class FrameBootProgress
     {
         lock (Gate)
         {
-            sStep = Step.ReadCode; sDone = 0; sTotal = 1;
-            sDetail = "准备游戏代码"; sError = null; sActive = true; Clock.Restart();
+            sStep = Step.Verify; sDone = 0; sTotal = 1;
+            sDetail = "校验本地资源"; sError = null; sActive = true; Clock.Restart();
         }
     }
     public static void Report(Step step, int done, int total, string detail)
+        => Report(step, (long)done, total, detail);
+
+    public static void Report(Step step, long done, long total, string detail)
     {
         lock (Gate)
         {
