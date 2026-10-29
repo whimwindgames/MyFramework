@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Diagnostics;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine.Networking;
@@ -55,13 +56,16 @@ internal sealed class UpdHttp
             sink = new FileSink(dst, from, file.size, prog);
             using (UnityWebRequest req = makeReq(url(path), sink))
             {
+                // Large resources have no total duration limit. Only a lack of
+                // accepted bytes triggers a reconnect, preserving the part file.
+                req.timeout = 0;
                 sink.bind(req);
                 req.SetRequestHeader("Accept-Encoding", "identity");
                 if (from > 0)
                 {
                     req.SetRequestHeader("Range", "bytes=" + from.ToString(CultureInfo.InvariantCulture) + "-");
                 }
-                UpdErr waitErr = await send(req, UpdPhase.Down, ct);
+                UpdErr waitErr = await sendDownload(req, sink, ct);
                 sink.close();
                 if (waitErr != null)
                 {
@@ -95,6 +99,50 @@ internal sealed class UpdHttp
                 sink.close();
                 sink.Dispose();
             }
+        }
+    }
+
+    internal async UniTask<UpdErr> sendDownload(UnityWebRequest req, FileSink sink,
+        CancellationToken ct)
+    {
+        Stopwatch clock = Stopwatch.StartNew();
+        var watch = new UpdDownloadWatch(sink.got, mTimeout * 1000L);
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            req.timeout = 0;
+            var operation = req.SendWebRequest();
+            while (!operation.isDone)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (watch.stalled(sink.got, clock.ElapsedMilliseconds))
+                {
+                    req.Abort();
+                    return new UpdErr(UpdCode.Net, "no_progress_timeout", UpdPhase.Down,
+                        null, req.responseCode, true);
+                }
+                // Poll cancellation on the player loop. A progress callback can
+                // cancel the token inside ReceiveData; aborting/disposal from
+                // that native callback is re-entrant and can crash Unity.
+                await UniTask.Delay(100, DelayType.Realtime,
+                    cancellationToken: ct);
+            }
+            ct.ThrowIfCancellationRequested();
+            // Truncated connections can also leave FileSink with a length
+            // error. Preserve the transport error so reconnects remain unlimited.
+            return req.result == UnityWebRequest.Result.ConnectionError
+                ? getErr(req, UpdPhase.Down) : null;
+        }
+        catch (OperationCanceledException ex)
+        {
+            req.Abort();
+            return new UpdErr(UpdCode.Cancel, "request", UpdPhase.Down, ex);
+        }
+        catch (Exception ex)
+        {
+            req.Abort();
+            return new UpdErr(UpdCode.Net, "request", UpdPhase.Down, ex,
+                req.responseCode, true);
         }
     }
 
@@ -191,7 +239,10 @@ internal sealed class UpdHttp
         {
             return httpErr(req, phase);
         }
-        return new UpdErr(UpdCode.Net, "request", phase, null, req.responseCode, true);
+        string error = req.error ?? "request_failed";
+        bool certificate = error.IndexOf("certificate", StringComparison.OrdinalIgnoreCase) >= 0;
+        return new UpdErr(UpdCode.Net, certificate ? "tls_certificate" : "request", phase,
+            new IOException(error), req.responseCode, !certificate);
     }
 
     private static UpdErr httpErr(UnityWebRequest req, UpdPhase phase)
@@ -234,6 +285,56 @@ internal sealed class UpdHttp
     private static string esc(string value)
     {
         return Uri.EscapeDataString(value);
+    }
+}
+
+internal sealed class UpdDownloadWatch
+{
+    private readonly long mTimeoutMs;
+    private long mBytes;
+    private long mLastProgressMs;
+
+    public UpdDownloadWatch(long bytes, long timeoutMs)
+    {
+        mBytes = bytes;
+        mTimeoutMs = timeoutMs;
+    }
+
+    public bool stalled(long bytes, long nowMs)
+    {
+        if (bytes > mBytes)
+        {
+            mBytes = bytes;
+            mLastProgressMs = nowMs;
+        }
+        return nowMs - mLastProgressMs >= mTimeoutMs;
+    }
+}
+
+internal sealed class UpdDownloadRetry
+{
+    private readonly int mIntegrityLimit;
+    private int mIntegrityFailures;
+    private int mNetworkFailures;
+    public int delayMs { get; private set; }
+
+    public UpdDownloadRetry(int integrityLimit) => mIntegrityLimit = integrityLimit;
+
+    public bool again(UpdErr err, bool madeProgress)
+    {
+        if (err == null || !err.canRetry) return false;
+        // A network outage must never exhaust a resource's retry budget.
+        // Corrupt data and invalid Range responses still have a bounded repair
+        // budget, independent of network failures or partial byte progress.
+        if (err.code == UpdCode.Net || err.code == UpdCode.Http)
+        {
+            if (madeProgress) mNetworkFailures = 0;
+            delayMs = 250 * (1 << mNetworkFailures);
+            mNetworkFailures = Math.Min(mNetworkFailures + 1, 5);
+            return true;
+        }
+        delayMs = 250 * (1 << Math.Min(mIntegrityFailures, 3));
+        return mIntegrityFailures++ < mIntegrityLimit;
     }
 }
 

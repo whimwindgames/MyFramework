@@ -26,6 +26,7 @@ public sealed class UpdRes
     private readonly Dictionary<string, byte[]> mBoot;
     private readonly UpdCfg mCfg;
     private readonly UpdStore mStore;
+    private readonly UpdMan mMan;
 
     public string releaseId { get; }
     internal long seq { get; }
@@ -40,6 +41,7 @@ public sealed class UpdRes
         latestSha = active.latestSha;
         mCfg = copy(cfg);
         mStore = store;
+        mMan = man;
         mBoot = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         mFiles = new Dictionary<string, ResItem>(man.files.Length, StringComparer.Ordinal);
         for (int i = 0; i < man.files.Length; ++i)
@@ -86,6 +88,11 @@ public sealed class UpdRes
     internal UpdCfg getCfg()
     {
         return copy(mCfg);
+    }
+
+    internal UpdMan getMan()
+    {
+        return mMan;
     }
 
     internal void checkBoot()

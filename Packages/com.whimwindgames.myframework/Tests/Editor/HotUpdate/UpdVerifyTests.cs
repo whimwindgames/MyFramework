@@ -81,6 +81,77 @@ public sealed class UpdVerifyTests
         Assert.That(result.FirstError, Is.Not.Null);
     }
 
+    [Test]
+    public void MissingHotOnlyResourceRequestsRepairAcrossRestart()
+    {
+        byte[] data = new byte[4096];
+        Array.Fill(data, (byte)0x5a);
+        var remote = new UpdFile
+        {
+            path = "hot/only.bundle", size = data.Length, sha256 = UpdHash.data(data),
+        };
+        string copy = store.copyPath(resources.releaseId, remote.path);
+        File.WriteAllBytes(copy, data);
+        store.stage(remote, resources.releaseId, copy, UpdPhase.Copy, CancellationToken.None);
+        store.commit(remote, resources.releaseId);
+        File.Delete(store.filePath(remote));
+
+        UpdRes hotOnly = UpdRes.make(store, new UpdMan { files = new[] { remote } },
+            new UpdActive { releaseId = resources.releaseId }, cfg);
+        UpdVerifyReport result = Task.Run(() => UpdVerify.all(hotOnly, 2, null,
+            CancellationToken.None)).GetAwaiter().GetResult();
+
+        Assert.That(result.Failed, Is.EqualTo(1));
+        Assert.That(result.FailedPath, Is.EqualTo(remote.path));
+        var reopened = new UpdStore(cfg, Path.Combine(root, "cache"));
+        Assert.That(reopened.needsRepair(resources.releaseId), Is.True);
+    }
+
+    [Test]
+    public void CancelledVerificationKeepsRepairRequest()
+    {
+        byte[] data = new byte[4096];
+        Array.Fill(data, (byte)0x5a);
+        var remote = new UpdFile
+        {
+            path = "hot/only.bundle", size = data.Length, sha256 = UpdHash.data(data),
+        };
+        var hotOnly = UpdRes.make(store, new UpdMan { files = new[] { remote } },
+            new UpdActive { releaseId = resources.releaseId }, cfg);
+        using var cancel = new CancellationTokenSource();
+
+        Assert.Throws<OperationCanceledException>(() => Task.Run(() =>
+            UpdVerify.all(hotOnly, 1, progress =>
+            {
+                if (progress.Failed > 0) cancel.Cancel();
+            }, cancel.Token)).GetAwaiter().GetResult());
+        Assert.That(new UpdStore(cfg, Path.Combine(root, "cache"))
+            .needsRepair(resources.releaseId), Is.True);
+    }
+
+    [Test]
+    public void RepairRequestKeepsCandidateEligibleAfterFailedBoots()
+    {
+        var active = new UpdActive
+        {
+            schema = UpdLim.Schema, seq = 3, releaseId = "release-1",
+            manifestSha = new string('a', 64), manifestSize = 1,
+            latestSha = new string('b', 64),
+        };
+        store.saveActive(active);
+        store.saveCandidate(new UpdCandidate
+        {
+            schema = UpdLim.Schema, target = active, attempts = 2,
+        });
+        store.markRepair(active.releaseId);
+
+        UpdActive found = store.prepareBoot(out UpdActive rejected);
+
+        Assert.That(found?.releaseId, Is.EqualTo(active.releaseId));
+        Assert.That(rejected, Is.Null);
+        Assert.That(store.loadCandidate()?.attempts, Is.EqualTo(2));
+    }
+
     static UpdFile write(string packed, string relative, byte fill)
     {
         byte[] data = new byte[256 * 1024];

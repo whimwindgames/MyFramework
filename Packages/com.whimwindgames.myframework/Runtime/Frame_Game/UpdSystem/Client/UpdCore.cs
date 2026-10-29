@@ -137,6 +137,8 @@ public sealed class UpdCore
             if (local != null && canUseLocal(headRet.err))
             {
                 report(UpdPhase.Latest, null, 4, 4);
+                if (mStore.needsRepair(local.releaseId))
+                    return await repairLocalRelease(local, local.getMan(), ct);
                 report(UpdPhase.Ready);
                 return UpdRet<UpdRes>.pass(local);
             }
@@ -151,6 +153,8 @@ public sealed class UpdCore
                     "rejected_latest", UpdPhase.Latest));
             }
             report(UpdPhase.Latest, null, 4, 4);
+            if (mStore.needsRepair(local.releaseId))
+                return await repairLocalRelease(local, local.getMan(), ct);
             report(UpdPhase.Ready);
             return UpdRet<UpdRes>.pass(local);
         }
@@ -161,7 +165,9 @@ public sealed class UpdCore
         }
         await acceptHead(head, ct);
         report(UpdPhase.Latest, null, 4, 4);
-        if (local != null && sameHead(head, local))
+        bool sameLocal = local != null && sameHead(head, local);
+        bool repairing = sameLocal && mStore.needsRepair(local.releaseId);
+        if (sameLocal && !repairing)
         {
             report(UpdPhase.Ready);
             return UpdRet<UpdRes>.pass(local);
@@ -175,6 +181,7 @@ public sealed class UpdCore
         }
         UpdDoc doc = docRet.value;
         report(UpdPhase.Manifest, null, 1, 1);
+        if (repairing) return await repairLocalRelease(local, doc.man, ct);
         report(UpdPhase.Plan);
         UpdRet<List<UpdFile>> syncRet = await syncFiles(doc.man, ct);
         if (!syncRet.ok)
@@ -182,6 +189,19 @@ public sealed class UpdCore
             return UpdRet<UpdRes>.fail(syncRet.err);
         }
         UpdRes res = await install(doc, head, syncRet.value, ct);
+        report(UpdPhase.Ready);
+        return UpdRet<UpdRes>.pass(res);
+    }
+
+    private async UniTask<UpdRet<UpdRes>> repairLocalRelease(UpdRes local,
+        UpdMan man, CancellationToken ct)
+    {
+        report(UpdPhase.Plan);
+        UpdRet<List<UpdFile>> syncRet = await syncFiles(man, ct);
+        if (!syncRet.ok) return UpdRet<UpdRes>.fail(syncRet.err);
+        // The currently active signed release is unchanged. Commit repaired
+        // blobs without re-activating it or creating a self-referential candidate.
+        UpdRes res = await repairLocal(local, syncRet.value, ct);
         report(UpdPhase.Ready);
         return UpdRet<UpdRes>.pass(res);
     }
@@ -444,23 +464,39 @@ public sealed class UpdCore
             startDn();
             report(UpdPhase.Down, null, 0, downs.Count, 0, mDnSize);
         }
+        UpdRet<bool> downloaded = await runDownloads(downs.Count,
+            (index, token) => safeDown(downs[index], man.releaseId, index, downs.Count, token), ct);
+        return downloaded.ok ? UpdRet<List<UpdFile>>.pass(changed)
+            : UpdRet<List<UpdFile>>.fail(downloaded.err);
+    }
+
+    internal static async UniTask<UpdRet<bool>> runDownloads(int count,
+        Func<int, CancellationToken, UniTask<UpdRet<bool>>> download, CancellationToken ct)
+    {
         int next = -1;
         int failed = 0;
-        int wCnt = Math.Min(4, downs.Count);
+        UpdErr firstFailure = null;
+        using var downloadCancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        int wCnt = Math.Min(4, count);
         UniTask<UpdRet<bool>>[] workers = new UniTask<UpdRet<bool>>[wCnt];
         async UniTask<UpdRet<bool>> runDn()
         {
             while (Volatile.Read(ref failed) == 0)
             {
                 int index = Interlocked.Increment(ref next);
-                if (index >= downs.Count)
+                if (index >= count)
                 {
                     return UpdRet<bool>.pass(true);
                 }
-                UpdRet<bool> result = await safeDown(downs[index], man.releaseId,
-                    index, downs.Count, ct);
+                UpdRet<bool> result = await download(index, downloadCancel.Token);
                 if (result.ok) continue;
                 Interlocked.Exchange(ref failed, 1);
+                if (Interlocked.CompareExchange(ref firstFailure, result.err, null) == null)
+                {
+                    // Other workers can now retry forever. Stop them on a fatal
+                    // sibling failure so WhenAll cannot hide that error forever.
+                    downloadCancel.Cancel();
+                }
                 return result;
             }
             return UpdRet<bool>.pass(true);
@@ -470,14 +506,18 @@ public sealed class UpdCore
             workers[i] = runDn();
         }
         UpdRet<bool>[] results = await UniTask.WhenAll(workers);
+        if (firstFailure != null)
+        {
+            return UpdRet<bool>.fail(firstFailure);
+        }
         for (int i = 0; i < results.Length; ++i)
         {
             if (!results[i].ok)
             {
-                return UpdRet<List<UpdFile>>.fail(results[i].err);
+                return UpdRet<bool>.fail(results[i].err);
             }
         }
-        return UpdRet<List<UpdFile>>.pass(changed);
+        return UpdRet<bool>.pass(true);
     }
 
     private PlanRow[] scanRows(UpdMan man, int from, int count, CancellationToken ct)
@@ -565,9 +605,10 @@ public sealed class UpdCore
     {
         UpdFile file = job.file;
         UpdErr last = null;
-        int tries = 0;
-        while (tries <= mCfg.retry)
+        var retry = new UpdDownloadRetry(mCfg.retry);
+        while (true)
         {
+            ct.ThrowIfCancellationRequested();
             long got = await runIo(() => mStore.prepPart(releaseId, file), ct);
             if (got == file.size)
             {
@@ -612,15 +653,20 @@ public sealed class UpdCore
                 await runIo(() => mStore.resetPart(releaseId, file.path), ct);
                 fixDn(job, 0);
                 pushDn(job, done, total, true);
-                continue;
             }
             pushDn(job, done, total, true);
-            if (!canRetry(last, tries))
+            if (!retry.again(last, safe > got))
             {
+                UnityEngine.Debug.LogError($"[Startup.Download] failed file={file.path} " +
+                    $"offset={safe}/{file.size} error={last} http={last?.http}");
                 break;
             }
-            await waitRetry(tries, ct);
-            ++tries;
+            UnityEngine.Debug.LogWarning($"[Startup.Download] retry file={file.path} " +
+                $"offset={safe}/{file.size} error={last} http={last.http} delayMs={retry.delayMs}");
+            report(UpdPhase.Down, file.path, done, total, mDnGot, mDnSize,
+                reconnecting: last.code == UpdCode.Net || last.code == UpdCode.Http);
+            await UniTask.Delay(retry.delayMs, DelayType.Realtime,
+                cancellationToken: ct, cancelImmediately: true);
         }
         return UpdRet<bool>.fail(last ?? new UpdErr(UpdCode.Net, "file", UpdPhase.Down));
     }
@@ -705,11 +751,30 @@ public sealed class UpdCore
                 made.checkBoot();
                 mStore.activate(target);
                 mStore.prune(target, mStore.loadPrevious());
+                mStore.clearRepair(target.releaseId);
                 return made;
             }, CancellationToken.None);
             report(UpdPhase.Install, null, total, total, 0, 0, 0, 0);
             return res;
         }
+    }
+
+    private async UniTask<UpdRes> repairLocal(UpdRes local, List<UpdFile> changed,
+        CancellationToken ct)
+    {
+        int total = changed.Count + 1;
+        report(UpdPhase.Install, null, 0, total);
+        ct.ThrowIfCancellationRequested();
+        for (int i = 0; i < changed.Count; ++i)
+        {
+            UpdFile file = changed[i];
+            await runIo(() => mStore.commit(file, local.releaseId), CancellationToken.None);
+            report(UpdPhase.Install, file.path, i + 1, total);
+        }
+        ct.ThrowIfCancellationRequested();
+        await runIo(() => mStore.clearRepair(local.releaseId), CancellationToken.None);
+        report(UpdPhase.Install, null, total, total);
+        return local;
     }
 
     private bool sameHead(UpdHead head, UpdState state)
@@ -795,7 +860,8 @@ public sealed class UpdCore
     }
 
     private void report(UpdPhase phase, string path = null, int done = 0, int total = 0,
-        long downGot = 0, long downSize = 0, long bps = 0, int etaSec = -1)
+        long downGot = 0, long downSize = 0, long bps = 0, int etaSec = -1,
+        bool reconnecting = false)
     {
         if (mPhaseTime == null || mPhase != phase)
         {
@@ -830,6 +896,7 @@ public sealed class UpdCore
                 downSize = downSize,
                 bps = bps,
                 etaSec = etaSec,
+                reconnecting = reconnecting,
                 rate = mRate,
             });
         }

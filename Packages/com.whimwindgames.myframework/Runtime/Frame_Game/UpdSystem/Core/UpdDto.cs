@@ -157,5 +157,6 @@ public sealed class UpdProg
     public long downSize;
     public long bps;
     public int etaSec = -1;
+    public bool reconnecting;
     public float rate;
 }

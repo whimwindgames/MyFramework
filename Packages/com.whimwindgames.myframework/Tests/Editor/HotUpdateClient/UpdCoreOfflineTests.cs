@@ -54,6 +54,9 @@ public sealed class UpdCoreOfflineTests
         };
         store.saveMan(active.releaseId, manifest);
         store.saveActive(active);
+        // A previous verification requested repair. All cached files are already
+        // healthy, so the offline recovery path should clear the stale request.
+        store.markRepair(active.releaseId);
         List<UpdPhase> phases = new List<UpdPhase>();
         UpdCore core = new UpdCore(cfg, progress => phases.Add(progress.phase),
             null, mRoot, Path.Combine(mRoot, "builtin"));
@@ -63,6 +66,8 @@ public sealed class UpdCoreOfflineTests
         Assert.That(result.ok, Is.True, result.err == null ? string.Empty : result.err.ToString());
         Assert.That(result.value.releaseId, Is.EqualTo(active.releaseId));
         Assert.That(result.value.read(UpdContract.EntryDll), Is.EqualTo(entry));
+        Assert.That(store.needsRepair(active.releaseId), Is.False);
+        Assert.That(store.loadActive()?.releaseId, Is.EqualTo(active.releaseId));
         Assert.That(phases[phases.Count - 1], Is.EqualTo(UpdPhase.Ready));
     }
 

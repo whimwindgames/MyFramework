@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -19,6 +20,7 @@ internal sealed class UpdStore
     private readonly string mPrevious;
     private readonly string mCandidate;
     private readonly string mRejected;
+    private readonly string mRepair;
     private readonly string mLock;
     private readonly object mLockSync = new object();
     private FileStream mHeldLock;
@@ -115,6 +117,7 @@ internal sealed class UpdStore
         ct.ThrowIfCancellationRequested();
         using IDisposable lease = takeLock();
         int done = 0, failed = 0;
+        bool repairNeeded = false;
         long totalBytes = 0, doneBytes = 0;
         string failedPath = null;
         Exception firstError = null;
@@ -156,6 +159,14 @@ internal sealed class UpdStore
                         {
                             ++failed;
                             if (firstError == null) { firstError = failure; failedPath = file.path; }
+                            if (!repairNeeded && !hasPacked(file) && failure is UpdBad bad &&
+                                bad.err?.code == UpdCode.Hash)
+                            {
+                                // Persist before invoking the caller's progress callback. It may
+                                // cancel the pass or the process may stop before all workers finish.
+                                markRepair(releaseId);
+                                repairNeeded = true;
+                            }
                         }
                         ++done;
                         doneBytes += file.size;
@@ -215,6 +226,7 @@ internal sealed class UpdStore
         mPrevious = Path.Combine(mDisk.root, "previous.json");
         mCandidate = Path.Combine(mDisk.root, "candidate.json");
         mRejected = Path.Combine(mDisk.root, "rejected.json");
+        mRepair = Path.Combine(mDisk.root, "repair.txt");
         mLock = Path.Combine(mBlobDisk.root, "upd.lock");
     }
 
@@ -344,6 +356,33 @@ internal sealed class UpdStore
         mDisk.delete(mRejected);
     }
 
+    // A failed full verification can find a damaged file that is not in the APK.
+    // Keep this small marker across process restarts so an unchanged Latest is
+    // scanned/downloaded again instead of taking the healthy-release fast path.
+    internal bool needsRepair(string releaseId)
+    {
+        if (!File.Exists(mRepair)) return false;
+        try
+        {
+            return Encoding.UTF8.GetString(mDisk.read(mRepair, 256)) == releaseId;
+        }
+        catch (Exception)
+        {
+            // A damaged marker must not suppress a possible repair.
+            return true;
+        }
+    }
+
+    internal void markRepair(string releaseId)
+    {
+        mDisk.write(mRepair, Encoding.UTF8.GetBytes(releaseId));
+    }
+
+    internal void clearRepair(string releaseId)
+    {
+        if (needsRepair(releaseId)) mDisk.delete(mRepair);
+    }
+
     public UpdActive prepareBoot(out UpdActive rejected)
     {
         rejected = loadRejected();
@@ -362,6 +401,9 @@ internal sealed class UpdStore
             }
             return active;
         }
+        // Resource corruption is repairable. Do not count it as another failed
+        // code boot and permanently reject the signed release before retrying IO.
+        if (needsRepair(candidate.target.releaseId)) return active;
         if (candidate.attempts < 2)
         {
             ++candidate.attempts;
